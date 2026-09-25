@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --hud-bg: #090A0F;
+  --hud-card: #121520;
+  --hud-border: #1E2436;
+  --neon-cyan: #00F0FF;
+  --neon-amber: #FFB800;
+  --neon-emerald: #10B981;
+  --neon-crimson: #FF0055;
+}
+
+body {
+  background-color: var(--hud-bg);
+  color: #E2E8F0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Glassmorphism Frosted Acrylic Utility */
+.glass-panel {
+  background: rgba(18, 21, 32, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+}
+
+.glass-panel-glow {
+  background: rgba(18, 21, 32, 0.85);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.15);
+}
+
+/* Cyber Scanlines Overlay */
+.cyber-scanlines {
+  background: linear-gradient(
+    rgba(18, 16, 16, 0) 50%,
+    rgba(0, 0, 0, 0.25) 50%
+  );
+  background-size: 100% 4px;
+  pointer-events: none;
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #090A0F;
+}
+::-webkit-scrollbar-thumb {
+  background: #1E2436;
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #00F0FF;
+}
