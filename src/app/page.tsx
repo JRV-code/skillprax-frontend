@@ -1,9 +1,9 @@
 import Link from 'next/link';
 import { Terminal, Shield, Zap, Cpu, Sparkles } from 'lucide-react';
-import { getApiUrl } from '@/lib/env';
+import { API_BASE_URL } from '@/lib/api';
 
 export default function Home() {
-  const apiUrl = getApiUrl();
+  const apiUrl = API_BASE_URL;
 
   return (
     <main className="min-h-screen flex flex-col items-center justify-center relative p-6 overflow-hidden">
