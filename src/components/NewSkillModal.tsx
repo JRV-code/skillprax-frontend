@@ -1,19 +1,19 @@
-'use client';
-
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, Leaf, Calculator, TrendingUp, Palette, BookOpen, Activity, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Atom, Sigma, Cpu, Users, TrendingUp, BookOpen, Palette, Activity, Wrench, ArrowRight, Sparkles, X } from 'lucide-react';
 import { AIProvider } from '@/lib/types';
-import { DOMAIN_CATEGORIES } from '@/lib/domains';
+import { UNIVERSAL_DOMAINS } from '@/lib/domains';
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
-  Leaf,
+  Atom,
+  Sigma,
   Cpu,
-  Calculator,
+  Users,
   TrendingUp,
-  Palette,
   BookOpen,
+  Palette,
   Activity,
+  Wrench,
 };
 
 interface NewSkillModalProps {
@@ -37,7 +37,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    category: DOMAIN_CATEGORIES[0].name as string,
+    category: UNIVERSAL_DOMAINS[0].label as string,
     baselineKnowledge: '',
     targetGoal: '',
     preferredProvider: 'groq' as AIProvider,
@@ -88,7 +88,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     Calibration Stage {wizardStage} of 3
                   </span>
                   <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                    {wizardStage === 1 && 'Domain & Specific Learning Focus'}
+                    {wizardStage === 1 && 'Universal Domain & Specific Learning Focus'}
                     {wizardStage === 2 && 'Baseline & Target Goal Assessment'}
                     {wizardStage === 3 && 'AI Multi-LLM Engine Selection'}
                   </h2>
@@ -107,28 +107,29 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Specific Skill or Learning Topic
+                      Specific Study Subject / Goal
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Astrophysics Fundamentals, Blender 3D Modeling, Game Theory & Strategy"
+                      placeholder="e.g. Quantum Chromodynamics, Botanical Taxonomy of Fungi, PostgreSQL WAL, Game Theory"
                       className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
                     />
 
                     {/* Auto-Suggestion Chips */}
                     <div className="mt-2.5">
                       <span className="text-[10px] font-mono text-slate-500 block mb-1.5">
-                        Suggested Topics Across Domains:
+                        Suggested Topics Across Universal Pillars:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          { title: 'Quantum Mechanics Basics', category: 'Natural Sciences & Nature' },
-                          { title: 'Blender 3D Asset Creation', category: 'Creative Arts, Design & Media' },
-                          { title: 'Distributed Systems & Raft', category: 'Engineering & Applied Technology' },
-                          { title: 'Behavioral Economics', category: 'Business, Finance & Economics' },
-                          { title: 'Cognitive Neuroscience', category: 'Humanities, History & Philosophy' },
+                          { title: 'Quantum Chromodynamics', category: 'Natural & Physical Sciences' },
+                          { title: 'Game Theory & Nash Equilibrium', category: 'Formal Sciences & Mathematics' },
+                          { title: 'PostgreSQL Write-Ahead Logging', category: 'Engineering & Applied Technology' },
+                          { title: 'Behavioral Economics & Choice Architecture', category: 'Social Sciences & Human Behavior' },
+                          { title: 'Blender 3D Spatial Modeling', category: 'Arts, Media & Spatial Design' },
+                          { title: 'Audio Electronics & Soldering', category: 'Practical Crafts & Applied Trades' },
                         ].map((sugg) => (
                           <button
                             key={sugg.title}
@@ -151,17 +152,17 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-2">
-                      Broad Knowledge Domain
+                      Universal Knowledge Taxonomy (9 Pillars)
                     </label>
-                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
-                      {DOMAIN_CATEGORIES.map((dom) => {
-                        const isSelected = formData.category === dom.name;
+                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
+                      {UNIVERSAL_DOMAINS.map((dom) => {
+                        const isSelected = formData.category === dom.label;
                         const IconComp = iconMap[dom.icon] || Cpu;
                         return (
                           <button
                             key={dom.id}
                             type="button"
-                            onClick={() => setFormData({ ...formData, category: dom.name })}
+                            onClick={() => setFormData({ ...formData, category: dom.label })}
                             className={`w-full p-2.5 rounded-xl text-left border transition flex items-center gap-3 ${
                               isSelected
                                 ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300 cyber-glow-cyan'
@@ -172,8 +173,8 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                               <IconComp className="w-4 h-4" />
                             </div>
                             <div className="flex flex-col">
-                              <span className="text-xs font-semibold text-slate-200">{dom.name}</span>
-                              <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.examples}</span>
+                              <span className="text-xs font-semibold text-slate-200">{dom.label}</span>
+                              <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.description}</span>
                             </div>
                           </button>
                         );

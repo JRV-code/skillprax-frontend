@@ -450,7 +450,7 @@ export default function WorkspaceStudioPage() {
 
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400 font-mono">
-                          Threshold: <strong className="text-cyan-400">{step.passingScore}%</strong> ({step.questionCount || 5} Questions · AI Sized)
+                          Evaluation Gate: <strong className="text-cyan-400">{step.questionCount || 5} Questions</strong> (Targeted to Step Complexity) · {step.passingScore}% Mastery Threshold
                         </span>
 
                         <span
@@ -575,7 +575,7 @@ export default function WorkspaceStudioPage() {
                               {resourcesList.map((res: ResourceItem, rIdx: number) => {
                                 const priority = res.priority || rIdx + 1;
                                 const badge = res.badge || (priority === 1 ? 'START HERE' : 'DEEP STUDY');
-                                const guidance = res.studyGuidance || res.whyThisFirst;
+                                const guidance = res.pedagogicalRole || res.studyGuidance || res.whyThisFirst;
                                 const resType = (res.type || 'guide').toLowerCase();
 
                                 return (
@@ -614,14 +614,14 @@ export default function WorkspaceStudioPage() {
                                                   : 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
                                               }`}
                                             >
-                                              Priority {priority} · {badge}
+                                              [{badge}]
                                             </span>
                                             <h5 className="text-xs font-bold text-slate-100">{res.title}</h5>
                                           </div>
 
                                           {guidance && (
                                             <p className="text-[11px] text-slate-300 leading-normal mt-1 font-mono italic">
-                                              <strong className="text-cyan-400 font-semibold not-italic">Study Guidance: </strong>
+                                              <strong className="text-cyan-400 font-semibold not-italic">Pedagogical Briefing: </strong>
                                               {guidance}
                                             </p>
                                           )}
@@ -689,40 +689,18 @@ export default function WorkspaceStudioPage() {
 
               <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] space-y-4 text-xs text-slate-300">
                 <p>
-                  Are you ready to test your understanding of this step?
+                  Are you ready to test your competency in <strong className="text-slate-100">{selectedStep.title}</strong>?
                 </p>
                 
-                <div className="space-y-2">
-                  <label className="block text-[11px] font-mono text-cyan-400 uppercase tracking-wider">
-                    Select Evaluation Question Volume:
-                  </label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {[
-                      { count: 3, label: 'Intro / Quick', time: '~3 mins' },
-                      { count: 5, label: 'Standard', time: '~7 mins' },
-                      { count: 7, label: 'Advanced', time: '~12 mins' },
-                      { count: 10, label: 'Mastery', time: '~20 mins' },
-                    ].map((opt) => (
-                      <button
-                        key={opt.count}
-                        type="button"
-                        onClick={() => setSelectedQuestionCount(opt.count)}
-                        className={`p-2.5 rounded-xl border text-left transition ${
-                          selectedQuestionCount === opt.count
-                            ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 cyber-glow-cyan'
-                            : 'bg-[#12151F] border-[#1E2436] text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        <span className="text-[11px] font-bold block text-slate-200">{opt.label}</span>
-                        <span className="text-[10px] font-mono text-cyan-400">{opt.count} Qs ({opt.time})</span>
-                      </button>
-                    ))}
+                <div className="p-3.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 font-mono text-xs space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Autonomous Evaluation Size:</span>
+                    <span className="font-bold text-cyan-300">{selectedStep.questionCount || 5} ACU Questions</span>
                   </div>
-                </div>
-
-                <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px] pt-1 border-t border-[#1E2436]">
-                  <span>Passing Score: <strong className="text-cyan-400">{selectedStep.passingScore}%</strong></span>
-                  <span>Target Count: <strong className="text-cyan-400">{selectedQuestionCount} Questions</strong></span>
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-400">Mastery Threshold:</span>
+                    <span className="font-bold text-emerald-400">{selectedStep.passingScore || 80}% Correct</span>
+                  </div>
                 </div>
               </div>
 
@@ -731,13 +709,13 @@ export default function WorkspaceStudioPage() {
                   onClick={() => setIsReadinessOpen(false)}
                   className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
                 >
-                  Cancel
+                  Return to Study
                 </button>
                 <button
                   onClick={handleBeginEvaluation}
                   className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                 >
-                  Begin {selectedQuestionCount}-Question Quiz
+                  Begin Evaluation Quiz
                 </button>
               </div>
             </motion.div>

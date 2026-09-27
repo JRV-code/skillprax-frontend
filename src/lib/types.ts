@@ -12,7 +12,8 @@ export interface ResourceItem {
   badge?: string;
   title: string;
   url: string;
-  type: 'video' | 'pdf' | 'wiki' | 'guide' | 'website' | 'interactive' | string;
+  type: 'video' | 'pdf' | 'wiki' | 'guide' | 'website' | 'interactive' | 'code_repo' | string;
+  pedagogicalRole?: string;
   studyGuidance?: string;
   whyThisFirst?: string;
   summary?: string;
