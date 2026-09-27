@@ -27,7 +27,7 @@ export default function AdminPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [keysConfig, setKeysConfig] = useState<AdminKeysDTO>({
-    defaultProvider: 'gemini',
+    defaultProvider: 'groq',
     keys: {},
     configured: { groq: false, openai: false, anthropic: false, gemini: false },
   });
@@ -41,7 +41,7 @@ export default function AdminPage() {
     tavily: '',
   });
 
-  const [selectedDefault, setSelectedDefault] = useState<AIProvider>('gemini');
+  const [selectedDefault, setSelectedDefault] = useState<AIProvider>('groq');
 
   // Connection testing states
   const [testingStatus, setTestingStatus] = useState<
@@ -55,7 +55,7 @@ export default function AdminPage() {
     try {
       const data = await api.admin.getKeys(adminSecret);
       setKeysConfig(data);
-      setSelectedDefault(data.defaultProvider || 'gemini');
+      setSelectedDefault(data.defaultProvider || 'groq');
       setIsAuthenticated(true);
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Check your admin secret.');
@@ -256,10 +256,10 @@ export default function AdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection (Unified Gemini Native Grounding)
+                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection (Groq + Tavily Recommended)
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
-                    Select the fallback LLM engine used when workspaces do not specify an explicit override.
+                    Select the active default engine used across all SkillPrax curricula and JIT steps.
                   </p>
                 </div>
                 <span className="px-3 py-1 rounded-full text-xs font-mono bg-cyan-950/60 border border-cyan-500/40 text-cyan-300">
@@ -269,8 +269,8 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
-                  { id: 'gemini', name: 'Google AI Studio (Free)', model: 'gemini-3.7-flash (Grounded)', badge: 'Unified Default' },
-                  { id: 'groq', name: 'Groq Cloud (Free)', model: 'openai/gpt-oss-120b', badge: 'Ultra-Fast Free' },
+                  { id: 'groq', name: 'Groq + Tavily (Recommended Free)', model: 'openai/gpt-oss-120b', badge: 'Recommended Free' },
+                  { id: 'gemini', name: 'Google AI Studio (Free)', model: 'gemini-3.7-flash', badge: 'Flagship Free' },
                   { id: 'openrouter', name: 'OpenRouter (Free)', model: 'gpt-oss-120b:free', badge: 'Backup Free' },
                   { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'Paid Tier' },
                   { id: 'anthropic', name: 'Anthropic Claude 3.7', model: 'claude-3-7-sonnet-latest', badge: 'Paid Tier' },
@@ -311,26 +311,35 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Provider Key Fields Grid */}
+            {/* Provider Key Fields Grid - Primary Cards at Top */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 {
-                  id: 'gemini',
-                  name: 'Google Gemini API Key (Primary)',
-                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
-                  helperText: 'Google AI Studio Free Tier — Gemini 3.7 Flash with Native Google Search Grounding',
-                  masked: keysConfig.keys.gemini,
-                  configured: keysConfig.configured.gemini,
-                  accentColor: 'text-cyan-400',
-                },
-                {
                   id: 'groq',
-                  name: 'Groq Cloud API Key',
+                  name: 'Groq Cloud API Key (Primary Engine)',
                   placeholder: 'gsk_...',
-                  helperText: 'Groq Cloud Free Tier — Active Models: GPT-OSS 20B (Pings) & 120B (Reasoning)',
+                  helperText: 'Ultra-fast curriculum & quiz generation (100% Free). Active Model: GPT-OSS 120B.',
                   masked: keysConfig.keys.groq,
                   configured: keysConfig.configured.groq,
                   accentColor: 'text-amber-400',
+                },
+                {
+                  id: 'tavily',
+                  name: 'Tavily Web Search Engine Key (Primary Grounding)',
+                  placeholder: 'tvly-...',
+                  helperText: 'Live web verification layer to ensure zero broken URLs.',
+                  masked: (keysConfig.keys as any).tavily,
+                  configured: (keysConfig.configured as any).tavily,
+                  accentColor: 'text-sky-400',
+                },
+                {
+                  id: 'gemini',
+                  name: 'Google Gemini API Key (Secondary)',
+                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
+                  helperText: 'Google AI Studio Free Tier — Gemini 3.7 Flash',
+                  masked: keysConfig.keys.gemini,
+                  configured: keysConfig.configured.gemini,
+                  accentColor: 'text-cyan-400',
                 },
                 {
                   id: 'openrouter',
@@ -340,15 +349,6 @@ export default function AdminPage() {
                   masked: keysConfig.keys.openrouter,
                   configured: keysConfig.configured.openrouter,
                   accentColor: 'text-emerald-400',
-                },
-                {
-                  id: 'tavily',
-                  name: 'Tavily Search Engine (Optional for Groq/OpenRouter)',
-                  placeholder: 'tvly-...',
-                  helperText: 'Not required when using Google Gemini, as Gemini handles search grounding natively.',
-                  masked: (keysConfig.keys as any).tavily,
-                  configured: (keysConfig.configured as any).tavily,
-                  accentColor: 'text-sky-400',
                 },
                 {
                   id: 'openai',

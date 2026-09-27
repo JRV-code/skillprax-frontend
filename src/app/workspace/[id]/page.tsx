@@ -53,6 +53,8 @@ export default function WorkspaceStudioPage() {
   // Gate 1: Readiness Confirmation Modal
   const [isReadinessOpen, setIsReadinessOpen] = useState(false);
   const [selectedStep, setSelectedStep] = useState<SkillStepDTO | null>(null);
+  const [selectedQuestionCount, setSelectedQuestionCount] = useState<number>(5);
+  const [quizError, setQuizError] = useState<string | null>(null);
 
   // Gate 2: Quiz Arena Modal
   const [isQuizOpen, setIsQuizOpen] = useState(false);
@@ -109,6 +111,8 @@ export default function WorkspaceStudioPage() {
   // GATE 1: User clicks "I have completed study materials"
   const handleOpenReadinessGate = (step: SkillStepDTO) => {
     setSelectedStep(step);
+    setSelectedQuestionCount(step.questionCount || 5);
+    setQuizError(null);
     setIsReadinessOpen(true);
   };
 
@@ -120,13 +124,13 @@ export default function WorkspaceStudioPage() {
     setIsQuizOpen(true);
     setCurrentQIndex(0);
     setUserAnswers({});
+    setQuizError(null);
 
     try {
-      const res = await api.steps.promptQuiz(selectedStep.id);
+      const res = await api.steps.promptQuiz(selectedStep.id, selectedQuestionCount);
       setQuizQuestions(res.questions || []);
     } catch (err: any) {
-      alert(`Failed to generate quiz: ${err.message || err}`);
-      setIsQuizOpen(false);
+      setQuizError(err.message || 'Failed to generate quiz questions.');
     } finally {
       setIsEvaluating(false);
     }
@@ -622,13 +626,41 @@ export default function WorkspaceStudioPage() {
                 </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] space-y-2 text-xs text-slate-300">
+              <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] space-y-4 text-xs text-slate-300">
                 <p>
                   Are you ready to test your understanding of this step?
                 </p>
-                <div className="flex items-center gap-4 text-cyan-400 font-mono pt-1">
-                  <span>Passing Score: <strong>{selectedStep.passingScore}%</strong></span>
-                  <span>Questions: <strong>{selectedStep.questionCount}</strong></span>
+                
+                <div className="space-y-2">
+                  <label className="block text-[11px] font-mono text-cyan-400 uppercase tracking-wider">
+                    Select Evaluation Question Volume:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { count: 3, label: 'Quick Check', time: '~5 mins' },
+                      { count: 5, label: 'Standard', time: '~10 mins' },
+                      { count: 10, label: 'Deep Diagnostic', time: '~20 mins' },
+                    ].map((opt) => (
+                      <button
+                        key={opt.count}
+                        type="button"
+                        onClick={() => setSelectedQuestionCount(opt.count)}
+                        className={`p-3 rounded-xl border text-left transition ${
+                          selectedQuestionCount === opt.count
+                            ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 cyber-glow-cyan'
+                            : 'bg-[#12151F] border-[#1E2436] text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <span className="text-xs font-bold block text-slate-200">{opt.label}</span>
+                        <span className="text-[10px] font-mono text-cyan-400">{opt.count} Questions ({opt.time})</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-4 text-slate-400 font-mono text-[11px] pt-1 border-t border-[#1E2436]">
+                  <span>Passing Score: <strong className="text-cyan-400">{selectedStep.passingScore}%</strong></span>
+                  <span>Target Count: <strong className="text-cyan-400">{selectedQuestionCount} Questions</strong></span>
                 </div>
               </div>
 
@@ -641,9 +673,9 @@ export default function WorkspaceStudioPage() {
                 </button>
                 <button
                   onClick={handleBeginEvaluation}
-                  className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
+                  className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
                 >
-                  Begin Evaluation Quiz
+                  Begin {selectedQuestionCount}-Question Quiz
                 </button>
               </div>
             </motion.div>
@@ -672,6 +704,33 @@ export default function WorkspaceStudioPage() {
                     <p className="text-xs font-mono text-cyan-400 mt-1 animate-pulse">
                       Analyzing responses against step competency criteria...
                     </p>
+                  </div>
+                </div>
+              ) : quizError ? (
+                <div className="py-8 space-y-4">
+                  <div className="p-4 rounded-2xl bg-red-950/60 border border-red-500/40 text-red-200 space-y-2">
+                    <div className="flex items-center gap-2 text-red-400 font-bold text-sm">
+                      <AlertTriangle className="w-5 h-5 shrink-0" />
+                      <span>Quiz AI Error</span>
+                    </div>
+                    <p className="text-xs font-mono break-all select-all text-slate-200 leading-relaxed">
+                      {quizError}
+                    </p>
+                  </div>
+
+                  <div className="flex justify-end gap-3">
+                    <button
+                      onClick={() => setIsQuizOpen(false)}
+                      className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
+                    >
+                      Close
+                    </button>
+                    <button
+                      onClick={handleBeginEvaluation}
+                      className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition"
+                    >
+                      Retry Quiz Generation
+                    </button>
                   </div>
                 </div>
               ) : quizQuestions.length === 0 ? (

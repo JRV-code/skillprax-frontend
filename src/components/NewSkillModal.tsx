@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Cpu, ArrowRight, Sparkles, X } from 'lucide-react';
 import { AIProvider } from '@/lib/types';
+import { TECHNICAL_DOMAINS } from '@/lib/domains';
 
 interface NewSkillModalProps {
   isOpen: boolean;
@@ -17,15 +18,6 @@ interface NewSkillModalProps {
   }) => Promise<void>;
 }
 
-const CATEGORIES = [
-  'Computer Science & Distributed Systems',
-  'Quantum Computing & Physics',
-  'Full-Stack Web Engineering',
-  'AI / ML & Neural Architectures',
-  'Cybersecurity & Cryptography',
-  'Cloud Native Infrastructure',
-];
-
 export const NewSkillModal: React.FC<NewSkillModalProps> = ({
   isOpen,
   onClose,
@@ -35,10 +27,10 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    category: CATEGORIES[0],
+    category: TECHNICAL_DOMAINS[0].name as string,
     baselineKnowledge: '',
     targetGoal: '',
-    preferredProvider: 'gemini' as AIProvider,
+    preferredProvider: 'groq' as AIProvider,
   });
 
   if (!isOpen) return null;
@@ -86,7 +78,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     Calibration Stage {wizardStage} of 3
                   </span>
                   <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                    {wizardStage === 1 && 'Domain & Track Definition'}
+                    {wizardStage === 1 && 'Domain & Specific Technical Focus'}
                     {wizardStage === 2 && 'Baseline & Target Goal Assessment'}
                     {wizardStage === 3 && 'AI Multi-LLM Engine Selection'}
                   </h2>
@@ -105,28 +97,28 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      What specific skill or technology do you want to master?
+                      Specific Technical Focus (Skill or Technology)
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Distributed Systems in Go, Rust for Solana, Quantum Algorithms"
+                      placeholder="e.g. Distributed Consensus in Raft, LSM Trees in RocksDB, WebGL Shaders"
                       className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
                     />
 
                     {/* Auto-Suggestion Chips */}
                     <div className="mt-2.5">
                       <span className="text-[10px] font-mono text-slate-500 block mb-1.5">
-                        Quick Auto-Suggestions:
+                        Technical Auto-Suggestions:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          'Distributed Systems in Go',
-                          'Organic Chemistry Reaction Mechanisms',
+                          'Distributed Consensus in Raft',
+                          'LSM Trees & Storage Engines',
                           'Transformers & Attention Mechanics',
-                          'Rust for Solana Smart Contracts',
-                          'Compiler Design & LLVM',
+                          'Kernel eBPF Tracepoints',
+                          'Zero Trust OAuth2 Architecture',
                         ].map((sugg) => (
                           <button
                             key={sugg}
@@ -135,7 +127,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                               setFormData({
                                 ...formData,
                                 title: sugg,
-                                category: 'Computer Science & Software Architecture',
+                                category: 'Backend & Distributed Systems',
                               })
                             }
                             className="px-2.5 py-1 rounded-md text-[10px] bg-[#090A0F] border border-[#1E2436] text-cyan-400 hover:border-cyan-500/50 transition font-mono"
@@ -149,23 +141,27 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-2">
-                      Domain Context / Specialty
+                      Technical Engineering Discipline
                     </label>
-                    <div className="flex flex-wrap gap-2">
-                      {CATEGORIES.map((cat) => (
-                        <button
-                          key={cat}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, category: cat })}
-                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-                            formData.category === cat
-                              ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300'
-                              : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200'
-                          }`}
-                        >
-                          {cat}
-                        </button>
-                      ))}
+                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
+                      {TECHNICAL_DOMAINS.map((dom) => {
+                        const isSelected = formData.category === dom.name;
+                        return (
+                          <button
+                            key={dom.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, category: dom.name })}
+                            className={`w-full p-2.5 rounded-xl text-left border transition flex flex-col ${
+                              isSelected
+                                ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300 cyber-glow-cyan'
+                                : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200'
+                            }`}
+                          >
+                            <span className="text-xs font-semibold text-slate-200">{dom.name}</span>
+                            <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.examples}</span>
+                          </button>
+                        );
+                      })}
                     </div>
                   </div>
 
@@ -248,8 +244,8 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { id: 'gemini', name: 'Google Gemini (Live Grounded Free)', desc: 'Gemini 3.7 Flash with Native Google Search Grounding' },
-                        { id: 'groq', name: 'Groq Cloud (Free)', desc: 'GPT-OSS 120B (Ultra Fast Inference)' },
+                        { id: 'groq', name: 'Groq + Tavily Research (Fast & Grounded)', desc: 'GPT-OSS 120B + Tavily Real-Time Web Discovery (Recommended)' },
+                        { id: 'gemini', name: 'Google Gemini (Free)', desc: 'Gemini 3.7 Flash (Comprehensive Multimodal)' },
                         { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'GPT-OSS 120B :free (Universal Backup)' },
                         { id: 'openai', name: 'OpenAI Platform', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
                       ].map((prov) => (

@@ -106,10 +106,13 @@ export const api = {
   },
 
   steps: {
-    promptQuiz: (stepId: string) =>
-      apiRequest<{ stepId: string; questions: QuizQuestion[] }>(
+    promptQuiz: (stepId: string, questionCount?: number) =>
+      apiRequest<{ stepId: string; questionCount?: number; questions: QuizQuestion[] }>(
         `/api/steps/${stepId}/prompt-quiz`,
-        { method: 'POST' }
+        {
+          method: 'POST',
+          body: JSON.stringify({ questionCount }),
+        }
       ),
 
     evaluate: (
