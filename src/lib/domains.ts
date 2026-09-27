@@ -7,18 +7,18 @@ export const UNIVERSAL_DOMAINS = [
     icon: "Atom"
   },
   {
-    id: "formal-sciences",
-    label: "Formal Sciences & Mathematics",
-    desc: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
-    description: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
-    icon: "Binary"
-  },
-  {
     id: "engineering-tech",
     label: "Engineering & Applied Technology",
     desc: "Robotics, Electronics, Software, Embedded Systems, Mechanical",
     description: "Robotics, Electronics, Software, Embedded Systems, Mechanical",
     icon: "Cpu"
+  },
+  {
+    id: "mathematics-logic",
+    label: "Formal Sciences & Mathematics",
+    desc: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
+    description: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
+    icon: "Binary"
   },
   {
     id: "social-sciences",
@@ -42,8 +42,8 @@ export const UNIVERSAL_DOMAINS = [
     icon: "BookOpen"
   },
   {
-    id: "arts-design-media",
-    label: "Arts, Spatial Design & Media",
+    id: "arts-design",
+    label: "Arts, Media & Spatial Design",
     desc: "3D Art, Architecture, Music Theory, UI/UX, Game Design",
     description: "3D Art, Architecture, Music Theory, UI/UX, Game Design",
     icon: "Palette"
@@ -56,8 +56,8 @@ export const UNIVERSAL_DOMAINS = [
     icon: "Activity"
   },
   {
-    id: "applied-crafts",
-    label: "Applied Crafts & Precision Trades",
+    id: "practical-crafts",
+    label: "Practical Crafts & Applied Trades",
     desc: "Fabrication, Precision Audio, Electronics Repair, Agriculture",
     description: "Fabrication, Precision Audio, Electronics Repair, Agriculture",
     icon: "Wrench"

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { WorkspaceDTO, AIProvider } from '@/lib/types';
+import { UNIVERSAL_DOMAINS } from '@/components/NewSkillModal';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -36,7 +37,7 @@ export default function DashboardPage() {
 
   const [formData, setFormData] = useState({
     title: '',
-    category: 'Computer Science',
+    category: UNIVERSAL_DOMAINS[0].label,
     baselineKnowledge: '',
     targetGoal: '',
     preferredProvider: 'groq' as AIProvider,
@@ -100,15 +101,7 @@ export default function DashboardPage() {
     }
   };
 
-  const categories = [
-    'Computer Science',
-    'Distributed Systems',
-    'Quantum Physics',
-    'Artificial Intelligence',
-    'Cyber Security',
-    'FinTech & Blockchain',
-    'Bioinformatics',
-  ];
+  const categories = UNIVERSAL_DOMAINS.map((d) => d.label);
 
   return (
     <div className="min-h-screen bg-[#090A0F] text-slate-100 bg-cyber-grid p-4 sm:p-8">

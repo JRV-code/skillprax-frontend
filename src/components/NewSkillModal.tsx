@@ -25,7 +25,7 @@ export const UNIVERSAL_DOMAINS = [
   { id: "business-finance", label: "Business, Finance & Strategy", icon: TrendingUp },
   { id: "humanities-philosophy", label: "Humanities, Philosophy & Law", icon: BookOpen },
   { id: "arts-design", label: "Arts, Media & Spatial Design", icon: Palette },
-  { id: "health-athletics", label: "Health, Physiology & Athletics", icon: Activity },
+  { id: "health-athletics", label: "Health, Physiology & Performance", icon: Activity },
   { id: "practical-crafts", label: "Practical Crafts & Applied Trades", icon: Wrench }
 ];
 
