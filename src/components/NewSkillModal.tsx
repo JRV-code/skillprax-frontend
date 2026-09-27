@@ -1,304 +1,203 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, ArrowRight, Sparkles, X } from 'lucide-react';
-import { AIProvider } from '@/lib/types';
+"use client";
 
-export const DOMAIN_CATEGORIES = [
-  { id: "natural-sciences", label: "Natural Sciences & Nature", sub: "Physics, Chemistry, Biology, Astronomy, Earth Sciences" },
-  { id: "engineering-tech", label: "Engineering & Technology", sub: "Software, Robotics, Electronics, Mechanical" },
-  { id: "mathematics-logic", label: "Mathematics & Logic", sub: "Pure Math, Calculus, Statistics, Data Analysis" },
-  { id: "business-finance", label: "Business, Finance & Economics", sub: "Entrepreneurship, Investing, Management, Marketing" },
-  { id: "arts-design", label: "Arts, Media & Design", sub: "3D Modeling, Visual Arts, Music, Animation, Architecture" },
-  { id: "humanities-social", label: "Humanities & Social Sciences", sub: "Psychology, History, Philosophy, Languages, Sociology" },
-  { id: "health-athletics", label: "Health, Nutrition & Athletics", sub: "Sports Science, Fitness, Physiology, Anatomy" },
-  { id: "practical-crafts", label: "Practical Crafts & Trades", sub: "Fabrication, Gardening, Audio Production, Mechanics" },
-  { id: "general-other", label: "General Knowledge / Other", sub: "Any unique field or multidisciplinary study" }
-] as const;
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { 
+  Atom, 
+  Cpu, 
+  Binary, 
+  Users, 
+  TrendingUp, 
+  BookOpen, 
+  Palette, 
+  Activity, 
+  Wrench,
+  ArrowRight,
+  Loader2
+} from "lucide-react";
+import { AIProvider } from "@/lib/types";
 
-interface NewSkillModalProps {
+export const UNIVERSAL_DOMAINS = [
+  { id: "natural-sciences", label: "Natural & Physical Sciences", icon: Atom },
+  { id: "engineering-tech", label: "Engineering & Applied Technology", icon: Cpu },
+  { id: "mathematics-logic", label: "Formal Sciences & Mathematics", icon: Binary },
+  { id: "social-sciences", label: "Social Sciences & Human Systems", icon: Users },
+  { id: "business-finance", label: "Business, Finance & Strategy", icon: TrendingUp },
+  { id: "humanities-philosophy", label: "Humanities, Philosophy & Law", icon: BookOpen },
+  { id: "arts-design", label: "Arts, Media & Spatial Design", icon: Palette },
+  { id: "health-athletics", label: "Health, Physiology & Athletics", icon: Activity },
+  { id: "practical-crafts", label: "Practical Crafts & Applied Trades", icon: Wrench }
+];
+
+export function NewSkillModal({
+  isOpen,
+  onClose,
+  onSubmit
+}: {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: {
+  onSubmit?: (data: {
     title: string;
     category: string;
     baselineKnowledge: string;
     targetGoal: string;
     preferredProvider: AIProvider;
   }) => Promise<void>;
-}
-
-export const NewSkillModal: React.FC<NewSkillModalProps> = ({
-  isOpen,
-  onClose,
-  onSubmit,
-}) => {
-  const [wizardStage, setWizardStage] = useState(1);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [formData, setFormData] = useState({
-    title: '',
-    category: DOMAIN_CATEGORIES[0].label as string,
-    baselineKnowledge: '',
-    targetGoal: '',
-    preferredProvider: 'groq' as AIProvider,
-  });
+}) {
+  const router = useRouter();
+  const [selectedDomain, setSelectedDomain] = useState(UNIVERSAL_DOMAINS[0].label);
+  const [topic, setTopic] = useState("");
+  const [goal, setGoal] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
 
   if (!isOpen) return null;
 
-  const handleSubmit = async () => {
-    setIsSubmitting(true);
+  async function handleCreate(e: React.FormEvent) {
+    e.preventDefault();
+    if (!topic.trim()) return;
+
+    setLoading(true);
+    setError("");
+
     try {
-      await onSubmit(formData);
+      if (onSubmit) {
+        await onSubmit({
+          title: topic.trim(),
+          category: selectedDomain,
+          baselineKnowledge: "Beginner",
+          targetGoal: goal.trim() || "Full Mastery",
+          preferredProvider: "groq" as AIProvider
+        });
+        onClose();
+        return;
+      }
+
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/initiate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: topic.trim(),
+          domainCategory: selectedDomain,
+          category: selectedDomain,
+          targetGoal: goal.trim() || "Full Mastery",
+          level: "Beginner"
+        })
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Failed to create skill workspace");
+      }
+
+      const data = await res.json();
+      router.push(`/workspace/${data.workspace.id}`);
       onClose();
     } catch (err: any) {
-      alert(err.message || 'Failed to initialize workspace');
+      setError(err.message || "Failed to initialize workspace");
     } finally {
-      setIsSubmitting(false);
+      setLoading(false);
     }
-  };
+  }
 
   return (
-    <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="relative w-full max-w-xl p-6 rounded-2xl bg-[#12151F] border border-[#1E2436] shadow-2xl text-slate-100 cyber-glow-cyan"
-        >
-          {isSubmitting ? (
-            <div className="py-16 flex flex-col items-center justify-center space-y-6 text-center">
-              <div className="relative w-20 h-20 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-                <Cpu className="w-8 h-8 text-cyan-400 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-lg font-bold text-slate-100">AI Curriculum Synthesis</h3>
-                <p className="text-xs font-mono text-cyan-400 mt-2 animate-pulse">
-                  Synthesizing mastery curriculum on {formData.preferredProvider.toUpperCase()} free tier...
-                </p>
-              </div>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl">
+        <h2 className="text-xl font-bold text-slate-100 mb-1">Create Learning Track</h2>
+        <p className="text-sm text-slate-400 mb-4">Choose a broad domain and set your milestone.</p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-950/50 border border-red-800 rounded-lg text-red-300 text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleCreate} className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">
+              Domain Category
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {UNIVERSAL_DOMAINS.map((dom) => {
+                const Icon = dom.icon;
+                const isSelected = selectedDomain === dom.label;
+                return (
+                  <button
+                    key={dom.id}
+                    type="button"
+                    onClick={() => setSelectedDomain(dom.label)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                      isSelected
+                        ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
+                        : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    }`}
+                  >
+                    <Icon className="w-3.5 h-3.5"/>
+                    {dom.label}
+                  </button>
+                );
+              })}
             </div>
-          ) : (
-            <>
-              {/* Wizard Header */}
-              <div className="flex items-center justify-between border-b border-[#1E2436] pb-4">
-                <div>
-                  <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">
-                    Calibration Stage {wizardStage} of 3
-                  </span>
-                  <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                    {wizardStage === 1 && 'Universal Domain & Specific Learning Focus'}
-                    {wizardStage === 2 && 'Baseline & Target Goal Assessment'}
-                    {wizardStage === 3 && 'AI Multi-LLM Engine Selection'}
-                  </h2>
-                </div>
+          </div>
 
-                <button
-                  onClick={onClose}
-                  className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-[#1E2436]"
-                >
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+              What do you want to learn?
+            </label>
+            <input
+              type="text"
+              required
+              placeholder="e.g., Fullstack web development, Quantum mechanics, Woodworking joinery..."
+              value={topic}
+              onChange={(e) => setTopic(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-sm"
+            />
+          </div>
 
-              {/* Stage 1 */}
-              {wizardStage === 1 && (
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Specific Study Subject / Goal
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.title}
-                      onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Quantum Chromodynamics, Botanical Taxonomy, PostgreSQL WAL, Game Theory"
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
-                    />
+          <div>
+            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
+              Real-World Goal / Application
+            </label>
+            <input
+              type="text"
+              placeholder="e.g., Build and sell fullstack SaaS apps, Pass competitive exam..."
+              value={goal}
+              onChange={(e) => setGoal(e.target.value)}
+              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-sm"
+            />
+          </div>
 
-                    {/* Auto-Suggestion Chips */}
-                    <div className="mt-2.5">
-                      <span className="text-[10px] font-mono text-slate-500 block mb-1.5">
-                        Suggested Topics Across Universal Pillars:
-                      </span>
-                      <div className="flex flex-wrap gap-1.5">
-                        {[
-                          { title: 'Quantum Chromodynamics', category: 'Natural Sciences & Nature' },
-                          { title: 'Game Theory & Nash Equilibrium', category: 'Mathematics & Logic' },
-                          { title: 'PostgreSQL Write-Ahead Logging', category: 'Engineering & Technology' },
-                          { title: 'Behavioral Economics', category: 'Business, Finance & Economics' },
-                          { title: 'Blender 3D Spatial Modeling', category: 'Arts, Media & Design' },
-                          { title: 'Audio Electronics & Soldering', category: 'Practical Crafts & Trades' },
-                        ].map((sugg) => (
-                          <button
-                            key={sugg.title}
-                            type="button"
-                            onClick={() =>
-                              setFormData({
-                                ...formData,
-                                title: sugg.title,
-                                category: sugg.category,
-                              })
-                            }
-                            className="px-2.5 py-1 rounded-md text-[10px] bg-[#090A0F] border border-[#1E2436] text-cyan-400 hover:border-cyan-500/50 transition font-mono"
-                          >
-                            + {sugg.title}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Universal Knowledge Domain
-                    </label>
-                    <div className="flex flex-wrap gap-2.5 my-3">
-                      {DOMAIN_CATEGORIES.map((cat) => {
-                        const isSelected = formData.category === cat.label;
-                        return (
-                          <button
-                            key={cat.id}
-                            type="button"
-                            onClick={() => setFormData({ ...formData, category: cat.label })}
-                            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all border ${
-                              isSelected
-                                ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
-                                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
-                            }`}
-                          >
-                            {cat.label}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 flex justify-end">
-                    <button
-                      onClick={() => {
-                        if (!formData.title.trim()) {
-                          alert('Please enter a skill or technology title.');
-                          return;
-                        }
-                        setWizardStage(2);
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                    >
-                      Next: Baseline & Goals <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
+          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={loading}
+              className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading || !topic.trim()}
+              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition-all disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin"/>
+                  Educator Curating Track...
+                </>
+              ) : (
+                <>
+                  Next: Baseline & Goals
+                  <ArrowRight className="w-4 h-4"/>
+                </>
               )}
-
-              {/* Stage 2 */}
-              {wizardStage === 2 && (
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Baseline Knowledge (What do you already know?)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={formData.baselineKnowledge}
-                      onChange={(e) => setFormData({ ...formData, baselineKnowledge: e.target.value })}
-                      placeholder="e.g. Undergraduate linear algebra, proficient in Python, no prior quantum physics background."
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Target Goal (What do you want to build or achieve?)
-                    </label>
-                    <textarea
-                      rows={3}
-                      value={formData.targetGoal}
-                      onChange={(e) => setFormData({ ...formData, targetGoal: e.target.value })}
-                      placeholder="e.g. Write quantum simulation algorithms using Qiskit and simulate Shor's algorithm."
-                      className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
-                    />
-                  </div>
-
-                  <div className="pt-4 flex justify-between">
-                    <button
-                      onClick={() => setWizardStage(1)}
-                      className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
-                    >
-                      Back
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (!formData.baselineKnowledge.trim() || !formData.targetGoal.trim()) {
-                          alert('Please provide baseline experience and target goal.');
-                          return;
-                        }
-                        setWizardStage(3);
-                      }}
-                      className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                    >
-                      Next: Select AI Engine <ArrowRight className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {/* Stage 3 */}
-              {wizardStage === 3 && (
-                <div className="mt-4 space-y-4">
-                  <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-3">
-                      Select AI Engine for Curriculum Synthesis & Evaluation
-                    </label>
-                    <div className="grid grid-cols-2 gap-3">
-                      {[
-                        { id: 'groq', name: 'Groq + Tavily Research (Fast & Grounded)', desc: 'GPT-OSS 120B + Tavily Real-Time Web Discovery (Recommended)' },
-                        { id: 'gemini', name: 'Google Gemini (Free)', desc: 'Gemini 3.7 Flash (Comprehensive Multimodal)' },
-                        { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'GPT-OSS 120B :free (Universal Backup)' },
-                        { id: 'openai', name: 'OpenAI Platform', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
-                      ].map((prov) => (
-                        <button
-                          key={prov.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, preferredProvider: prov.id as AIProvider })}
-                          className={`p-3.5 rounded-xl border text-left transition ${
-                            formData.preferredProvider === prov.id
-                              ? 'bg-cyan-950/50 border-cyan-500 text-cyan-300 cyber-glow-cyan'
-                              : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:border-slate-700'
-                          }`}
-                        >
-                          <p className="text-xs font-bold text-slate-200">{prov.name}</p>
-                          <p className="text-[11px] text-slate-500 mt-0.5">{prov.desc}</p>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="pt-4 flex justify-between">
-                    <button
-                      onClick={() => setWizardStage(2)}
-                      className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
-                    >
-                      Back
-                    </button>
-
-                    <button
-                      onClick={handleSubmit}
-                      className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-                    >
-                      <Sparkles className="w-4 h-4 fill-current" />
-                      Synthesize Step 1 & Launch Track
-                    </button>
-                  </div>
-                </div>
-              )}
-            </>
-          )}
-        </motion.div>
+            </button>
+          </div>
+        </form>
       </div>
-    </AnimatePresence>
+    </div>
   );
-};
+}
 
 export default NewSkillModal;
