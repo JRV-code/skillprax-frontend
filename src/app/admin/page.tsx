@@ -265,10 +265,10 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {[
-                  { id: 'groq', name: 'Groq Llama 3.3', model: 'llama-3.3-70b-versatile', badge: 'Ultra Fast' },
-                  { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'High Accuracy' },
-                  { id: 'anthropic', name: 'Anthropic Claude', model: 'claude-3-5-sonnet', badge: 'Deep Reasoning' },
-                  { id: 'gemini', name: 'Google Gemini 2.5', model: 'gemini-2.5-flash', badge: 'Fast & Current' },
+                  { id: 'groq', name: 'Groq Llama 3.3', model: 'llama-3.3-70b-versatile', badge: 'Ultra-Fast' },
+                  { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'Flagship' },
+                  { id: 'anthropic', name: 'Anthropic Claude 3.7', model: 'claude-3-7-sonnet-latest', badge: 'Deep Reasoning' },
+                  { id: 'gemini', name: 'Google Gemini 2.5/3.1', model: 'gemini-2.5-flash', badge: 'Fast & Reasoning' },
                 ].map((prov) => {
                   const isSelected = selectedDefault === prov.id;
                   const isConfigured = keysConfig.configured[prov.id as keyof typeof keysConfig.configured];
@@ -340,7 +340,7 @@ export default function AdminPage() {
                   id: 'gemini',
                   name: 'Google Gemini API Key',
                   placeholder: 'AQ.Ab8RN6...',
-                  helperText: 'Google AI Studio Key (AQ. prefix) or Cloud Key (AIza prefix).',
+                  helperText: 'Supports Google AI Studio Authentication Keys (AQ. prefix) and Google Cloud API Keys (AIza prefix). Models: Gemini 2.5 Flash & Gemini 3.1 Pro.',
                   masked: keysConfig.keys.gemini,
                   configured: keysConfig.configured.gemini,
                   accentColor: 'text-cyan-400',
