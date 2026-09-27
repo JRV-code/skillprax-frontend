@@ -1,21 +1,19 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Atom, Binary, Sigma, Cpu, Users, TrendingUp, BookOpen, Palette, Activity, Wrench, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Cpu, ArrowRight, Sparkles, X } from 'lucide-react';
 import { AIProvider } from '@/lib/types';
-import { UNIVERSAL_DOMAINS } from '@/lib/domains';
 
-const iconMap: Record<string, React.FC<{ className?: string }>> = {
-  Atom,
-  Binary,
-  Sigma,
-  Cpu,
-  Users,
-  TrendingUp,
-  BookOpen,
-  Palette,
-  Activity,
-  Wrench,
-};
+export const DOMAIN_CATEGORIES = [
+  { id: "natural-sciences", label: "Natural Sciences & Nature", sub: "Physics, Chemistry, Biology, Astronomy, Earth Sciences" },
+  { id: "engineering-tech", label: "Engineering & Technology", sub: "Software, Robotics, Electronics, Mechanical" },
+  { id: "mathematics-logic", label: "Mathematics & Logic", sub: "Pure Math, Calculus, Statistics, Data Analysis" },
+  { id: "business-finance", label: "Business, Finance & Economics", sub: "Entrepreneurship, Investing, Management, Marketing" },
+  { id: "arts-design", label: "Arts, Media & Design", sub: "3D Modeling, Visual Arts, Music, Animation, Architecture" },
+  { id: "humanities-social", label: "Humanities & Social Sciences", sub: "Psychology, History, Philosophy, Languages, Sociology" },
+  { id: "health-athletics", label: "Health, Nutrition & Athletics", sub: "Sports Science, Fitness, Physiology, Anatomy" },
+  { id: "practical-crafts", label: "Practical Crafts & Trades", sub: "Fabrication, Gardening, Audio Production, Mechanics" },
+  { id: "general-other", label: "General Knowledge / Other", sub: "Any unique field or multidisciplinary study" }
+] as const;
 
 interface NewSkillModalProps {
   isOpen: boolean;
@@ -38,7 +36,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    category: UNIVERSAL_DOMAINS[0].label as string,
+    category: DOMAIN_CATEGORIES[0].label as string,
     baselineKnowledge: '',
     targetGoal: '',
     preferredProvider: 'groq' as AIProvider,
@@ -114,7 +112,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Quantum Chromodynamics, Botanical Taxonomy of Fungi, PostgreSQL WAL, Game Theory"
+                      placeholder="e.g. Quantum Chromodynamics, Botanical Taxonomy, PostgreSQL WAL, Game Theory"
                       className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
                     />
 
@@ -125,12 +123,12 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          { title: 'Quantum Chromodynamics', category: 'Natural & Physical Sciences' },
-                          { title: 'Game Theory & Nash Equilibrium', category: 'Formal Sciences & Mathematics' },
-                          { title: 'PostgreSQL Write-Ahead Logging', category: 'Engineering & Applied Technology' },
-                          { title: 'Behavioral Economics & Choice Architecture', category: 'Social Sciences & Human Behavior' },
-                          { title: 'Blender 3D Spatial Modeling', category: 'Arts, Media & Spatial Design' },
-                          { title: 'Audio Electronics & Soldering', category: 'Practical Crafts & Applied Trades' },
+                          { title: 'Quantum Chromodynamics', category: 'Natural Sciences & Nature' },
+                          { title: 'Game Theory & Nash Equilibrium', category: 'Mathematics & Logic' },
+                          { title: 'PostgreSQL Write-Ahead Logging', category: 'Engineering & Technology' },
+                          { title: 'Behavioral Economics', category: 'Business, Finance & Economics' },
+                          { title: 'Blender 3D Spatial Modeling', category: 'Arts, Media & Design' },
+                          { title: 'Audio Electronics & Soldering', category: 'Practical Crafts & Trades' },
                         ].map((sugg) => (
                           <button
                             key={sugg.title}
@@ -152,31 +150,24 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                   </div>
 
                   <div>
-                    <label className="block text-xs font-medium text-slate-300 mb-2">
-                      Universal Knowledge Taxonomy (9 Pillars)
+                    <label className="block text-xs font-medium text-slate-300 mb-1">
+                      Universal Knowledge Domain
                     </label>
-                    <div className="space-y-1.5 max-h-56 overflow-y-auto pr-1 scrollbar-thin">
-                      {UNIVERSAL_DOMAINS.map((dom) => {
-                        const isSelected = formData.category === dom.label;
-                        const IconComp = iconMap[dom.icon] || Cpu;
+                    <div className="flex flex-wrap gap-2.5 my-3">
+                      {DOMAIN_CATEGORIES.map((cat) => {
+                        const isSelected = formData.category === cat.label;
                         return (
                           <button
-                            key={dom.id}
+                            key={cat.id}
                             type="button"
-                            onClick={() => setFormData({ ...formData, category: dom.label })}
-                            className={`w-full p-2.5 rounded-xl text-left border transition flex items-center gap-3 ${
+                            onClick={() => setFormData({ ...formData, category: cat.label })}
+                            className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all border ${
                               isSelected
-                                ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300 cyber-glow-cyan'
-                                : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200'
+                                ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_12px_rgba(6,182,212,0.25)]"
+                                : "bg-slate-900/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
                             }`}
                           >
-                            <div className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500/20 text-cyan-400' : 'bg-[#12151F] text-slate-400'}`}>
-                              <IconComp className="w-4 h-4" />
-                            </div>
-                            <div className="flex flex-col">
-                              <span className="text-xs font-semibold text-slate-200">{dom.label}</span>
-                              <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.description}</span>
-                            </div>
+                            {cat.label}
                           </button>
                         );
                       })}
