@@ -19,8 +19,8 @@ import {
 
 export type QuizState = "idle" | "loading" | "active" | "submitting" | "result" | "error";
 
-export interface QuizQuestionOption {
-  id?: string;
+export interface StudentQuestionOption {
+  id: "A" | "B" | "C" | "D" | string;
   text: string;
 }
 
@@ -29,7 +29,7 @@ export interface StudentQuestion {
   acuId?: string;
   scenario?: string;
   question: string;
-  options: string[];
+  options: string[] | StudentQuestionOption[];
 }
 
 export interface DiagnosticItem {
@@ -37,7 +37,9 @@ export interface DiagnosticItem {
   acuId?: string;
   question?: string;
   isCorrect: boolean;
+  chosenOptionId?: string;
   chosenOption: string;
+  correctOptionId?: string;
   correctOption: string;
   whyWrong: string;
 }
@@ -45,6 +47,7 @@ export interface DiagnosticItem {
 export interface QuizResultPayload {
   attemptId: string;
   scorePercent: number;
+  score?: number;
   passed: boolean;
   passingThresholdPercent?: number;
   correctCount: number;
@@ -61,17 +64,18 @@ interface QuizModalProps {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
-export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps) {
+export default function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps) {
   const [quizState, setQuizState] = useState<QuizState>("idle");
   const [attemptId, setAttemptId] = useState<string | null>(null);
   const [questions, setQuestions] = useState<StudentQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, number>>({});
+  const [answers, setAnswers] = useState<Record<string, string>>({}); // Maps questionId -> optionId ("A","B","C","D")
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [result, setResult] = useState<QuizResultPayload | null>(null);
   const [showUnansweredConfirm, setShowUnansweredConfirm] = useState(false);
+  const [showExitConfirm, setShowExitConfirm] = useState(false);
 
-  // Reset and fetch quiz on open
+  // Fetch quiz attempt on open
   const fetchQuiz = useCallback(async () => {
     if (!stepId || !isOpen) return;
     setQuizState("loading");
@@ -82,6 +86,7 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
     setResult(null);
     setAttemptId(null);
     setShowUnansweredConfirm(false);
+    setShowExitConfirm(false);
 
     try {
       const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/prompt-quiz`, {
@@ -99,7 +104,7 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
       const rawQuestions: StudentQuestion[] = data.questions || [];
 
       if (rawQuestions.length === 0) {
-        throw new Error("Quiz evaluation returned 0 questions. Please try again.");
+        throw new Error("Evaluation gate returned 0 questions. Please retry.");
       }
 
       setAttemptId(data.attemptId || null);
@@ -119,15 +124,15 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
     }
   }, [isOpen, fetchQuiz]);
 
-  const handleSelectOption = (questionId: string, optionIndex: number) => {
+  const handleSelectOption = (questionId: string, optionId: string) => {
     setAnswers((prev) => ({
       ...prev,
-      [questionId]: optionIndex,
+      [questionId]: optionId,
     }));
   };
 
   const currentQuestion = questions[currentIndex];
-  const selectedOptionIndex = currentQuestion ? answers[currentQuestion.id] : undefined;
+  const selectedOptionId = currentQuestion ? answers[currentQuestion.id] : undefined;
   const isLastQuestion = currentIndex === questions.length - 1;
   const answeredCount = Object.keys(answers).length;
 
@@ -140,12 +145,12 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
     }
 
     setQuizState("submitting");
-    setShowUnansweredConfirm(false);
+    setErrorMessage("");
 
     try {
-      const payloadAnswers = questions.map((q) => ({
-        questionId: q.id,
-        selectedOptionId: answers[q.id] !== undefined ? answers[q.id] : -1,
+      const formattedAnswers = Object.entries(answers).map(([qId, optId]) => ({
+        questionId: qId,
+        selectedOptionId: optId,
       }));
 
       const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/submit-quiz`, {
@@ -153,29 +158,27 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           attemptId,
-          answers: payloadAnswers,
+          answers: formattedAnswers,
         }),
       });
 
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to submit evaluation (HTTP ${res.status})`);
+        throw new Error(errData.error || `Evaluation submission failed (HTTP ${res.status})`);
       }
 
       const data: QuizResultPayload = await res.json();
       setResult(data);
       setQuizState("result");
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to submit evaluation quiz.");
+      setErrorMessage(err.message || "Failed to submit evaluation answers.");
       setQuizState("error");
     }
   };
 
-  const handleSafeClose = () => {
-    if ((quizState === "active" || quizState === "submitting") && answeredCount > 0) {
-      if (confirm("You have an evaluation quiz in progress. Are you sure you want to close?")) {
-        onClose();
-      }
+  const handleModalClose = () => {
+    if (quizState === "active" || quizState === "submitting") {
+      setShowExitConfirm(true);
     } else {
       onClose();
     }
@@ -184,67 +187,87 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 font-sans">
-      <div className="w-full max-w-3xl rounded-3xl bg-[#12151F] border border-[#1E2436] shadow-2xl overflow-hidden relative flex flex-col max-h-[90vh]">
-        
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-[#1E2436] px-6 py-4 bg-[#090A0F]/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
-              <Zap className="w-4 h-4" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
+      <div 
+        className="relative w-full max-w-3xl rounded-3xl bg-[#12151F] border border-[#1E2436] p-6 sm:p-8 shadow-2xl text-slate-100 flex flex-col max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header Bar */}
+        <div className="flex items-center justify-between border-b border-[#1E2436] pb-4 shrink-0">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">
+              <Zap className="w-5 h-5 fill-cyan-400" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-slate-100">ACU Diagnostic Evaluation</h2>
-              <p className="text-[11px] text-slate-400 font-mono">Passing Score: 80% Threshold</p>
+              <h2 className="text-base font-bold text-white">ACU Diagnostic Evaluation</h2>
+              <p className="text-[11px] font-mono text-slate-400">
+                Passing Score: 80% Threshold
+              </p>
             </div>
           </div>
 
           <button
-            onClick={handleSafeClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-100 hover:bg-slate-800 transition"
-            aria-label="Close modal"
+            onClick={handleModalClose}
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+            aria-label="Close Evaluation Modal"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Body Content by State */}
-        <div className="p-6 overflow-y-auto flex-1 space-y-6">
-          
-          {/* LOADING STATE */}
+        {/* Modal Exit Confirmation Overlay */}
+        {showExitConfirm && (
+          <div className="absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
+            <AlertTriangle className="w-12 h-12 text-amber-400" />
+            <h3 className="text-lg font-bold text-white">Exit Evaluation in Progress?</h3>
+            <p className="text-xs text-slate-300 max-w-md leading-relaxed">
+              Leaving now will abandon your current diagnostic attempt. Your answers for this attempt will not be saved.
+            </p>
+            <div className="flex gap-4 pt-2">
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                className="px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition"
+              >
+                Resume Evaluation
+              </button>
+              <button
+                onClick={onClose}
+                className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold transition"
+              >
+                Exit & Abandon
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Modal Body Content */}
+        <div className="flex-1 overflow-y-auto py-4 space-y-6">
+          {/* STATE 1: LOADING */}
           {quizState === "loading" && (
-            <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-              <div className="relative w-16 h-16 flex items-center justify-center">
-                <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-                <Zap className="w-7 h-7 text-cyan-400 animate-pulse" />
-              </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-100">Calibrating Diagnostic Quiz</h3>
-                <p className="text-xs font-mono text-cyan-400 mt-1">Generating ACU scenarios & distractor options...</p>
-              </div>
+            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
+              <Loader2 className="w-10 h-10 animate-spin" />
+              <p className="text-xs font-mono text-slate-400">Synthesizing ACU diagnostic questions...</p>
             </div>
           )}
 
-          {/* ERROR STATE */}
+          {/* STATE 2: ERROR */}
           {quizState === "error" && (
-            <div className="py-12 px-6 text-center space-y-4 max-w-md mx-auto">
-              <div className="w-12 h-12 rounded-2xl bg-red-950/60 border border-red-500/40 flex items-center justify-center mx-auto text-red-400">
+            <div className="text-center py-12 space-y-4">
+              <div className="w-12 h-12 mx-auto rounded-full bg-red-950/60 border border-red-500/40 flex items-center justify-center text-red-400">
                 <AlertTriangle className="w-6 h-6" />
               </div>
-              <div>
-                <h3 className="text-base font-bold text-slate-100">Evaluation Unavailable</h3>
-                <p className="text-xs text-slate-400 mt-1">{errorMessage}</p>
-              </div>
+              <h3 className="text-base font-bold text-white">Evaluation Unavailable</h3>
+              <p className="text-xs text-red-300 max-w-md mx-auto">{errorMessage}</p>
               <div className="flex justify-center gap-3 pt-2">
                 <button
                   onClick={fetchQuiz}
-                  className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition"
                 >
                   <RefreshCw className="w-4 h-4" /> Retry Evaluation
                 </button>
                 <button
                   onClick={onClose}
-                  className="px-4 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold"
+                  className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
                 >
                   Cancel
                 </button>
@@ -252,196 +275,214 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
             </div>
           )}
 
-          {/* ACTIVE QUIZ STATE */}
+          {/* STATE 3: ACTIVE QUIZ */}
           {quizState === "active" && currentQuestion && (
             <div className="space-y-6">
-              
-              {/* Question Progress Bar */}
-              <div className="space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono">
-                  <span className="text-cyan-400 font-bold">
-                    Question {currentIndex + 1} of {questions.length}
+              {/* Question Navigation Bar */}
+              <div className="flex items-center justify-between text-xs border-b border-[#1E2436] pb-3">
+                <span className="font-mono text-cyan-400 font-bold">
+                  Question {currentIndex + 1} of {questions.length}
+                </span>
+                {currentQuestion.acuId && (
+                  <span className="px-2.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
+                    ACU Tag: {currentQuestion.acuId}
                   </span>
-                  <span className="text-slate-400">
-                    {answeredCount} of {questions.length} Answered
-                  </span>
-                </div>
-                <div className="w-full h-1.5 rounded-full bg-[#090A0F] border border-[#1E2436] overflow-hidden">
-                  <div
-                    className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 transition-all duration-300"
-                    style={{ width: `${((currentIndex + 1) / questions.length) * 100}%` }}
-                  />
-                </div>
+                )}
               </div>
 
-              {/* Scenario Context if available */}
-              {currentQuestion.scenario && (
-                <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300 leading-relaxed space-y-1">
-                  <span className="text-[10px] font-mono text-cyan-400 font-bold uppercase tracking-widest block">
-                    Scenario Context
-                  </span>
-                  <p>{currentQuestion.scenario}</p>
-                </div>
-              )}
-
-              {/* Question Prompt */}
-              <div>
-                <h3 className="text-base font-bold text-slate-100 leading-snug">
+              {/* Question Scenario & Prompt */}
+              <div className="space-y-3">
+                {currentQuestion.scenario && (
+                  <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300 italic leading-relaxed">
+                    "{currentQuestion.scenario}"
+                  </div>
+                )}
+                <h3 className="text-base font-bold text-white leading-snug">
                   {currentQuestion.question}
                 </h3>
               </div>
 
-              {/* 4 Accessible Radio-style Option Cards */}
-              <div className="space-y-3" role="radiogroup" aria-label="Quiz question options">
-                {currentQuestion.options.map((optText, optIdx) => {
-                  const isSelected = selectedOptionIndex === optIdx;
-                  const optionKey = ["A", "B", "C", "D"][optIdx] || String(optIdx + 1);
+              {/* Options Radio List */}
+              <div className="space-y-2.5" role="radiogroup">
+                {currentQuestion.options.map((option, idx) => {
+                  const optionKeys = ["A", "B", "C", "D"];
+                  const optionId = typeof option === "string" 
+                    ? optionKeys[idx] || String(idx) 
+                    : option.id || optionKeys[idx];
+                  const optionText = typeof option === "string" ? option : option.text;
+                  const isChecked = selectedOptionId === optionId;
 
                   return (
                     <button
-                      key={optIdx}
+                      key={optionId}
                       type="button"
                       role="radio"
-                      aria-checked={isSelected}
-                      onClick={() => handleSelectOption(currentQuestion.id, optIdx)}
-                      className={`w-full p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 group ${
-                        isSelected
-                          ? "bg-cyan-950/60 border-cyan-500 text-cyan-200 shadow-md shadow-cyan-950"
-                          : "bg-[#090A0F] border-[#1E2436] text-slate-300 hover:border-slate-700 hover:text-slate-100"
+                      aria-checked={isChecked}
+                      onClick={() => handleSelectOption(currentQuestion.id, optionId)}
+                      className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3 group ${
+                        isChecked
+                          ? "bg-cyan-950/60 border-cyan-500 text-cyan-100 shadow-md shadow-cyan-950/50"
+                          : "bg-[#090A0F] border-[#1E2436] text-slate-300 hover:border-cyan-500/30 hover:bg-[#0d101a]"
                       }`}
                     >
-                      <div
-                        className={`w-6 h-6 rounded-lg font-mono text-xs font-bold flex items-center justify-center shrink-0 transition ${
-                          isSelected
-                            ? "bg-cyan-500 text-slate-950"
-                            : "bg-slate-800 text-slate-400 group-hover:bg-slate-700 group-hover:text-slate-200"
-                        }`}
-                      >
-                        {optionKey}
-                      </div>
-                      <span className="text-xs leading-relaxed pt-0.5">{optText}</span>
+                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition ${
+                        isChecked
+                          ? "bg-cyan-500 text-slate-950"
+                          : "bg-slate-800 text-slate-400 group-hover:text-slate-200"
+                      }`}>
+                        {optionId}
+                      </span>
+                      <span className="text-xs leading-relaxed pt-0.5">{optionText}</span>
                     </button>
                   );
                 })}
               </div>
 
-              {/* Unanswered Confirmation Warning */}
+              {/* Unanswered Confirmation Warning Banner */}
               {showUnansweredConfirm && (
-                <div className="p-4 rounded-2xl bg-amber-950/50 border border-amber-500/40 text-xs text-amber-200 flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-400 shrink-0" />
-                    <span>
-                      You have left {questions.length - answeredCount} questions unanswered. Submit evaluation anyway?
-                    </span>
-                  </div>
+                <div className="p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between">
+                  <span>
+                    You have answered {answeredCount} of {questions.length} questions. Unanswered questions will be scored as incorrect.
+                  </span>
                   <button
                     onClick={handleSubmitQuiz}
-                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs uppercase tracking-wider shrink-0"
+                    className="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-[11px] hover:bg-amber-400"
                   >
-                    Confirm Submit
+                    Confirm & Submit
                   </button>
                 </div>
               )}
-            </div>
-          )}
 
-          {/* SUBMITTING STATE */}
-          {quizState === "submitting" && (
-            <div className="py-20 flex flex-col items-center justify-center text-center space-y-4">
-              <Loader2 className="w-10 h-10 animate-spin text-cyan-400" />
-              <div>
-                <h3 className="text-base font-bold text-slate-100">Scoring Server-Side Evaluation</h3>
-                <p className="text-xs font-mono text-cyan-400 mt-1">Analyzing ACU competencies & distractor feedback...</p>
+              {/* Navigation Controls Footer */}
+              <div className="flex items-center justify-between pt-4 border-t border-[#1E2436]">
+                <button
+                  type="button"
+                  onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
+                  disabled={currentIndex === 0}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
+                >
+                  <ArrowLeft className="w-4 h-4" /> Previous
+                </button>
+
+                {isLastQuestion ? (
+                  <button
+                    type="button"
+                    onClick={handleSubmitQuiz}
+                    disabled={!selectedOptionId && answeredCount === 0}
+                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <span>Submit Evaluation</span>
+                    <Zap className="w-4 h-4 fill-slate-950" />
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
+                    disabled={!selectedOptionId}
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
+                  >
+                    <span>Next Question</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
               </div>
             </div>
           )}
 
-          {/* RESULT & DIAGNOSTIC REVIEW STATE */}
+          {/* STATE 4: SUBMITTING */}
+          {quizState === "submitting" && (
+            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
+              <Loader2 className="w-10 h-10 animate-spin" />
+              <p className="text-xs font-mono text-slate-400">Scoring ACU competencies & evaluating pass threshold...</p>
+            </div>
+          )}
+
+          {/* STATE 5: RESULT REPORT */}
           {quizState === "result" && result && (
             <div className="space-y-6">
-              
-              {/* Overall Score & Pass/Fail Banner */}
-              <div
-                className={`p-6 rounded-3xl border text-center space-y-3 ${
-                  result.passed
-                    ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
-                    : "bg-rose-950/40 border-rose-500/40 text-rose-300"
-                }`}
-              >
-                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto font-black text-xl border">
+              {/* Score Banner */}
+              <div className={`p-6 rounded-3xl border text-center space-y-3 ${
+                result.passed
+                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
+                  : "bg-rose-950/40 border-rose-500/40 text-rose-200"
+              }`}>
+                <div className="flex items-center justify-center gap-2">
                   {result.passed ? (
                     <CheckCircle2 className="w-8 h-8 text-emerald-400" />
                   ) : (
                     <XCircle className="w-8 h-8 text-rose-400" />
                   )}
+                  <span className="text-2xl font-black tracking-tight">
+                    {result.scorePercent}% Score
+                  </span>
                 </div>
 
-                <div>
-                  <span className="text-xs font-mono uppercase tracking-widest block font-bold">
-                    {result.passed ? "Evaluation Passed" : "Evaluation Threshold Not Met"}
-                  </span>
-                  <h3 className="text-3xl font-black tracking-tight mt-1">
-                    {result.scorePercent}% Score
-                  </h3>
-                  <p className="text-xs mt-1 text-slate-400">
-                    {result.correctCount} of {result.totalQuestions} Questions Correct (80% Required to Advance)
-                  </p>
-                </div>
+                <h3 className="text-base font-bold text-white">
+                  {result.passed
+                    ? "Step Mastery Achieved!"
+                    : "Mastery Threshold Not Met"}
+                </h3>
+
+                <p className="text-xs text-slate-300 max-w-md mx-auto">
+                  {result.passed
+                    ? `Congratulations! You answered ${result.correctCount} of ${result.totalQuestions} questions correctly, surpassing the 80% threshold.`
+                    : `You answered ${result.correctCount} of ${result.totalQuestions} questions correctly. Review your diagnostic feedback below before retrying.`}
+                </p>
               </div>
 
-              {/* Per-Question Diagnostic Review */}
-              <div className="space-y-4 pt-2">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                  Diagnostic Competency Review ({result.diagnostic.length} Items)
+              {/* Per-Wrong-Question Diagnostic Review */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold tracking-wider text-cyan-400 uppercase flex items-center gap-2">
+                  <HelpCircle className="w-4 h-4" />
+                  Competency Diagnostic Breakdown ({result.diagnostic.length} Evaluated)
                 </h4>
 
                 <div className="space-y-3">
                   {result.diagnostic.map((item, idx) => (
                     <div
                       key={idx}
-                      className={`p-4 rounded-2xl border text-xs space-y-2.5 ${
+                      className={`p-4 rounded-2xl border space-y-2.5 ${
                         item.isCorrect
-                          ? "bg-[#090A0F] border-emerald-500/30"
-                          : "bg-[#090A0F] border-rose-500/40"
+                          ? "bg-[#090A0F] border-emerald-500/20"
+                          : "bg-[#090A0F] border-rose-500/30"
                       }`}
                     >
-                      <div className="flex items-center justify-between">
-                        <span className="font-mono text-[10px] text-slate-400">
-                          {item.acuId ? `ACU: ${item.acuId}` : `Question ${idx + 1}`}
+                      <div className="flex items-center justify-between text-[11px]">
+                        <span className="font-mono text-slate-400 font-semibold">
+                          Question {idx + 1}
                         </span>
-                        <span
-                          className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider ${
-                            item.isCorrect
-                              ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                              : "bg-rose-500/20 text-rose-300 border border-rose-500/30"
-                          }`}
-                        >
-                          {item.isCorrect ? "Correct" : "Incorrect"}
-                        </span>
+                        {item.acuId && (
+                          <span className="px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 font-mono text-[10px]">
+                            {item.acuId}
+                          </span>
+                        )}
                       </div>
 
                       {item.question && (
-                        <p className="font-bold text-slate-200">{item.question}</p>
+                        <p className="text-xs font-semibold text-white">{item.question}</p>
                       )}
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1 font-mono text-[11px]">
-                        <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                          <span className="text-slate-500 block text-[10px]">Your Answer:</span>
-                          <span className={item.isCorrect ? "text-emerald-400 font-bold" : "text-rose-400"}>
-                            {item.chosenOption}
-                          </span>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
+                        <div className={`p-2.5 rounded-xl border ${
+                          item.isCorrect
+                            ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
+                            : "bg-rose-950/30 border-rose-500/30 text-rose-300"
+                        }`}>
+                          <span className="font-bold block text-[10px] uppercase">Your Choice:</span>
+                          <span>{item.chosenOption}</span>
                         </div>
-                        <div className="p-2 rounded-lg bg-slate-900 border border-slate-800">
-                          <span className="text-slate-500 block text-[10px]">Correct Answer:</span>
-                          <span className="text-emerald-400 font-bold">{item.correctOption}</span>
-                        </div>
+
+                        {!item.isCorrect && (
+                          <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-300">
+                            <span className="font-bold block text-[10px] uppercase">Correct Option:</span>
+                            <span>{item.correctOption}</span>
+                          </div>
+                        )}
                       </div>
 
-                      {item.whyWrong && (
-                        <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-slate-300 leading-relaxed italic">
-                          <span className="font-bold text-cyan-400 not-italic block mb-0.5">
-                            Diagnostic Feedback:
-                          </span>
+                      {!item.isCorrect && item.whyWrong && (
+                        <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 leading-normal">
+                          <strong className="text-amber-400 block text-[10px] uppercase tracking-wider">Diagnostic Analysis:</strong>
                           {item.whyWrong}
                         </div>
                       )}
@@ -450,88 +491,32 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
                 </div>
               </div>
 
+              {/* Action Footer */}
+              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1E2436]">
+                {result.passed ? (
+                  <button
+                    onClick={async () => {
+                      await onPassed();
+                      onClose();
+                    }}
+                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 transition"
+                  >
+                    <span>Continue to Next Step</span>
+                    <ArrowRight className="w-4 h-4 fill-slate-950" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={onClose}
+                    className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition"
+                  >
+                    Review Materials Again
+                  </button>
+                )}
+              </div>
             </div>
           )}
-
         </div>
-
-        {/* Footer Actions */}
-        <div className="border-t border-[#1E2436] px-6 py-4 bg-[#090A0F]/60 flex items-center justify-between">
-          {quizState === "active" && (
-            <>
-              <button
-                type="button"
-                onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                disabled={currentIndex === 0}
-                className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] text-slate-300 hover:text-slate-100 disabled:opacity-30 text-xs font-semibold flex items-center gap-1.5 transition"
-              >
-                <ArrowLeft className="w-3.5 h-3.5" /> Previous
-              </button>
-
-              {isLastQuestion ? (
-                <button
-                  type="button"
-                  onClick={handleSubmitQuiz}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-                >
-                  <span>Submit Evaluation</span>
-                  <CheckCircle2 className="w-4 h-4" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                  disabled={selectedOptionIndex === undefined}
-                  className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2 disabled:opacity-40"
-                >
-                  <span>Next Question</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
-            </>
-          )}
-
-          {quizState === "result" && result && (
-            <div className="w-full flex justify-end gap-3">
-              {result.passed ? (
-                <button
-                  type="button"
-                  onClick={async () => {
-                    await onPassed();
-                    onClose();
-                  }}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-                >
-                  <span>Continue to Next Step</span>
-                  <ArrowRight className="w-4 h-4 stroke-[3]" />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                >
-                  <BookOpen className="w-4 h-4" />
-                  <span>Review Study Materials Again</span>
-                </button>
-              )}
-            </div>
-          )}
-
-          {(quizState === "loading" || quizState === "error" || quizState === "submitting") && (
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs font-semibold ml-auto"
-            >
-              Close
-            </button>
-          )}
-        </div>
-
       </div>
     </div>
   );
 }
-
-export default QuizModal;

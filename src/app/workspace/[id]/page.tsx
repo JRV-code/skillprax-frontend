@@ -20,11 +20,13 @@ import {
   Sparkles,
   Zap,
   ArrowLeft,
-  AlertCircle
+  AlertCircle,
+  Trash2
 } from "lucide-react";
 import Link from "next/link";
 import { getPillarById } from "@/lib/pillars";
 import QuizModal from "@/components/QuizModal";
+import AbandonTrackModal from "@/components/AbandonTrackModal";
 
 interface CuratedResource {
   title: string;
@@ -100,8 +102,9 @@ export default function WorkspacePage() {
   const [regeneratingStepId, setRegeneratingStepId] = useState<string | null>(null);
   const [regenerateError, setRegenerateError] = useState<Record<string, string>>({});
   
-  // Quiz Modal State
+  // Modal States
   const [isQuizOpen, setIsQuizOpen] = useState(false);
+  const [isAbandonOpen, setIsAbandonOpen] = useState(false);
   const [isAdvancingStep, setIsAdvancingStep] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
 
@@ -117,7 +120,6 @@ export default function WorkspacePage() {
       setWorkspace(wsData);
       
       if (wsData.steps && wsData.steps.length > 0) {
-        // Default active step to the latest or current step
         setActiveStep((prevStep) => {
           if (prevStep) {
             const matched = wsData.steps.find((s) => s.id === prevStep.id);
@@ -167,18 +169,14 @@ export default function WorkspacePage() {
     setActionError(null);
 
     try {
-      // POST to next-step endpoint
       await apiFetch(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/${workspaceId}/next-step`,
         { method: "POST" }
       );
-      
-      // Refresh workspace data to load new step
       await loadWorkspace();
     } catch (err) {
       console.error("Failed to generate or fetch next step:", err);
       setActionError(err instanceof Error ? err.message : "Could not generate next step.");
-      // Still attempt to reload workspace to show current updated step status
       await loadWorkspace();
     } finally {
       setIsAdvancingStep(false);
@@ -223,7 +221,7 @@ export default function WorkspacePage() {
   }
 
   const currentStep = activeStep || (workspace.steps && workspace.steps[0]);
-  const pillarId = workspace.pillar || workspace.domainCategory || "";
+  const pillarId = workspace.pillar || workspace.domainCategory || "General Knowledge";
   const pillar = getPillarById(pillarId);
   const title = workspace.skillName || workspace.title || "Skill Track";
 
@@ -243,6 +241,7 @@ export default function WorkspacePage() {
 
   const overviewText = currentStep?.conceptualOverview || currentStep?.whatYouWillLearn || "Master foundational principles and mental models.";
   const questionCount = currentStep?.questionCount || 5;
+  const completedStepsCount = (workspace.steps || []).filter((s) => s.status === "PASSED").length;
 
   const isPreparingQuiz = workspace.isGenerating || !currentStep || !currentStep.conceptualOverview || resources.length === 0;
 
@@ -256,12 +255,20 @@ export default function WorkspacePage() {
             <ArrowLeft className="w-4 h-4" /> Back to Dashboard
           </Link>
 
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
             {pillar && (
               <span className="px-3 py-1 rounded-full bg-cyan-950/60 border border-cyan-500/30 text-xs font-mono text-cyan-300">
                 {pillar.label}
               </span>
             )}
+            
+            <button
+              onClick={() => setIsAbandonOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-xs text-red-300 font-semibold transition"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Pause / Abandon Track</span>
+            </button>
           </div>
         </div>
 
@@ -273,7 +280,7 @@ export default function WorkspacePage() {
           )}
         </div>
 
-        {/* Global Action Error Banner */}
+        {/* Action Error Banner */}
         {actionError && (
           <div className="p-4 rounded-2xl bg-red-950/40 border border-red-500/40 text-xs text-red-300 flex items-center justify-between">
             <span>{actionError}</span>
@@ -328,7 +335,7 @@ export default function WorkspacePage() {
 
               <div className="flex items-center gap-3 text-xs">
                 <span className="px-3 py-1 rounded-lg bg-[#090A0F] border border-[#1E2436] font-mono text-cyan-300">
-                  {questionCount} AI-Calibrated Questions
+                  Evaluation Gate: {questionCount} Questions (Calibrated to Step Complexity)
                 </span>
                 <button
                   onClick={() => handleRegenerate(currentStep.id)}
@@ -352,7 +359,7 @@ export default function WorkspacePage() {
               </div>
             </div>
 
-            {/* Key Takeaways */}
+            {/* Key Takeaways / ACUs */}
             {takeaways.length > 0 && (
               <div className="space-y-3">
                 <div className="text-xs font-bold tracking-wider text-slate-400 uppercase">
@@ -377,7 +384,7 @@ export default function WorkspacePage() {
               </div>
             )}
 
-            {/* AI-Curated Learning Resources */}
+            {/* Dynamic AI-Curated Learning Resources */}
             <div className="space-y-4 pt-2">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-400 uppercase">
@@ -403,22 +410,24 @@ export default function WorkspacePage() {
                   </div>
                 </div>
               ) : (
-                <div className="grid grid-cols-1 gap-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   {resources.map((res: CuratedResource, idx: number) => {
                     const resType = res.type || "article";
                     const IconComponent = RESOURCE_ICON[resType] || RESOURCE_ICON.default;
                     return (
                       <div 
                         key={idx}
-                        className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] hover:border-cyan-500/50 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-4 group"
+                        className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] hover:border-cyan-500/50 transition-all flex flex-col justify-between gap-3 group"
                       >
-                        <div className="space-y-1.5 max-w-2xl">
-                          <div className="flex items-center gap-2">
-                            <IconComponent className="w-4 h-4 text-cyan-400 shrink-0" />
-                            <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                              {res.badge || "Core Reference"}
-                            </span>
-                            {res.sourceOrigin === "groq-internal" && (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2">
+                              <IconComponent className="w-4 h-4 text-cyan-400 shrink-0" />
+                              <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
+                                {res.badge || "Core Reference"}
+                              </span>
+                            </div>
+                            {res.sourceOrigin === "fallback" && (
                               <span className="text-[10px] font-mono text-slate-500">(Canonical)</span>
                             )}
                           </div>
@@ -429,7 +438,7 @@ export default function WorkspacePage() {
                             className="text-sm font-semibold text-slate-100 group-hover:text-cyan-300 transition flex items-center gap-1.5"
                           >
                             {res.title}
-                            <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400" />
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0" />
                           </a>
                           {res.studyGuidance && (
                             <p className="text-xs text-slate-400 leading-normal">
@@ -438,15 +447,17 @@ export default function WorkspacePage() {
                           )}
                         </div>
 
-                        <a
-                          href={res.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-500 hover:text-slate-950 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition shrink-0"
-                        >
-                          <span>Open Resource</span>
-                          <ExternalLink className="w-3.5 h-3.5" />
-                        </a>
+                        <div className="pt-2">
+                          <a
+                            href={res.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-500 hover:text-slate-950 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition"
+                          >
+                            <span>Open Destination Material</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </a>
+                        </div>
                       </div>
                     );
                   })}
@@ -482,7 +493,7 @@ export default function WorkspacePage() {
                   ) : (
                     <>
                       <Zap className="w-4 h-4 fill-slate-950" />
-                      Take ACU Diagnostic Evaluation Quiz ({questionCount} Questions)
+                      Take Evaluation Quiz ({questionCount} ACUs)
                     </>
                   )}
                 </button>
@@ -503,6 +514,19 @@ export default function WorkspacePage() {
             isOpen={isQuizOpen}
             onClose={() => setIsQuizOpen(false)}
             onPassed={handlePassed}
+          />
+        )}
+
+        {/* Abandon Track Modal Render */}
+        {workspace && (
+          <AbandonTrackModal
+            workspaceId={workspace.id}
+            trackTitle={title}
+            domain={pillarId}
+            completedStepsCount={completedStepsCount}
+            isOpen={isAbandonOpen}
+            onClose={() => setIsAbandonOpen(false)}
+            onAbandoned={() => router.push("/")}
           />
         )}
       </div>
