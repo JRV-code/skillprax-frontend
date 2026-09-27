@@ -252,7 +252,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection
+                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection (100% Free Tiers Focus)
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
                     Select the fallback LLM engine used when workspaces do not specify an explicit override.
@@ -263,12 +263,13 @@ export default function AdminPage() {
                 </span>
               </div>
 
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
-                  { id: 'groq', name: 'Groq Llama 3.3', model: 'llama-3.3-70b-versatile', badge: 'Ultra-Fast' },
-                  { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'Flagship' },
-                  { id: 'anthropic', name: 'Anthropic Claude 3.7', model: 'claude-3-7-sonnet-latest', badge: 'Deep Reasoning' },
-                  { id: 'gemini', name: 'Google Gemini 2.5/3.1', model: 'gemini-2.5-flash', badge: 'Fast & Reasoning' },
+                  { id: 'groq', name: 'Groq Cloud (Free)', model: 'openai/gpt-oss-120b', badge: 'Ultra-Fast Free' },
+                  { id: 'gemini', name: 'Google AI Studio (Free)', model: 'gemini-3.7-flash', badge: 'Flagship Free' },
+                  { id: 'openrouter', name: 'OpenRouter (Free)', model: 'gpt-oss-120b:free', badge: 'Backup Free' },
+                  { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'Paid Tier' },
+                  { id: 'anthropic', name: 'Anthropic Claude 3.7', model: 'claude-3-7-sonnet-latest', badge: 'Paid Tier' },
                 ].map((prov) => {
                   const isSelected = selectedDefault === prov.id;
                   const isConfigured = keysConfig.configured[prov.id as keyof typeof keysConfig.configured];
@@ -277,7 +278,7 @@ export default function AdminPage() {
                       key={prov.id}
                       type="button"
                       onClick={() => setSelectedDefault(prov.id as AIProvider)}
-                      className={`p-4 rounded-xl border text-left transition flex flex-col justify-between ${
+                      className={`p-3.5 rounded-xl border text-left transition flex flex-col justify-between ${
                         isSelected
                           ? 'bg-cyan-950/40 border-cyan-500 text-slate-100 cyber-glow-cyan'
                           : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:border-slate-700'
@@ -286,14 +287,14 @@ export default function AdminPage() {
                       <div>
                         <div className="flex items-center justify-between mb-1">
                           <span className="text-xs font-semibold text-slate-200">{prov.name}</span>
-                          <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400">
+                          <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono">
                             {prov.badge}
                           </span>
                         </div>
-                        <p className="text-[11px] font-mono text-slate-500 truncate">{prov.model}</p>
+                        <p className="text-[10px] font-mono text-slate-500 truncate">{prov.model}</p>
                       </div>
 
-                      <div className="mt-4 flex items-center justify-between text-[11px]">
+                      <div className="mt-3 flex items-center justify-between text-[11px]">
                         <span className={`flex items-center gap-1 ${isConfigured ? 'text-emerald-400' : 'text-amber-400'}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {isConfigured ? 'Key Set' : 'No Key'}
@@ -313,37 +314,46 @@ export default function AdminPage() {
                   id: 'groq',
                   name: 'Groq Cloud API Key',
                   placeholder: 'gsk_...',
-                  helperText: null,
+                  helperText: 'Groq Cloud Free Tier — Active Models: GPT-OSS 20B (Pings) & 120B (Reasoning)',
                   masked: keysConfig.keys.groq,
                   configured: keysConfig.configured.groq,
                   accentColor: 'text-amber-400',
                 },
                 {
+                  id: 'gemini',
+                  name: 'Google Gemini API Key',
+                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
+                  helperText: 'Google AI Studio Free Tier — Active Model: Gemini 3.7 Flash',
+                  masked: keysConfig.keys.gemini,
+                  configured: keysConfig.configured.gemini,
+                  accentColor: 'text-cyan-400',
+                },
+                {
+                  id: 'openrouter',
+                  name: 'OpenRouter API Key (Optional)',
+                  placeholder: 'sk-or-v1-...',
+                  helperText: 'OpenRouter Free Tier — Active Model: GPT-OSS 120B Free',
+                  masked: keysConfig.keys.openrouter,
+                  configured: keysConfig.configured.openrouter,
+                  accentColor: 'text-emerald-400',
+                },
+                {
                   id: 'openai',
                   name: 'OpenAI Platform Key',
                   placeholder: 'sk-proj-...',
-                  helperText: null,
+                  helperText: 'OpenAI Developer Tier — Flagship gpt-4o & o3-mini',
                   masked: keysConfig.keys.openai,
                   configured: keysConfig.configured.openai,
-                  accentColor: 'text-emerald-400',
+                  accentColor: 'text-purple-400',
                 },
                 {
                   id: 'anthropic',
                   name: 'Anthropic Claude API Key',
                   placeholder: 'sk-ant-api...',
-                  helperText: null,
+                  helperText: 'Anthropic Developer Tier — Claude 3.7 Sonnet',
                   masked: keysConfig.keys.anthropic,
                   configured: keysConfig.configured.anthropic,
-                  accentColor: 'text-purple-400',
-                },
-                {
-                  id: 'gemini',
-                  name: 'Google Gemini API Key',
-                  placeholder: 'AQ.Ab8RN6...',
-                  helperText: 'Supports Google AI Studio Authentication Keys (AQ. prefix) and Google Cloud API Keys (AIza prefix). Models: Gemini 2.5 Flash & Gemini 3.1 Pro.',
-                  masked: keysConfig.keys.gemini,
-                  configured: keysConfig.configured.gemini,
-                  accentColor: 'text-cyan-400',
+                  accentColor: 'text-indigo-400',
                 },
               ].map((item) => {
                 const status = testingStatus[item.id] || {};
@@ -375,7 +385,7 @@ export default function AdminPage() {
                         </label>
                         <input
                           type="password"
-                          value={(inputKeys as any)[item.id]}
+                          value={(inputKeys as any)[item.id] || ''}
                           onChange={(e) =>
                             setInputKeys({ ...inputKeys, [item.id]: e.target.value })
                           }
@@ -383,7 +393,7 @@ export default function AdminPage() {
                           className="w-full px-3.5 py-2 rounded-lg bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500/70"
                         />
                         {item.helperText && (
-                          <p className="text-[10px] text-slate-400 mt-1.5 leading-normal">
+                          <p className="text-[10px] text-cyan-400/90 mt-1.5 leading-normal font-mono">
                             {item.helperText}
                           </p>
                         )}

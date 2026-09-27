@@ -1,4 +1,4 @@
-export type AIProvider = 'groq' | 'openai' | 'anthropic' | 'gemini';
+export type AIProvider = 'groq' | 'openai' | 'anthropic' | 'gemini' | 'openrouter';
 
 export interface BookRecommendation {
   title: string;
@@ -82,12 +82,14 @@ export interface AdminKeysDTO {
     openai?: string | null;
     anthropic?: string | null;
     gemini?: string | null;
+    openrouter?: string | null;
   };
   configured: {
     groq: boolean;
     openai: boolean;
     anthropic: boolean;
     gemini: boolean;
+    openrouter?: boolean;
   };
 }
 

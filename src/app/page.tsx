@@ -449,10 +449,10 @@ export default function DashboardPage() {
                         </label>
                         <div className="grid grid-cols-2 gap-3">
                           {[
-                            { id: 'groq', name: 'Groq Llama 3.3 70B', desc: 'Llama 3.3 70B Versatile (Ultra-Fast)' },
-                            { id: 'openai', name: 'OpenAI GPT-4o / o3-mini', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
-                            { id: 'anthropic', name: 'Anthropic Claude 3.7', desc: 'Claude 3.7 Sonnet (Comprehensive Synthesis)' },
-                            { id: 'gemini', name: 'Google Gemini 2.5 / 3.1', desc: 'Gemini 2.5 Flash (Balanced) | Gemini 3.1 Pro (Deep Reasoning)' },
+                            { id: 'groq', name: 'Groq Cloud (Free)', desc: 'GPT-OSS 120B (Recommended — Ultra Fast)' },
+                            { id: 'gemini', name: 'Google Gemini (Free)', desc: 'Gemini 3.7 Flash (Comprehensive Multimodal)' },
+                            { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'GPT-OSS 120B :free (Universal Backup)' },
+                            { id: 'openai', name: 'OpenAI Platform', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
                           ].map((prov) => (
                             <button
                               key={prov.id}
