@@ -1,52 +1,98 @@
-export type NodeStatus =
-  | 'LOCKED'
-  | 'AVAILABLE'
-  | 'IN_PROGRESS'
-  | 'DEMONSTRATED'
-  | 'RUSTY'
-  | 'DETOUR';
+export type AIProvider = 'groq' | 'openai' | 'anthropic' | 'gemini';
 
-export type IntakeType = 'GOAL_FIRST' | 'DECONSTRUCTION_LAB';
-
-export type AssessmentType =
-  | 'RESOURCE_PROOF'
-  | 'PERTURBATION'
-  | 'SABOTAGE'
-  | 'EXPLAIN_IT_BACK';
-
-export interface SkillNodeDTO {
-  id: string;
-  goalId: string;
+export interface BookRecommendation {
   title: string;
-  description: string;
-  domainCategory: string;
-  status: NodeStatus;
-  isDetour: boolean;
-  parentNodeId?: string | null;
-  stability: number;
-  retrievability: number;
-  x?: number;
-  y?: number;
+  author: string;
+  whyRead: string;
+  searchUrl: string;
 }
 
-export interface NodeEdgeDTO {
+export interface ResourceItem {
+  title: string;
+  url: string;
+  type: 'youtube' | 'docs' | 'reddit' | 'article' | string;
+  summary: string;
+}
+
+export interface QuizQuestion {
   id: string;
-  prerequisiteId: string;
-  dependentId: string;
+  question: string;
+  options: string[];
+  conceptTested?: string;
 }
 
-export interface DAGTopologyDTO {
-  goalId: string;
-  goalTitle: string;
-  nodes: SkillNodeDTO[];
-  edges: NodeEdgeDTO[];
+export interface QuizAttemptDTO {
+  id: string;
+  stepId: string;
+  score: number;
+  passed: boolean;
+  targetWeakAreasOnly?: boolean;
+  userAnswers: Array<{ questionId: string; selectedOptionIndex: number }>;
+  diagnosticReport?: string | null;
+  weakConcepts?: string[] | null;
+  remedialResources?: Array<{
+    title: string;
+    url: string;
+    type: string;
+    focusArea?: string;
+  }> | null;
+  createdAt: string;
 }
 
-export interface UserStatsDTO {
+export interface SkillStepDTO {
+  id: string;
+  workspaceId: string;
+  stepIndex: number;
+  title: string;
+  difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mastery' | string;
+  objective: string;
+  resources: ResourceItem[];
+  status: 'IN_PROGRESS' | 'READY_FOR_QUIZ' | 'PASSED' | string;
+  passingScore: number;
+  questionCount: number;
+  attempts?: QuizAttemptDTO[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WorkspaceDTO {
+  id: string;
   userId: string;
-  username: string;
-  level: number;
-  xp: number;
-  overallRetrievability: number;
-  activeSabotageAlert: boolean;
+  title: string;
+  category: string;
+  baselineKnowledge: string;
+  targetGoal: string;
+  aiProvider: AIProvider | string;
+  aiModel?: string | null;
+  status: 'ACTIVE' | 'MASTERED' | 'ARCHIVED' | string;
+  estimatedTotalSteps: number;
+  currentStepIndex: number;
+  recommendedBooks?: BookRecommendation[] | null;
+  steps: SkillStepDTO[];
+  passedStepsCount?: number;
+  completionPercentage: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminKeysDTO {
+  defaultProvider: AIProvider;
+  keys: {
+    groq?: string | null;
+    openai?: string | null;
+    anthropic?: string | null;
+    gemini?: string | null;
+  };
+  configured: {
+    groq: boolean;
+    openai: boolean;
+    anthropic: boolean;
+    gemini: boolean;
+  };
+}
+
+export interface TestConnectionResponse {
+  ok: boolean;
+  latencyMs: number;
+  error?: string;
 }
