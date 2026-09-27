@@ -107,6 +107,9 @@ export default function WorkspacePage() {
   const [isAbandonOpen, setIsAbandonOpen] = useState(false);
   const [isAdvancingStep, setIsAdvancingStep] = useState(false);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [isLoadingReflection, setIsLoadingReflection] = useState(false);
+  const [reflectionText, setReflectionText] = useState<string | null>(null);
+  const [milestonesSummary, setMilestonesSummary] = useState<string[]>([]);
 
   const loadWorkspace = useCallback(async () => {
     if (!workspaceId || workspaceId === "undefined") return;
@@ -263,11 +266,37 @@ export default function WorkspacePage() {
             )}
             
             <button
-              onClick={() => setIsAbandonOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-xs text-red-300 font-semibold transition"
+              onClick={async () => {
+                setIsLoadingReflection(true);
+                try {
+                  const res = await fetch(
+                    `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/${workspace.id}/abandon-reflection`,
+                    { method: "POST", headers: { "Content-Type": "application/json" } }
+                  );
+                  if (res.ok) {
+                    const data = await res.json();
+                    setReflectionText(data.reflectionText || null);
+                    setMilestonesSummary(Array.isArray(data.milestonesSummary) ? data.milestonesSummary : []);
+                  } else {
+                    setReflectionText(null);
+                    setMilestonesSummary([]);
+                  }
+                } catch (_) {
+                  setReflectionText(null);
+                  setMilestonesSummary([]);
+                } finally {
+                  setIsLoadingReflection(false);
+                  setIsAbandonOpen(true);
+                }
+              }}
+              disabled={isLoadingReflection}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-950/40 hover:bg-red-900/60 border border-red-500/30 text-xs text-red-300 font-semibold transition disabled:opacity-50"
             >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>Pause / Abandon Track</span>
+              {isLoadingReflection ? (
+                <><Loader2 className="w-3.5 h-3.5 animate-spin" /><span>Loading…</span></>
+              ) : (
+                <><Trash2 className="w-3.5 h-3.5" /><span>Pause / Abandon Track</span></>
+              )}
             </button>
           </div>
         </div>
@@ -524,6 +553,8 @@ export default function WorkspacePage() {
             trackTitle={title}
             domain={pillarId}
             completedStepsCount={completedStepsCount}
+            reflectionText={reflectionText}
+            milestonesSummary={milestonesSummary}
             isOpen={isAbandonOpen}
             onClose={() => setIsAbandonOpen(false)}
             onAbandoned={() => router.push("/")}

@@ -74,12 +74,9 @@ export function NewSkillModal({ isOpen, onClose, onCreate, onSubmit }: NewSkillM
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           title: skillName.trim(),
-          skillName: skillName.trim(),
-          pillar: selectedPillarId,
           domainCategory: categoryLabel,
-          category: categoryLabel,
           targetGoal: goal.trim() || "Full Mastery",
-          baselineKnowledge: "Beginner",
+          level: "beginner",
         }),
       });
 

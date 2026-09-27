@@ -64,6 +64,25 @@ interface QuizModalProps {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
 
+// Extended loading state — shows longer message after ~4s since backend generates synchronously
+function LoadingQuizState() {
+  const [extended, setExtended] = useState(false);
+  useEffect(() => {
+    const timer = setTimeout(() => setExtended(true), 4000);
+    return () => clearTimeout(timer);
+  }, []);
+  return (
+    <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
+      <Loader2 className="w-10 h-10 animate-spin" />
+      <p className="text-xs font-mono text-slate-400">
+        {extended
+          ? "Still preparing your quiz — this can take a bit longer the first time"
+          : "Synthesizing ACU diagnostic questions..."}
+      </p>
+    </div>
+  );
+}
+
 export default function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps) {
   const [quizState, setQuizState] = useState<QuizState>("idle");
   const [attemptId, setAttemptId] = useState<string | null>(null);
@@ -244,10 +263,7 @@ export default function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizMod
         <div className="flex-1 overflow-y-auto py-4 space-y-6">
           {/* STATE 1: LOADING */}
           {quizState === "loading" && (
-            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
-              <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="text-xs font-mono text-slate-400">Synthesizing ACU diagnostic questions...</p>
-            </div>
+            <LoadingQuizState />
           )}
 
           {/* STATE 2: ERROR */}
