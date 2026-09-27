@@ -1,41 +1,22 @@
+// skillprax-frontend/src/components/NewSkillModal.tsx
+
 "use client";
 
 import React, { useState } from "react";
 import { useRouter } from "next/navigation";
-import { 
-  Atom, 
-  Cpu, 
-  Binary, 
-  Users, 
-  TrendingUp, 
-  BookOpen, 
-  Palette, 
-  Activity, 
-  Wrench,
-  ArrowRight,
-  Loader2
-} from "lucide-react";
+import { X, Atom, Sigma, Cog, Users, Briefcase, Scale, Palette, HeartPulse, Hammer, Loader2, ArrowRight } from "lucide-react";
+import { KNOWLEDGE_PILLARS, UNIVERSAL_DOMAINS } from "@/lib/pillars";
+export { UNIVERSAL_DOMAINS };
 import { AIProvider } from "@/lib/types";
 
-export const UNIVERSAL_DOMAINS = [
-  { id: "natural-sciences", label: "Natural & Physical Sciences", icon: Atom },
-  { id: "engineering-tech", label: "Engineering & Applied Technology", icon: Cpu },
-  { id: "mathematics-logic", label: "Formal Sciences & Mathematics", icon: Binary },
-  { id: "social-sciences", label: "Social Sciences & Human Systems", icon: Users },
-  { id: "business-finance", label: "Business, Finance & Strategy", icon: TrendingUp },
-  { id: "humanities-philosophy", label: "Humanities, Philosophy & Law", icon: BookOpen },
-  { id: "arts-design", label: "Arts, Media & Spatial Design", icon: Palette },
-  { id: "health-athletics", label: "Health, Physiology & Performance", icon: Activity },
-  { id: "practical-crafts", label: "Practical Crafts & Applied Trades", icon: Wrench }
-];
+const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
+  Atom, Sigma, Cog, Users, Briefcase, Scale, Palette, HeartPulse, Hammer,
+};
 
-export function NewSkillModal({
-  isOpen,
-  onClose,
-  onSubmit
-}: {
+interface NewSkillModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onCreate?: (params: { skillName: string; pillarId: string }) => Promise<void>;
   onSubmit?: (data: {
     title: string;
     category: string;
@@ -43,32 +24,47 @@ export function NewSkillModal({
     targetGoal: string;
     preferredProvider: AIProvider;
   }) => Promise<void>;
-}) {
+}
+
+export function NewSkillModal({ isOpen, onClose, onCreate, onSubmit }: NewSkillModalProps) {
   const router = useRouter();
-  const [selectedDomain, setSelectedDomain] = useState(UNIVERSAL_DOMAINS[0].label);
-  const [topic, setTopic] = useState("");
+  const [skillName, setSkillName] = useState("");
+  const [selectedPillarId, setSelectedPillarId] = useState<string | null>(KNOWLEDGE_PILLARS[0].id);
   const [goal, setGoal] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
-  async function handleCreate(e: React.FormEvent) {
-    e.preventDefault();
-    if (!topic.trim()) return;
+  const canSubmit = skillName.trim().length >= 2 && selectedPillarId !== null && !isSubmitting;
 
-    setLoading(true);
-    setError("");
+  async function handleSubmit(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    if (!canSubmit || !selectedPillarId) return;
+
+    setIsSubmitting(true);
+    setError(null);
+
+    const selectedPillar = KNOWLEDGE_PILLARS.find((p) => p.id === selectedPillarId);
+    const categoryLabel = selectedPillar ? selectedPillar.label : "General Knowledge";
 
     try {
+      if (onCreate) {
+        await onCreate({ skillName: skillName.trim(), pillarId: selectedPillarId });
+        setSkillName("");
+        onClose();
+        return;
+      }
+
       if (onSubmit) {
         await onSubmit({
-          title: topic.trim(),
-          category: selectedDomain,
+          title: skillName.trim(),
+          category: categoryLabel,
           baselineKnowledge: "Beginner",
           targetGoal: goal.trim() || "Full Mastery",
-          preferredProvider: "groq" as AIProvider
+          preferredProvider: "groq" as AIProvider,
         });
+        setSkillName("");
         onClose();
         return;
       }
@@ -77,12 +73,14 @@ export function NewSkillModal({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          title: topic.trim(),
-          domainCategory: selectedDomain,
-          category: selectedDomain,
+          title: skillName.trim(),
+          skillName: skillName.trim(),
+          pillar: selectedPillarId,
+          domainCategory: categoryLabel,
+          category: categoryLabel,
           targetGoal: goal.trim() || "Full Mastery",
-          level: "Beginner"
-        })
+          baselineKnowledge: "Beginner",
+        }),
       });
 
       if (!res.ok) {
@@ -91,49 +89,63 @@ export function NewSkillModal({
       }
 
       const data = await res.json();
-      router.push(`/workspace/${data.workspace.id}`);
+      const workspaceId = data.workspace?.id || data.id;
+      if (workspaceId) {
+        router.push(`/workspace/${workspaceId}`);
+      }
       onClose();
-    } catch (err: any) {
-      setError(err.message || "Failed to initialize workspace");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Something went wrong creating this skill track.");
     } finally {
-      setLoading(false);
+      setIsSubmitting(false);
     }
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-      <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl">
-        <h2 className="text-xl font-bold text-slate-100 mb-1">Create Learning Track</h2>
-        <p className="text-sm text-slate-400 mb-4">Choose a broad domain and set your milestone.</p>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-neutral-900 border border-neutral-800 shadow-2xl">
+        <div className="flex items-center justify-between border-b border-neutral-800 px-6 py-4">
+          <h2 className="text-lg font-semibold text-neutral-100">Start a new learning track</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-neutral-400 hover:bg-neutral-800 hover:text-neutral-100" aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-950/50 border border-red-800 rounded-lg text-red-300 text-sm">
-            {error}
-          </div>
-        )}
-
-        <form onSubmit={handleCreate} className="space-y-4">
+        <form onSubmit={handleSubmit} className="px-6 py-5 space-y-6">
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-2">
-              Domain Category
+            <label htmlFor="skillName" className="mb-2 block text-sm font-medium text-neutral-300">
+              What do you want to learn?
             </label>
-            <div className="flex flex-wrap gap-2">
-              {UNIVERSAL_DOMAINS.map((dom) => {
-                const Icon = dom.icon;
-                const isSelected = selectedDomain === dom.label;
+            <input
+              id="skillName"
+              type="text"
+              value={skillName}
+              onChange={(e) => setSkillName(e.target.value)}
+              placeholder="e.g. Watercolor portraiture, Negotiation tactics, Cellular respiration"
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-neutral-100 placeholder:text-neutral-500 focus:border-emerald-500 focus:outline-none text-sm"
+              maxLength={200}
+              required
+            />
+          </div>
+
+          <div>
+            <span className="mb-2 block text-sm font-medium text-neutral-300">Which area of knowledge is this?</span>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {KNOWLEDGE_PILLARS.map((pillar) => {
+                const Icon = ICON_MAP[pillar.icon] ?? Cog;
+                const isSelected = selectedPillarId === pillar.id;
                 return (
                   <button
-                    key={dom.id}
+                    key={pillar.id}
                     type="button"
-                    onClick={() => setSelectedDomain(dom.label)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
-                      isSelected
-                        ? "bg-cyan-500/20 border-cyan-400 text-cyan-300 shadow-[0_0_10px_rgba(6,182,212,0.3)]"
-                        : "bg-slate-900 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200"
+                    onClick={() => setSelectedPillarId(pillar.id)}
+                    className={`flex flex-col items-start gap-1.5 rounded-xl border px-3 py-2.5 text-left transition ${
+                      isSelected ? "border-emerald-500 bg-emerald-500/10" : "border-neutral-800 bg-neutral-800/50 hover:border-neutral-700"
                     }`}
                   >
-                    <Icon className="w-3.5 h-3.5"/>
-                    {dom.label}
+                    <Icon className={`h-4 w-4 ${isSelected ? "text-emerald-400" : "text-neutral-400"}`} />
+                    <span className={`text-xs font-semibold ${isSelected ? "text-emerald-300" : "text-neutral-200"}`}>{pillar.label}</span>
+                    <span className="text-[11px] text-neutral-500 leading-tight line-clamp-1">{pillar.description}</span>
                   </button>
                 );
               })}
@@ -141,55 +153,41 @@ export function NewSkillModal({
           </div>
 
           <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-              What do you want to learn?
+            <label htmlFor="goal" className="mb-2 block text-sm font-medium text-neutral-300">
+              Real-World Target Goal (Optional)
             </label>
             <input
+              id="goal"
               type="text"
-              required
-              placeholder="e.g., Fullstack web development, Quantum mechanics, Woodworking joinery..."
-              value={topic}
-              onChange={(e) => setTopic(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-sm"
-            />
-          </div>
-
-          <div>
-            <label className="text-xs font-semibold text-slate-400 uppercase tracking-wider block mb-1">
-              Real-World Goal / Application
-            </label>
-            <input
-              type="text"
-              placeholder="e.g., Build and sell fullstack SaaS apps, Pass competitive exam..."
               value={goal}
               onChange={(e) => setGoal(e.target.value)}
-              className="w-full bg-slate-900 border border-slate-800 rounded-xl px-4 py-2.5 text-slate-100 placeholder-slate-500 focus:outline-none focus:border-cyan-400 text-sm"
+              placeholder="e.g. Pass exam, build production application, present research paper..."
+              className="w-full rounded-lg border border-neutral-700 bg-neutral-800 px-4 py-2.5 text-neutral-100 placeholder:text-neutral-500 focus:border-emerald-500 focus:outline-none text-sm"
             />
           </div>
 
-          <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-800">
-            <button
-              type="button"
-              onClick={onClose}
-              disabled={loading}
-              className="px-4 py-2 text-sm text-slate-400 hover:text-slate-200"
-            >
+          {error && (
+            <div className="rounded-lg border border-red-900 bg-red-950/50 px-4 py-3 text-sm text-red-300">{error}</div>
+          )}
+
+          <div className="flex items-center justify-end gap-3 border-t border-neutral-800 pt-4">
+            <button type="button" onClick={onClose} className="rounded-lg px-4 py-2 text-sm font-medium text-neutral-400 hover:text-neutral-200">
               Cancel
             </button>
             <button
               type="submit"
-              disabled={loading || !topic.trim()}
-              className="flex items-center gap-2 px-5 py-2 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-semibold text-sm transition-all disabled:opacity-50"
+              disabled={!canSubmit}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 transition-all shadow-lg shadow-emerald-950"
             >
-              {loading ? (
+              {isSubmitting ? (
                 <>
-                  <Loader2 className="w-4 h-4 animate-spin"/>
-                  Educator Curating Track...
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Creating Track...
                 </>
               ) : (
                 <>
-                  Next: Baseline & Goals
-                  <ArrowRight className="w-4 h-4"/>
+                  Create track
+                  <ArrowRight className="h-4 w-4" />
                 </>
               )}
             </button>

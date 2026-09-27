@@ -21,7 +21,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { WorkspaceDTO, AIProvider } from '@/lib/types';
-import { UNIVERSAL_DOMAINS } from '@/components/NewSkillModal';
+import { UNIVERSAL_DOMAINS } from '@/lib/pillars';
 
 export default function DashboardPage() {
   const router = useRouter();
