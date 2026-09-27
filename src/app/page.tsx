@@ -452,7 +452,7 @@ export default function DashboardPage() {
                             { id: 'groq', name: 'Groq Llama 3.3', desc: 'Ultra-fast inference speed' },
                             { id: 'openai', name: 'OpenAI GPT-4o', desc: 'High accuracy & reasoning' },
                             { id: 'anthropic', name: 'Anthropic Claude 3.5', desc: 'Deep pedagogical structure' },
-                            { id: 'gemini', name: 'Google Gemini Pro', desc: 'Broad technical knowledge' },
+                            { id: 'gemini', name: 'Google Gemini 2.5', desc: 'gemini-2.5-flash (Fast & Current)' },
                           ].map((prov) => (
                             <button
                               key={prov.id}

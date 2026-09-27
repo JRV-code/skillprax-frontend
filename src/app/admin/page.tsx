@@ -82,7 +82,7 @@ export default function AdminPage() {
 
       await api.admin.updateKeys(payload, adminSecret);
       setSuccessMsg('API keys & default provider saved successfully.');
-      
+
       // Refresh current values
       const updated = await api.admin.getKeys(adminSecret);
       setKeysConfig(updated);
@@ -268,7 +268,7 @@ export default function AdminPage() {
                   { id: 'groq', name: 'Groq Llama 3.3', model: 'llama-3.3-70b-versatile', badge: 'Ultra Fast' },
                   { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'High Accuracy' },
                   { id: 'anthropic', name: 'Anthropic Claude', model: 'claude-3-5-sonnet', badge: 'Deep Reasoning' },
-                  { id: 'gemini', name: 'Google Gemini Pro', model: 'gemini-1.5-pro', badge: 'Broad Context' },
+                  { id: 'gemini', name: 'Google Gemini 2.5', model: 'gemini-2.5-flash', badge: 'Fast & Current' },
                 ].map((prov) => {
                   const isSelected = selectedDefault === prov.id;
                   const isConfigured = keysConfig.configured[prov.id as keyof typeof keysConfig.configured];
@@ -313,6 +313,7 @@ export default function AdminPage() {
                   id: 'groq',
                   name: 'Groq Cloud API Key',
                   placeholder: 'gsk_...',
+                  helperText: null,
                   masked: keysConfig.keys.groq,
                   configured: keysConfig.configured.groq,
                   accentColor: 'text-amber-400',
@@ -321,6 +322,7 @@ export default function AdminPage() {
                   id: 'openai',
                   name: 'OpenAI Platform Key',
                   placeholder: 'sk-proj-...',
+                  helperText: null,
                   masked: keysConfig.keys.openai,
                   configured: keysConfig.configured.openai,
                   accentColor: 'text-emerald-400',
@@ -329,6 +331,7 @@ export default function AdminPage() {
                   id: 'anthropic',
                   name: 'Anthropic Claude API Key',
                   placeholder: 'sk-ant-api...',
+                  helperText: null,
                   masked: keysConfig.keys.anthropic,
                   configured: keysConfig.configured.anthropic,
                   accentColor: 'text-purple-400',
@@ -336,7 +339,8 @@ export default function AdminPage() {
                 {
                   id: 'gemini',
                   name: 'Google Gemini API Key',
-                  placeholder: 'AIzaSy...',
+                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
+                  helperText: 'Supports Google AI Studio Authentication Keys (AQ. prefix) and Google Cloud API Keys (AIza prefix).',
                   masked: keysConfig.keys.gemini,
                   configured: keysConfig.configured.gemini,
                   accentColor: 'text-cyan-400',
@@ -378,51 +382,58 @@ export default function AdminPage() {
                           placeholder={item.placeholder}
                           className="w-full px-3.5 py-2 rounded-lg bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500/70"
                         />
+                        {item.helperText && (
+                          <p className="text-[10px] text-slate-400 mt-1.5 leading-normal">
+                            {item.helperText}
+                          </p>
+                        )}
                       </div>
                     </div>
 
                     {/* Test Connection Button & Latency Display */}
-                    <div className="pt-3 border-t border-[#1E2436]/60 flex items-center justify-between gap-3">
-                      <button
-                        type="button"
-                        onClick={() => handleTestConnection(item.id)}
-                        disabled={status.loading}
-                        className="px-3 py-1.5 rounded-lg bg-[#1a2030] hover:bg-[#222a3f] border border-[#2a344d] text-xs text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
-                      >
-                        {status.loading ? (
-                          <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
-                        ) : (
-                          <Zap className="w-3.5 h-3.5 text-amber-400" />
-                        )}
-                        <span>Test Connection</span>
-                      </button>
-
-                      {status.ok !== undefined && (
-                        <div className="flex items-center gap-2 text-xs">
-                          {status.ok ? (
-                            <span className="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono text-[11px]">
-                              <CheckCircle2 className="w-3.5 h-3.5" />
-                              OK ({status.latencyMs}ms)
-                            </span>
+                    <div>
+                      <div className="pt-3 border-t border-[#1E2436]/60 flex items-center justify-between gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleTestConnection(item.id)}
+                          disabled={status.loading}
+                          className="px-3 py-1.5 rounded-lg bg-[#1a2030] hover:bg-[#222a3f] border border-[#2a344d] text-xs text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
+                        >
+                          {status.loading ? (
+                            <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                           ) : (
-                            <span className="px-2.5 py-1 rounded bg-red-950/60 text-red-400 border border-red-500/30 flex items-center gap-1 font-mono text-[11px]">
-                              <AlertTriangle className="w-3.5 h-3.5" />
-                              Error ({status.latencyMs}ms)
-                            </span>
+                            <Zap className="w-3.5 h-3.5 text-amber-400" />
                           )}
+                          <span>Test Connection</span>
+                        </button>
+
+                        {status.ok !== undefined && (
+                          <div className="flex items-center gap-2 text-xs">
+                            {status.ok ? (
+                              <span className="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono text-[11px]">
+                                <CheckCircle2 className="w-3.5 h-3.5" />
+                                OK ({status.latencyMs}ms)
+                              </span>
+                            ) : (
+                              <span className="px-2.5 py-1 rounded bg-red-950/60 text-red-400 border border-red-500/30 flex items-center gap-1 font-mono text-[11px]">
+                                <AlertTriangle className="w-3.5 h-3.5" />
+                                Error ({status.latencyMs}ms)
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {status.ok === false && status.error && (
+                        <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs font-mono break-all leading-relaxed flex items-start gap-2">
+                          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                          <div className="min-w-0 flex-1">
+                            <p className="font-semibold text-red-200 mb-0.5">Connection Failure Detail:</p>
+                            <p className="text-slate-300 select-all">{status.error}</p>
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {status.ok === false && status.error && (
-                      <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs font-mono break-all leading-relaxed flex items-start gap-2">
-                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-red-200 mb-0.5">Connection Failure Detail:</p>
-                          <p className="text-slate-300 select-all">{status.error}</p>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 );
               })}
