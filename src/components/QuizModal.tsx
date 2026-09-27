@@ -87,6 +87,7 @@ export function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps)
       const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/prompt-quiz`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
       });
 
       if (!res.ok) {
