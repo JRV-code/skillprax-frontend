@@ -38,7 +38,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
     category: CATEGORIES[0],
     baselineKnowledge: '',
     targetGoal: '',
-    preferredProvider: 'groq' as AIProvider,
+    preferredProvider: 'gemini' as AIProvider,
   });
 
   if (!isOpen) return null;
@@ -105,20 +105,51 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Skill Track Title
+                      What specific skill or technology do you want to master?
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Distributed Systems Architecture & Consensus"
+                      placeholder="e.g. Distributed Systems in Go, Rust for Solana, Quantum Algorithms"
                       className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
                     />
+
+                    {/* Auto-Suggestion Chips */}
+                    <div className="mt-2.5">
+                      <span className="text-[10px] font-mono text-slate-500 block mb-1.5">
+                        Quick Auto-Suggestions:
+                      </span>
+                      <div className="flex flex-wrap gap-1.5">
+                        {[
+                          'Distributed Systems in Go',
+                          'Organic Chemistry Reaction Mechanisms',
+                          'Transformers & Attention Mechanics',
+                          'Rust for Solana Smart Contracts',
+                          'Compiler Design & LLVM',
+                        ].map((sugg) => (
+                          <button
+                            key={sugg}
+                            type="button"
+                            onClick={() =>
+                              setFormData({
+                                ...formData,
+                                title: sugg,
+                                category: 'Computer Science & Software Architecture',
+                              })
+                            }
+                            className="px-2.5 py-1 rounded-md text-[10px] bg-[#090A0F] border border-[#1E2436] text-cyan-400 hover:border-cyan-500/50 transition font-mono"
+                          >
+                            + {sugg}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-2">
-                      Domain Category
+                      Domain Context / Specialty
                     </label>
                     <div className="flex flex-wrap gap-2">
                       {CATEGORIES.map((cat) => (
@@ -142,7 +173,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     <button
                       onClick={() => {
                         if (!formData.title.trim()) {
-                          alert('Please enter a skill track title.');
+                          alert('Please enter a skill or technology title.');
                           return;
                         }
                         setWizardStage(2);
@@ -217,8 +248,8 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     </label>
                     <div className="grid grid-cols-2 gap-3">
                       {[
-                        { id: 'groq', name: 'Groq Cloud (Free)', desc: 'GPT-OSS 120B (Recommended — Ultra Fast)' },
-                        { id: 'gemini', name: 'Google Gemini (Free)', desc: 'Gemini 3.7 Flash (Comprehensive Multimodal)' },
+                        { id: 'gemini', name: 'Google Gemini (Live Grounded Free)', desc: 'Gemini 3.7 Flash with Native Google Search Grounding' },
+                        { id: 'groq', name: 'Groq Cloud (Free)', desc: 'GPT-OSS 120B (Ultra Fast Inference)' },
                         { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'GPT-OSS 120B :free (Universal Backup)' },
                         { id: 'openai', name: 'OpenAI Platform', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
                       ].map((prov) => (

@@ -8,10 +8,13 @@ export interface BookRecommendation {
 }
 
 export interface ResourceItem {
+  priority?: number;
+  badge?: string;
   title: string;
   url: string;
-  type: 'youtube' | 'docs' | 'reddit' | 'article' | string;
-  summary: string;
+  type: 'video' | 'docs' | 'interactive' | string;
+  whyThisFirst?: string;
+  summary?: string;
 }
 
 export interface QuizQuestion {
@@ -45,7 +48,10 @@ export interface SkillStepDTO {
   stepIndex: number;
   title: string;
   difficulty: 'Beginner' | 'Intermediate' | 'Advanced' | 'Mastery' | string;
-  objective: string;
+  whatYouWillLearn: string;
+  coreKeyTakeaways: string[];
+  practicalApplication: string;
+  estimatedMinutes: number;
   resources: ResourceItem[];
   status: 'IN_PROGRESS' | 'READY_FOR_QUIZ' | 'PASSED' | string;
   passingScore: number;
@@ -83,6 +89,7 @@ export interface AdminKeysDTO {
     anthropic?: string | null;
     gemini?: string | null;
     openrouter?: string | null;
+    tavily?: string | null;
   };
   configured: {
     groq: boolean;
@@ -90,6 +97,7 @@ export interface AdminKeysDTO {
     anthropic: boolean;
     gemini: boolean;
     openrouter?: boolean;
+    tavily?: boolean;
   };
 }
 

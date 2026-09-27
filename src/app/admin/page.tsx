@@ -27,7 +27,7 @@ export default function AdminPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
 
   const [keysConfig, setKeysConfig] = useState<AdminKeysDTO>({
-    defaultProvider: 'groq',
+    defaultProvider: 'gemini',
     keys: {},
     configured: { groq: false, openai: false, anthropic: false, gemini: false },
   });
@@ -37,9 +37,11 @@ export default function AdminPage() {
     openai: '',
     anthropic: '',
     gemini: '',
+    openrouter: '',
+    tavily: '',
   });
 
-  const [selectedDefault, setSelectedDefault] = useState<AIProvider>('groq');
+  const [selectedDefault, setSelectedDefault] = useState<AIProvider>('gemini');
 
   // Connection testing states
   const [testingStatus, setTestingStatus] = useState<
@@ -53,7 +55,7 @@ export default function AdminPage() {
     try {
       const data = await api.admin.getKeys(adminSecret);
       setKeysConfig(data);
-      setSelectedDefault(data.defaultProvider || 'groq');
+      setSelectedDefault(data.defaultProvider || 'gemini');
       setIsAuthenticated(true);
     } catch (err: any) {
       setError(err.message || 'Authentication failed. Check your admin secret.');
@@ -79,6 +81,8 @@ export default function AdminPage() {
       if (inputKeys.openai.trim()) payload.openaiKey = inputKeys.openai.trim();
       if (inputKeys.anthropic.trim()) payload.anthropicKey = inputKeys.anthropic.trim();
       if (inputKeys.gemini.trim()) payload.geminiKey = inputKeys.gemini.trim();
+      if (inputKeys.openrouter.trim()) payload.openrouterKey = inputKeys.openrouter.trim();
+      if (inputKeys.tavily.trim()) payload.tavilyKey = inputKeys.tavily.trim();
 
       await api.admin.updateKeys(payload, adminSecret);
       setSuccessMsg('API keys & default provider saved successfully.');
@@ -86,7 +90,7 @@ export default function AdminPage() {
       // Refresh current values
       const updated = await api.admin.getKeys(adminSecret);
       setKeysConfig(updated);
-      setInputKeys({ groq: '', openai: '', anthropic: '', gemini: '' });
+      setInputKeys({ groq: '', openai: '', anthropic: '', gemini: '', openrouter: '', tavily: '' });
     } catch (err: any) {
       setError(err.message || 'Failed to update admin keys.');
     } finally {
@@ -252,7 +256,7 @@ export default function AdminPage() {
               <div className="flex items-center justify-between mb-4">
                 <div>
                   <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
-                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection (100% Free Tiers Focus)
+                    <Sparkles className="w-4 h-4" /> Global Default Engine Selection (Unified Gemini Native Grounding)
                   </h3>
                   <p className="text-xs text-slate-400 mt-1">
                     Select the fallback LLM engine used when workspaces do not specify an explicit override.
@@ -265,8 +269,8 @@ export default function AdminPage() {
 
               <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
                 {[
+                  { id: 'gemini', name: 'Google AI Studio (Free)', model: 'gemini-3.7-flash (Grounded)', badge: 'Unified Default' },
                   { id: 'groq', name: 'Groq Cloud (Free)', model: 'openai/gpt-oss-120b', badge: 'Ultra-Fast Free' },
-                  { id: 'gemini', name: 'Google AI Studio (Free)', model: 'gemini-3.7-flash', badge: 'Flagship Free' },
                   { id: 'openrouter', name: 'OpenRouter (Free)', model: 'gpt-oss-120b:free', badge: 'Backup Free' },
                   { id: 'openai', name: 'OpenAI GPT-4o', model: 'gpt-4o', badge: 'Paid Tier' },
                   { id: 'anthropic', name: 'Anthropic Claude 3.7', model: 'claude-3-7-sonnet-latest', badge: 'Paid Tier' },
@@ -311,6 +315,15 @@ export default function AdminPage() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {[
                 {
+                  id: 'gemini',
+                  name: 'Google Gemini API Key (Primary)',
+                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
+                  helperText: 'Google AI Studio Free Tier — Gemini 3.7 Flash with Native Google Search Grounding',
+                  masked: keysConfig.keys.gemini,
+                  configured: keysConfig.configured.gemini,
+                  accentColor: 'text-cyan-400',
+                },
+                {
                   id: 'groq',
                   name: 'Groq Cloud API Key',
                   placeholder: 'gsk_...',
@@ -320,15 +333,6 @@ export default function AdminPage() {
                   accentColor: 'text-amber-400',
                 },
                 {
-                  id: 'gemini',
-                  name: 'Google Gemini API Key',
-                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
-                  helperText: 'Google AI Studio Free Tier — Active Model: Gemini 3.7 Flash',
-                  masked: keysConfig.keys.gemini,
-                  configured: keysConfig.configured.gemini,
-                  accentColor: 'text-cyan-400',
-                },
-                {
                   id: 'openrouter',
                   name: 'OpenRouter API Key (Optional)',
                   placeholder: 'sk-or-v1-...',
@@ -336,6 +340,15 @@ export default function AdminPage() {
                   masked: keysConfig.keys.openrouter,
                   configured: keysConfig.configured.openrouter,
                   accentColor: 'text-emerald-400',
+                },
+                {
+                  id: 'tavily',
+                  name: 'Tavily Search Engine (Optional for Groq/OpenRouter)',
+                  placeholder: 'tvly-...',
+                  helperText: 'Not required when using Google Gemini, as Gemini handles search grounding natively.',
+                  masked: (keysConfig.keys as any).tavily,
+                  configured: (keysConfig.configured as any).tavily,
+                  accentColor: 'text-sky-400',
                 },
                 {
                   id: 'openai',

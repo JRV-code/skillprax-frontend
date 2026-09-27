@@ -450,43 +450,134 @@ export default function WorkspaceStudioPage() {
                       </div>
                     </div>
 
-                    {/* Step Objective */}
-                    <p className="text-xs text-slate-300 leading-relaxed mb-4">
-                      {step.objective}
-                    </p>
+                    {/* Pedagogical Breakdown: What You Will Master */}
+                    <div className="space-y-4 mb-6">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5" /> Conceptual Overview & Architecture
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full text-[10px] font-mono bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">
+                          Estimated Time: ~{step.estimatedMinutes || 45} mins
+                        </span>
+                      </div>
 
-                    {/* Curated Study Resources Grid */}
+                      <div className="p-4 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300 leading-relaxed whitespace-pre-line">
+                        {step.whatYouWillLearn}
+                      </div>
+
+                      {/* Core Key Takeaways Checklist Pills */}
+                      {Array.isArray(step.coreKeyTakeaways) && step.coreKeyTakeaways.length > 0 && (
+                        <div>
+                          <span className="text-[10px] font-mono text-slate-400 uppercase tracking-widest block mb-2">
+                            Core Key Takeaways & Mental Models:
+                          </span>
+                          <div className="flex flex-wrap gap-2">
+                            {step.coreKeyTakeaways.map((takeaway: string, tIdx: number) => (
+                              <span
+                                key={tIdx}
+                                className="px-3 py-1.5 rounded-lg bg-[#090A0F] border border-[#1E2436] text-[11px] font-medium text-slate-200 flex items-center gap-1.5"
+                              >
+                                <CheckCircle2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                                {takeaway}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Practical Real-World Application Callout */}
+                      {step.practicalApplication && (
+                        <div className="p-3.5 rounded-xl bg-cyan-950/30 border border-cyan-500/20 text-xs">
+                          <span className="font-bold text-cyan-300 block mb-0.5">Real-World Goal Application:</span>
+                          <p className="text-slate-300">{step.practicalApplication}</p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Curated Priority-Ordered Resource Path */}
                     {!isLocked && (
-                      <div className="mt-4 pt-4 border-t border-[#1E2436]/60 space-y-3">
-                        <h4 className="text-xs font-bold text-slate-400 uppercase tracking-wider">
-                          Curated Learning Materials
-                        </h4>
+                      <div className="mt-6 pt-5 border-t border-[#1E2436] space-y-4">
+                        <div className="flex items-center justify-between">
+                          <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                            <BookOpen className="w-4 h-4 text-cyan-400" />
+                            Priority-Ordered Learning Path (Sequential Study Checklist)
+                          </h4>
+                          <span className="text-[10px] font-mono text-slate-400">
+                            Strictly Ranked 1 to 3 items
+                          </span>
+                        </div>
 
-                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                          {step.resources?.map((res: ResourceItem, rIdx: number) => (
-                            <a
-                              key={rIdx}
-                              href={res.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              className="p-3 rounded-xl bg-[#090A0F] border border-[#1E2436] hover:border-cyan-500/50 transition flex items-start gap-3 group"
-                            >
-                              <div className="p-2 rounded-lg bg-[#12151F] border border-[#1E2436] shrink-0 mt-0.5">
-                                {getResourceIcon(res.type)}
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center justify-between gap-1">
-                                  <h5 className="text-xs font-semibold text-slate-200 group-hover:text-cyan-400 transition truncate">
-                                    {res.title}
-                                  </h5>
-                                  <ExternalLink className="w-3 h-3 text-slate-500 shrink-0" />
+                        <div className="space-y-3">
+                          {step.resources?.map((res: ResourceItem, rIdx: number) => {
+                            const priority = res.priority || rIdx + 1;
+                            const badge =
+                              res.badge ||
+                              (priority === 1
+                                ? 'START HERE'
+                                : priority === 2
+                                ? 'APPLY & PRACTICE'
+                                : 'DEEP DIVE');
+                            const isFirst = priority === 1;
+
+                            return (
+                              <div
+                                key={rIdx}
+                                className={`p-4 rounded-xl border transition-all ${
+                                  isFirst
+                                    ? 'bg-cyan-950/30 border-cyan-500/50 cyber-glow-cyan'
+                                    : 'bg-[#090A0F] border-[#1E2436]'
+                                }`}
+                              >
+                                <div className="flex items-start justify-between gap-3">
+                                  <div className="flex items-start gap-3 min-w-0 flex-1">
+                                    <div
+                                      className={`p-2 rounded-lg border shrink-0 ${
+                                        isFirst
+                                          ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300'
+                                          : 'bg-[#12151F] border-[#1E2436] text-slate-400'
+                                      }`}
+                                    >
+                                      {getResourceIcon(res.type)}
+                                    </div>
+
+                                    <div className="min-w-0 flex-1">
+                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                        <span
+                                          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider uppercase border ${
+                                            isFirst
+                                              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                                              : priority === 2
+                                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                                              : 'bg-purple-500/20 border-purple-400 text-purple-300'
+                                          }`}
+                                        >
+                                          Priority {priority}: {badge}
+                                        </span>
+                                        <h5 className="text-xs font-bold text-slate-100">{res.title}</h5>
+                                      </div>
+
+                                      {res.whyThisFirst && (
+                                        <p className="text-[11px] text-slate-300 leading-normal mt-1 font-mono">
+                                          <strong className="text-cyan-400 font-semibold">Study Rationale: </strong>
+                                          {res.whyThisFirst}
+                                        </p>
+                                      )}
+                                    </div>
+                                  </div>
+
+                                  <a
+                                    href={res.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="px-3 py-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-medium transition flex items-center gap-1.5 shrink-0"
+                                  >
+                                    <span>Access Resource</span>
+                                    <ExternalLink className="w-3 h-3" />
+                                  </a>
                                 </div>
-                                <p className="text-[11px] text-slate-400 line-clamp-2 mt-0.5">
-                                  {res.summary}
-                                </p>
                               </div>
-                            </a>
-                          ))}
+                            );
+                          })}
                         </div>
                       </div>
                     )}
