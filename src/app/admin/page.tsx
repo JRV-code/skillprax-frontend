@@ -400,19 +400,29 @@ export default function AdminPage() {
                       {status.ok !== undefined && (
                         <div className="flex items-center gap-2 text-xs">
                           {status.ok ? (
-                            <span className="px-2 py-0.5 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono text-[11px]">
-                              <CheckCircle2 className="w-3 h-3" />
+                            <span className="px-2.5 py-1 rounded bg-emerald-950/60 text-emerald-400 border border-emerald-500/30 flex items-center gap-1 font-mono text-[11px]">
+                              <CheckCircle2 className="w-3.5 h-3.5" />
                               OK ({status.latencyMs}ms)
                             </span>
                           ) : (
-                            <span className="px-2 py-0.5 rounded bg-red-950/60 text-red-400 border border-red-500/30 flex items-center gap-1 font-mono text-[11px]" title={status.error}>
-                              <AlertTriangle className="w-3 h-3" />
+                            <span className="px-2.5 py-1 rounded bg-red-950/60 text-red-400 border border-red-500/30 flex items-center gap-1 font-mono text-[11px]">
+                              <AlertTriangle className="w-3.5 h-3.5" />
                               Error ({status.latencyMs}ms)
                             </span>
                           )}
                         </div>
                       )}
                     </div>
+
+                    {status.ok === false && status.error && (
+                      <div className="mt-3 p-3 rounded-xl bg-red-950/50 border border-red-500/30 text-red-300 text-xs font-mono break-all leading-relaxed flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+                        <div className="min-w-0 flex-1">
+                          <p className="font-semibold text-red-200 mb-0.5">Connection Failure Detail:</p>
+                          <p className="text-slate-300 select-all">{status.error}</p>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 );
               })}
