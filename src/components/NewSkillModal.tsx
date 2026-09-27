@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Atom, Sigma, Cpu, Users, TrendingUp, BookOpen, Palette, Activity, Wrench, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Atom, Binary, Sigma, Cpu, Users, TrendingUp, BookOpen, Palette, Activity, Wrench, ArrowRight, Sparkles, X } from 'lucide-react';
 import { AIProvider } from '@/lib/types';
 import { UNIVERSAL_DOMAINS } from '@/lib/domains';
 
 const iconMap: Record<string, React.FC<{ className?: string }>> = {
   Atom,
+  Binary,
   Sigma,
   Cpu,
   Users,

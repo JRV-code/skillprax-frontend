@@ -1,56 +1,65 @@
 export const UNIVERSAL_DOMAINS = [
   {
-    id: "natural-physical-sciences",
+    id: "natural-sciences",
     label: "Natural & Physical Sciences",
-    description: "Physics, Chemistry, Biology, Earth & Space Sciences, Ecology, Botany, Genetics",
+    desc: "Physics, Chemistry, Astronomy, Earth Sciences, Botany, Ecology",
+    description: "Physics, Chemistry, Astronomy, Earth Sciences, Botany, Ecology",
     icon: "Atom"
   },
   {
-    id: "formal-sciences-math",
+    id: "formal-sciences",
     label: "Formal Sciences & Mathematics",
-    description: "Pure Mathematics, Calculus, Discrete Logic, Probability, Statistics, Game Theory",
-    icon: "Sigma"
+    desc: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
+    description: "Pure Mathematics, Logic, Probability, Statistics, Analysis",
+    icon: "Binary"
   },
   {
-    id: "engineering-applied-tech",
+    id: "engineering-tech",
     label: "Engineering & Applied Technology",
-    description: "Software, Hardware, Robotics, Electronics, Mechanical, Aerospace, Embedded Systems",
+    desc: "Robotics, Electronics, Software, Embedded Systems, Mechanical",
+    description: "Robotics, Electronics, Software, Embedded Systems, Mechanical",
     icon: "Cpu"
   },
   {
-    id: "social-sciences-behavior",
-    label: "Social Sciences & Human Behavior",
-    description: "Psychology, Cognitive Science, Economics, Sociology, Anthropology, Political Systems",
+    id: "social-sciences",
+    label: "Social Sciences & Human Systems",
+    desc: "Economics, Psychology, Sociology, Linguistics, Cognitive Science",
+    description: "Economics, Psychology, Sociology, Linguistics, Cognitive Science",
     icon: "Users"
   },
   {
-    id: "business-finance-leadership",
+    id: "business-finance",
     label: "Business, Finance & Strategy",
-    description: "Financial Markets, Venture Creation, Operations, Marketing, Organizational Design",
+    desc: "Markets, Entrepreneurship, Management, Venture Economics",
+    description: "Markets, Entrepreneurship, Management, Venture Economics",
     icon: "TrendingUp"
   },
   {
-    id: "humanities-philosophy-law",
+    id: "humanities-philosophy",
     label: "Humanities, Philosophy & Law",
-    description: "Ethics, Epistemology, World History, Jurisprudence, Linguistics, Critical Theory",
+    desc: "Ethics, Jurisprudence, World History, Political Theory",
+    description: "Ethics, Jurisprudence, World History, Political Theory",
     icon: "BookOpen"
   },
   {
-    id: "arts-media-architecture",
-    label: "Arts, Media & Spatial Design",
-    description: "Visual Arts, 3D Modeling, Architecture, Music Composition, UI/UX, Industrial Design",
+    id: "arts-design-media",
+    label: "Arts, Spatial Design & Media",
+    desc: "3D Art, Architecture, Music Theory, UI/UX, Game Design",
+    description: "3D Art, Architecture, Music Theory, UI/UX, Game Design",
     icon: "Palette"
   },
   {
-    id: "health-medicine-athletics",
+    id: "health-athletics",
     label: "Health, Physiology & Performance",
-    description: "Human Anatomy, Nutrition, Biomechanics, Kinesiology, Sports Training, Medicine",
+    desc: "Human Anatomy, Nutrition, Kinesiology, Sports Science",
+    description: "Human Anatomy, Nutrition, Kinesiology, Sports Science",
     icon: "Activity"
   },
   {
-    id: "practical-crafts-trades",
-    label: "Practical Crafts & Applied Trades",
-    description: "Electronics Repair, Fabrication, Audio Production, Agriculture, Precision Carpentry",
+    id: "applied-crafts",
+    label: "Applied Crafts & Precision Trades",
+    desc: "Fabrication, Precision Audio, Electronics Repair, Agriculture",
+    description: "Fabrication, Precision Audio, Electronics Repair, Agriculture",
     icon: "Wrench"
   }
 ] as const;
@@ -61,7 +70,7 @@ export type UniversalDomainId = typeof UNIVERSAL_DOMAINS[number]['id'];
 export const DOMAIN_CATEGORIES = UNIVERSAL_DOMAINS.map(d => ({
   id: d.id,
   name: d.label,
-  examples: d.description,
+  examples: d.desc,
   icon: d.icon
 }));
 export const TECHNICAL_DOMAINS = DOMAIN_CATEGORIES;

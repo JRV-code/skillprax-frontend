@@ -53,6 +53,7 @@ export interface SkillStepDTO {
   whatYouWillLearn: string;
   coreKeyTakeaways: string[];
   practicalApplication: string;
+  assessableUnits?: string[];
   estimatedMinutes: number;
   resources: ResourceItem[];
   status: 'IN_PROGRESS' | 'READY_FOR_QUIZ' | 'PASSED' | string;
