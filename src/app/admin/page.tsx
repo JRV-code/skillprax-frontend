@@ -339,8 +339,8 @@ export default function AdminPage() {
                 {
                   id: 'gemini',
                   name: 'Google Gemini API Key',
-                  placeholder: 'AQ.Ab8RN6... or AIzaSy...',
-                  helperText: 'Supports Google AI Studio Authentication Keys (AQ. prefix) and Google Cloud API Keys (AIza prefix).',
+                  placeholder: 'AQ.Ab8RN6...',
+                  helperText: 'Google AI Studio Key (AQ. prefix) or Cloud Key (AIza prefix).',
                   masked: keysConfig.keys.gemini,
                   configured: keysConfig.configured.gemini,
                   accentColor: 'text-cyan-400',
