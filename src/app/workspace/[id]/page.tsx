@@ -24,6 +24,8 @@ import {
   Radio,
   BarChart3,
   Flame,
+  Terminal,
+  Compass,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
@@ -98,13 +100,24 @@ export default function WorkspaceStudioPage() {
   const getResourceIcon = (type: string) => {
     switch (type?.toLowerCase()) {
       case 'youtube':
+      case 'video':
         return <Youtube className="w-4 h-4 text-red-400" />;
+      case 'pdf':
       case 'docs':
-        return <FileText className="w-4 h-4 text-cyan-400" />;
-      case 'reddit':
-        return <MessageSquare className="w-4 h-4 text-amber-400" />;
+      case 'document':
+        return <FileText className="w-4 h-4 text-amber-400" />;
+      case 'wiki':
+      case 'wikipedia':
+      case 'encyclopedia':
+        return <BookOpen className="w-4 h-4 text-purple-400" />;
+      case 'interactive':
+      case 'code':
+      case 'playground':
+        return <Terminal className="w-4 h-4 text-cyan-400" />;
+      case 'guide':
+        return <Compass className="w-4 h-4 text-emerald-400" />;
       default:
-        return <Globe className="w-4 h-4 text-emerald-400" />;
+        return <Globe className="w-4 h-4 text-blue-400" />;
     }
   };
 
@@ -437,7 +450,7 @@ export default function WorkspaceStudioPage() {
 
                       <div className="flex items-center gap-3">
                         <span className="text-xs text-slate-400 font-mono">
-                          Threshold: <strong className="text-cyan-400">{step.passingScore}%</strong> ({step.questionCount} Questions)
+                          Threshold: <strong className="text-cyan-400">{step.passingScore}%</strong> ({step.questionCount || 5} Questions · AI Sized)
                         </span>
 
                         <span
@@ -499,92 +512,140 @@ export default function WorkspaceStudioPage() {
                     </div>
 
                     {/* Curated Priority-Ordered Resource Path */}
-                    {!isLocked && (
-                      <div className="mt-6 pt-5 border-t border-[#1E2436] space-y-4">
-                        <div className="flex items-center justify-between">
-                          <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
-                            <BookOpen className="w-4 h-4 text-cyan-400" />
-                            Priority-Ordered Learning Path (Sequential Study Checklist)
-                          </h4>
-                          <span className="text-[10px] font-mono text-slate-400">
-                            Strictly Ranked 1 to 3 items
-                          </span>
-                        </div>
+                    {!isLocked && (() => {
+                      const rawResources = step.resources;
+                      const resourcesList: ResourceItem[] = Array.isArray(rawResources)
+                        ? rawResources
+                        : typeof rawResources === "string"
+                          ? (() => {
+                              try {
+                                return JSON.parse(rawResources || "[]");
+                              } catch {
+                                return [];
+                              }
+                            })()
+                          : [];
 
-                        <div className="space-y-3">
-                          {step.resources?.map((res: ResourceItem, rIdx: number) => {
-                            const priority = res.priority || rIdx + 1;
-                            const badge =
-                              res.badge ||
-                              (priority === 1
-                                ? 'START HERE'
-                                : priority === 2
-                                ? 'APPLY & PRACTICE'
-                                : 'DEEP DIVE');
-                            const isFirst = priority === 1;
+                      return (
+                        <div className="mt-6 pt-5 border-t border-[#1E2436] space-y-4">
+                          <div className="flex items-center justify-between">
+                            <h4 className="text-xs font-bold text-slate-200 uppercase tracking-wider flex items-center gap-2">
+                              <BookOpen className="w-4 h-4 text-cyan-400" />
+                              Priority-Ordered Learning Path (Sequential Study Checklist)
+                            </h4>
+                            <span className="text-[10px] font-mono text-slate-400">
+                              {resourcesList.length} AI-Curated Resources
+                            </span>
+                          </div>
 
-                            return (
-                              <div
-                                key={rIdx}
-                                className={`p-4 rounded-xl border transition-all ${
-                                  isFirst
-                                    ? 'bg-cyan-950/30 border-cyan-500/50 cyber-glow-cyan'
-                                    : 'bg-[#090A0F] border-[#1E2436]'
-                                }`}
-                              >
-                                <div className="flex items-start justify-between gap-3">
-                                  <div className="flex items-start gap-3 min-w-0 flex-1">
-                                    <div
-                                      className={`p-2 rounded-lg border shrink-0 ${
-                                        isFirst
-                                          ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300'
-                                          : 'bg-[#12151F] border-[#1E2436] text-slate-400'
-                                      }`}
-                                    >
-                                      {getResourceIcon(res.type)}
-                                    </div>
+                          {resourcesList.length === 0 ? (
+                            <div className="p-4 rounded-xl bg-[#090A0F] border border-[#1E2436] space-y-3 text-center">
+                              <p className="text-xs text-slate-400">
+                                Direct study links for <strong className="text-slate-200">{step.title}</strong>:
+                              </p>
+                              <div className="flex flex-wrap justify-center gap-2">
+                                <a
+                                  href={`https://www.youtube.com/results?search_query=${encodeURIComponent(step.title + ' full tutorial')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 rounded-lg bg-red-950/50 border border-red-500/40 text-red-300 hover:bg-red-900/50 text-xs font-mono flex items-center gap-1.5"
+                                >
+                                  <Youtube className="w-3.5 h-3.5" /> Watch Video Tutorials
+                                </a>
+                                <a
+                                  href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(step.title)}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 rounded-lg bg-purple-950/50 border border-purple-500/40 text-purple-300 hover:bg-purple-900/50 text-xs font-mono flex items-center gap-1.5"
+                                >
+                                  <BookOpen className="w-3.5 h-3.5" /> Encyclopedia Reference
+                                </a>
+                                <a
+                                  href={`https://www.google.com/search?q=${encodeURIComponent(step.title + ' filetype:pdf OR open textbook')}`}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  className="px-3 py-1.5 rounded-lg bg-amber-950/50 border border-amber-500/40 text-amber-300 hover:bg-amber-900/50 text-xs font-mono flex items-center gap-1.5"
+                                >
+                                  <FileText className="w-3.5 h-3.5" /> Search PDF Textbooks
+                                </a>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {resourcesList.map((res: ResourceItem, rIdx: number) => {
+                                const priority = res.priority || rIdx + 1;
+                                const badge = res.badge || (priority === 1 ? 'START HERE' : 'DEEP STUDY');
+                                const guidance = res.studyGuidance || res.whyThisFirst;
+                                const resType = (res.type || 'guide').toLowerCase();
 
-                                    <div className="min-w-0 flex-1">
-                                      <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                        <span
-                                          className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider uppercase border ${
-                                            isFirst
-                                              ? 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
-                                              : priority === 2
-                                              ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
-                                              : 'bg-purple-500/20 border-purple-400 text-purple-300'
+                                return (
+                                  <div
+                                    key={rIdx}
+                                    className={`p-4 rounded-xl border transition-all ${
+                                      priority === 1
+                                        ? 'bg-cyan-950/30 border-cyan-500/50 cyber-glow-cyan'
+                                        : 'bg-[#090A0F] border-[#1E2436]'
+                                    }`}
+                                  >
+                                    <div className="flex items-start justify-between gap-3">
+                                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                                        <div
+                                          className={`p-2 rounded-lg border shrink-0 ${
+                                            priority === 1
+                                              ? 'bg-cyan-950/80 border-cyan-400 text-cyan-300'
+                                              : 'bg-[#12151F] border-[#1E2436] text-slate-400'
                                           }`}
                                         >
-                                          Priority {priority}: {badge}
-                                        </span>
-                                        <h5 className="text-xs font-bold text-slate-100">{res.title}</h5>
+                                          {getResourceIcon(resType)}
+                                        </div>
+
+                                        <div className="min-w-0 flex-1">
+                                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                            <span
+                                              className={`px-2 py-0.5 rounded text-[9px] font-mono font-bold tracking-wider uppercase border ${
+                                                resType === 'video'
+                                                  ? 'bg-red-500/20 border-red-400 text-red-300'
+                                                  : resType === 'pdf'
+                                                  ? 'bg-amber-500/20 border-amber-400 text-amber-300'
+                                                  : resType === 'wiki'
+                                                  ? 'bg-purple-500/20 border-purple-400 text-purple-300'
+                                                  : resType === 'guide'
+                                                  ? 'bg-emerald-500/20 border-emerald-400 text-emerald-300'
+                                                  : 'bg-cyan-500/20 border-cyan-400 text-cyan-300'
+                                              }`}
+                                            >
+                                              Priority {priority} · {badge}
+                                            </span>
+                                            <h5 className="text-xs font-bold text-slate-100">{res.title}</h5>
+                                          </div>
+
+                                          {guidance && (
+                                            <p className="text-[11px] text-slate-300 leading-normal mt-1 font-mono italic">
+                                              <strong className="text-cyan-400 font-semibold not-italic">Study Guidance: </strong>
+                                              {guidance}
+                                            </p>
+                                          )}
+                                        </div>
                                       </div>
 
-                                      {res.whyThisFirst && (
-                                        <p className="text-[11px] text-slate-300 leading-normal mt-1 font-mono">
-                                          <strong className="text-cyan-400 font-semibold">Study Rationale: </strong>
-                                          {res.whyThisFirst}
-                                        </p>
-                                      )}
+                                      <a
+                                        href={res.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        className="px-3 py-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-medium transition flex items-center gap-1.5 shrink-0"
+                                      >
+                                        <span>Access Resource</span>
+                                        <ExternalLink className="w-3 h-3" />
+                                      </a>
                                     </div>
                                   </div>
-
-                                  <a
-                                    href={res.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    className="px-3 py-1.5 rounded-lg bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900/60 text-xs font-medium transition flex items-center gap-1.5 shrink-0"
-                                  >
-                                    <span>Access Resource</span>
-                                    <ExternalLink className="w-3 h-3" />
-                                  </a>
-                                </div>
-                              </div>
-                            );
-                          })}
+                                );
+                              })}
+                            </div>
+                          )}
                         </div>
-                      </div>
-                    )}
+                      );
+                    })()}
 
                     {/* Active Step Action Bar (GATE 1 Trigger) */}
                     {isActive && (
@@ -635,24 +696,25 @@ export default function WorkspaceStudioPage() {
                   <label className="block text-[11px] font-mono text-cyan-400 uppercase tracking-wider">
                     Select Evaluation Question Volume:
                   </label>
-                  <div className="grid grid-cols-3 gap-2">
+                  <div className="grid grid-cols-4 gap-2">
                     {[
-                      { count: 3, label: 'Quick Check', time: '~5 mins' },
-                      { count: 5, label: 'Standard', time: '~10 mins' },
-                      { count: 10, label: 'Deep Diagnostic', time: '~20 mins' },
+                      { count: 3, label: 'Intro / Quick', time: '~3 mins' },
+                      { count: 5, label: 'Standard', time: '~7 mins' },
+                      { count: 7, label: 'Advanced', time: '~12 mins' },
+                      { count: 10, label: 'Mastery', time: '~20 mins' },
                     ].map((opt) => (
                       <button
                         key={opt.count}
                         type="button"
                         onClick={() => setSelectedQuestionCount(opt.count)}
-                        className={`p-3 rounded-xl border text-left transition ${
+                        className={`p-2.5 rounded-xl border text-left transition ${
                           selectedQuestionCount === opt.count
                             ? 'bg-cyan-950/60 border-cyan-400 text-cyan-200 cyber-glow-cyan'
                             : 'bg-[#12151F] border-[#1E2436] text-slate-400 hover:text-slate-200'
                         }`}
                       >
-                        <span className="text-xs font-bold block text-slate-200">{opt.label}</span>
-                        <span className="text-[10px] font-mono text-cyan-400">{opt.count} Questions ({opt.time})</span>
+                        <span className="text-[11px] font-bold block text-slate-200">{opt.label}</span>
+                        <span className="text-[10px] font-mono text-cyan-400">{opt.count} Qs ({opt.time})</span>
                       </button>
                     ))}
                   </div>

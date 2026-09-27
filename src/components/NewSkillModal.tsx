@@ -2,9 +2,19 @@
 
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Cpu, ArrowRight, Sparkles, X } from 'lucide-react';
+import { Cpu, Leaf, Calculator, TrendingUp, Palette, BookOpen, Activity, ArrowRight, Sparkles, X } from 'lucide-react';
 import { AIProvider } from '@/lib/types';
-import { TECHNICAL_DOMAINS } from '@/lib/domains';
+import { DOMAIN_CATEGORIES } from '@/lib/domains';
+
+const iconMap: Record<string, React.FC<{ className?: string }>> = {
+  Leaf,
+  Cpu,
+  Calculator,
+  TrendingUp,
+  Palette,
+  BookOpen,
+  Activity,
+};
 
 interface NewSkillModalProps {
   isOpen: boolean;
@@ -27,7 +37,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
-    category: TECHNICAL_DOMAINS[0].name as string,
+    category: DOMAIN_CATEGORIES[0].name as string,
     baselineKnowledge: '',
     targetGoal: '',
     preferredProvider: 'groq' as AIProvider,
@@ -78,7 +88,7 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                     Calibration Stage {wizardStage} of 3
                   </span>
                   <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                    {wizardStage === 1 && 'Domain & Specific Technical Focus'}
+                    {wizardStage === 1 && 'Domain & Specific Learning Focus'}
                     {wizardStage === 2 && 'Baseline & Target Goal Assessment'}
                     {wizardStage === 3 && 'AI Multi-LLM Engine Selection'}
                   </h2>
@@ -97,42 +107,42 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
                 <div className="mt-4 space-y-4">
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-1">
-                      Specific Technical Focus (Skill or Technology)
+                      Specific Skill or Learning Topic
                     </label>
                     <input
                       type="text"
                       value={formData.title}
                       onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                      placeholder="e.g. Distributed Consensus in Raft, LSM Trees in RocksDB, WebGL Shaders"
+                      placeholder="e.g. Astrophysics Fundamentals, Blender 3D Modeling, Game Theory & Strategy"
                       className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
                     />
 
                     {/* Auto-Suggestion Chips */}
                     <div className="mt-2.5">
                       <span className="text-[10px] font-mono text-slate-500 block mb-1.5">
-                        Technical Auto-Suggestions:
+                        Suggested Topics Across Domains:
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {[
-                          'Distributed Consensus in Raft',
-                          'LSM Trees & Storage Engines',
-                          'Transformers & Attention Mechanics',
-                          'Kernel eBPF Tracepoints',
-                          'Zero Trust OAuth2 Architecture',
+                          { title: 'Quantum Mechanics Basics', category: 'Natural Sciences & Nature' },
+                          { title: 'Blender 3D Asset Creation', category: 'Creative Arts, Design & Media' },
+                          { title: 'Distributed Systems & Raft', category: 'Engineering & Applied Technology' },
+                          { title: 'Behavioral Economics', category: 'Business, Finance & Economics' },
+                          { title: 'Cognitive Neuroscience', category: 'Humanities, History & Philosophy' },
                         ].map((sugg) => (
                           <button
-                            key={sugg}
+                            key={sugg.title}
                             type="button"
                             onClick={() =>
                               setFormData({
                                 ...formData,
-                                title: sugg,
-                                category: 'Backend & Distributed Systems',
+                                title: sugg.title,
+                                category: sugg.category,
                               })
                             }
                             className="px-2.5 py-1 rounded-md text-[10px] bg-[#090A0F] border border-[#1E2436] text-cyan-400 hover:border-cyan-500/50 transition font-mono"
                           >
-                            + {sugg}
+                            + {sugg.title}
                           </button>
                         ))}
                       </div>
@@ -141,24 +151,30 @@ export const NewSkillModal: React.FC<NewSkillModalProps> = ({
 
                   <div>
                     <label className="block text-xs font-medium text-slate-300 mb-2">
-                      Technical Engineering Discipline
+                      Broad Knowledge Domain
                     </label>
-                    <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1 scrollbar-thin">
-                      {TECHNICAL_DOMAINS.map((dom) => {
+                    <div className="space-y-1.5 max-h-52 overflow-y-auto pr-1 scrollbar-thin">
+                      {DOMAIN_CATEGORIES.map((dom) => {
                         const isSelected = formData.category === dom.name;
+                        const IconComp = iconMap[dom.icon] || Cpu;
                         return (
                           <button
                             key={dom.id}
                             type="button"
                             onClick={() => setFormData({ ...formData, category: dom.name })}
-                            className={`w-full p-2.5 rounded-xl text-left border transition flex flex-col ${
+                            className={`w-full p-2.5 rounded-xl text-left border transition flex items-center gap-3 ${
                               isSelected
                                 ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300 cyber-glow-cyan'
                                 : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200'
                             }`}
                           >
-                            <span className="text-xs font-semibold text-slate-200">{dom.name}</span>
-                            <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.examples}</span>
+                            <div className={`p-2 rounded-lg ${isSelected ? 'bg-cyan-500/20 text-cyan-400' : 'bg-[#12151F] text-slate-400'}`}>
+                              <IconComp className="w-4 h-4" />
+                            </div>
+                            <div className="flex flex-col">
+                              <span className="text-xs font-semibold text-slate-200">{dom.name}</span>
+                              <span className="text-[10px] text-slate-500 font-mono mt-0.5">{dom.examples}</span>
+                            </div>
                           </button>
                         );
                       })}
