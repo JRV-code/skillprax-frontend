@@ -43,6 +43,7 @@ interface SkillStep {
   title: string;
   description?: string;
   status?: "NOT_STARTED" | "IN_PROGRESS" | "PASSED" | "FAILED";
+  assessableUnits?: Array<{ id: string; label: string; description: string }> | string;
   whatYouWillLearn?: string;
   conceptualOverview?: string | null;
   coreKeyTakeaways?: string[];
@@ -235,18 +236,18 @@ export default function WorkspacePage() {
       ? (JSON.parse(rawResources || "[]") as CuratedResource[])
       : [];
 
-  const rawTakeaways = currentStep?.keyTakeaways || currentStep?.coreKeyTakeaways || [];
-  const takeaways: string[] = Array.isArray(rawTakeaways)
-    ? rawTakeaways
-    : typeof rawTakeaways === "string"
-      ? (JSON.parse(rawTakeaways || "[]") as string[])
+  const rawAcus = currentStep?.assessableUnits || [];
+  const acus: Array<{ id: string; label: string; description: string }> = Array.isArray(rawAcus)
+    ? rawAcus
+    : typeof rawAcus === "string"
+      ? (JSON.parse(rawAcus || "[]"))
       : [];
 
-  const overviewText = currentStep?.conceptualOverview || currentStep?.whatYouWillLearn || "Master foundational principles and mental models.";
-  const questionCount = currentStep?.questionCount || 5;
+  const overviewText = currentStep?.description || "Master foundational principles and mental models.";
+  const questionCount = currentStep?.questionCount || (acus.length > 0 ? acus.length : 5);
   const completedStepsCount = (workspace.steps || []).filter((s) => s.status === "PASSED").length;
 
-  const isPreparingQuiz = workspace.isGenerating || !currentStep || !currentStep.conceptualOverview || resources.length === 0;
+  const isPreparingQuiz = workspace.isGenerating || !currentStep;
 
   return (
     <div className="min-h-screen bg-[#090A0F] text-slate-100 p-4 sm:p-8 font-sans">
@@ -388,17 +389,20 @@ export default function WorkspacePage() {
               </div>
             </div>
 
-            {/* Key Takeaways / ACUs */}
-            {takeaways.length > 0 && (
+            {/* Atomic Competency Units */}
+            {acus.length > 0 && (
               <div className="space-y-3">
                 <div className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                  Core Takeaways & Mental Models:
+                  Atomic Competency Units ({acus.length}):
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {takeaways.map((item: string, idx: number) => (
+                  {acus.map((item, idx) => (
                     <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300">
                       <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <span>{item}</span>
+                      <div>
+                        <span className="font-bold text-white block">{item.label}</span>
+                        <span className="text-slate-400 text-[11px]">{item.description}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
