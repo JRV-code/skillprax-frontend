@@ -109,21 +109,21 @@ export default function DashboardPage() {
       {/* HUD Navigation Banner */}
       <div className="max-w-7xl mx-auto mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1E2436] pb-6">
         <div>
-          <Link className="flex items-center gap-2.5 group" href="/">
-            <div className="relative w-8 h-8 rounded-lg overflow-hidden shrink-0 flex items-center justify-center bg-slate-900 border border-slate-800 group-hover:border-cyan-500/50 transition-colors">
+          <Link className="flex items-center gap-3 group select-none" href="/">
+            <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-slate-900/80 border border-slate-800 group-hover:border-cyan-500/50 transition-all p-1">
               <img
                 src="/logo.png"
                 alt="Skillprax Logo"
-                className="w-full h-full object-contain p-0.5"
+                className="w-full h-full object-contain"
               />
             </div>
-            <div>
-              <span className="font-extrabold text-white text-base tracking-tight group-hover:text-cyan-400 transition-colors">
+            <div className="flex flex-col">
+              <span className="font-extrabold text-white text-base tracking-tight leading-tight group-hover:text-cyan-400 transition-colors">
                 Skillprax
               </span>
-              <p className="text-xs text-slate-400">
-                Adaptive Mastery Engine & Dynamic Gatekeeper
-              </p>
+              <span className="text-[10px] text-slate-500 font-medium tracking-wide">
+                Adaptive Mastery Engine
+              </span>
             </div>
           </Link>
         </div>
