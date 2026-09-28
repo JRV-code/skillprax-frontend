@@ -173,13 +173,20 @@ export default function WorkspacePage() {
     setActionError(null);
 
     try {
-      await apiFetch(
+      const data = await apiFetch<any>(
         `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/${workspaceId}/next-step`,
         { method: "POST" }
       );
-      await loadWorkspace();
+      const updated = data?.workspace || data;
+
+      if (updated && Array.isArray(updated.steps) && updated.steps.length > 0) {
+        setWorkspace(updated);
+        setActiveStep(updated.steps[updated.steps.length - 1]);
+      } else {
+        await loadWorkspace();
+      }
     } catch (err) {
-      console.error("Failed to generate or fetch next step:", err);
+      console.error("Error during next-step transition:", err);
       setActionError(err instanceof Error ? err.message : "Could not generate next step.");
       await loadWorkspace();
     } finally {
@@ -224,7 +231,8 @@ export default function WorkspacePage() {
     );
   }
 
-  const currentStep = activeStep || (workspace.steps && workspace.steps[0]);
+  const stepsList = Array.isArray(workspace?.steps) ? workspace.steps : [];
+  const currentStep = activeStep || (stepsList.length > 0 ? stepsList[0] : null);
   const pillarId = workspace.pillar || workspace.domainCategory || "General Knowledge";
   const pillar = getPillarById(pillarId);
   const title = workspace.skillName || workspace.title || "Skill Track";
@@ -244,8 +252,9 @@ export default function WorkspacePage() {
       : [];
 
   const overviewText = currentStep?.description || "Master foundational principles and mental models.";
-  const questionCount = currentStep?.questionCount || (acus.length > 0 ? acus.length : 5);
-  const completedStepsCount = (workspace.steps || []).filter((s) => s.status === "PASSED").length;
+  const questionCount = currentStep?.questionCount || 
+    (Array.isArray(acus) ? acus.length : 5);
+  const completedStepsCount = stepsList.filter((s) => s.status === "PASSED").length;
 
   const isPreparingQuiz = workspace.isGenerating || !currentStep;
 

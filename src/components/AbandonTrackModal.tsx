@@ -24,8 +24,8 @@ interface AbandonTrackModalProps {
   trackTitle: string;
   domain: string;
   completedStepsCount: number;
-  reflectionText: string | null;
-  milestonesSummary: string[];
+  reflectionText?: string | null;
+  milestonesSummary?: string[];
   isOpen: boolean;
   onClose: () => void;
   onAbandoned: () => void;
@@ -38,8 +38,8 @@ export default function AbandonTrackModal({
   trackTitle,
   domain,
   completedStepsCount,
-  reflectionText,
-  milestonesSummary,
+  reflectionText = null,
+  milestonesSummary = [],
   isOpen,
   onClose,
   onAbandoned,
@@ -166,28 +166,32 @@ export default function AbandonTrackModal({
             </div>
 
             {/* Groq-Generated Reflection Callout */}
-            {(reflectionText || (milestonesSummary && milestonesSummary.length > 0)) && (
-              <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-2">
-                {reflectionText && (
-                  <>
-                    <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block">
-                      Before you go — here’s what you’ve built:
-                    </span>
-                    <p className="text-xs text-slate-200 leading-relaxed">{reflectionText}</p>
-                  </>
-                )}
-                {milestonesSummary && milestonesSummary.length > 0 && (
-                  <ul className="space-y-1 pt-1">
-                    {milestonesSummary.map((m, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-                        <span>{m}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            )}
+            {(() => {
+              const safeMilestones = Array.isArray(milestonesSummary) ? milestonesSummary : [];
+              if (!reflectionText && safeMilestones.length === 0) return null;
+              return (
+                <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 space-y-2">
+                  {reflectionText && (
+                    <>
+                      <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block">
+                        Before you go — here’s what you’ve built:
+                      </span>
+                      <p className="text-xs text-slate-200 leading-relaxed">{reflectionText}</p>
+                    </>
+                  )}
+                  {safeMilestones.length > 0 && (
+                    <ul className="space-y-1 pt-1">
+                      {safeMilestones.map((m, idx) => (
+                        <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                          <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                          <span>{m}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              );
+            })()}
 
             <div className="space-y-3">
               <label className="text-xs font-semibold text-slate-300 block">
