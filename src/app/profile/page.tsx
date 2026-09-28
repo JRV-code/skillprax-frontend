@@ -63,6 +63,7 @@ export default function ProfilePage() {
   const [formAge, setFormAge] = useState(18);
   const [formProfession, setFormProfession] = useState('');
   const [formTargetHours, setFormTargetHours] = useState('1');
+  const [formTargetMinutes, setFormTargetMinutes] = useState('0');
   const [formReminderTime, setFormReminderTime] = useState('20:00');
   const [saving, setSaving] = useState(false);
   const [reminderNotified, setReminderNotified] = useState(false);
@@ -78,7 +79,8 @@ export default function ProfilePage() {
         setFormName(json.profile.name);
         setFormAge(json.profile.age);
         setFormProfession(json.profile.profession);
-        setFormTargetHours((json.profile.targetDailyMinutes / 60).toString());
+        setFormTargetHours((json.profile.targetDailyHours || 1).toString());
+        setFormTargetMinutes((json.profile.targetDailyMinutes || 0).toString());
         setFormReminderTime(json.profile.reminderTime || '20:00');
       }
     } catch (err) {
@@ -140,7 +142,8 @@ export default function ProfilePage() {
           name: formName,
           age: Number(formAge),
           profession: formProfession,
-          targetDailyMinutes: Math.round(Number(formTargetHours) * 60),
+          targetDailyHours: Number(formTargetHours),
+          targetDailyMinutes: Number(formTargetMinutes),
           reminderTime: formReminderTime,
         }),
       });
@@ -170,6 +173,17 @@ export default function ProfilePage() {
   return (
     <div className="min-h-screen bg-[#030714] text-slate-100 p-6 md:p-12 relative font-sans">
       <SkillBlueprintBackground/>
+
+      {/* Wobble Cloud CSS Definition */}
+      <style dangerouslySetInnerHTML={{__html: `
+        @keyframes wobbleCloud {
+          0%, 100% { border-radius: 60% 40% 30% 70% / 60% 30% 70% 40%; }
+          50% { border-radius: 30% 60% 70% 40% / 50% 60% 30% 60%; }
+        }
+        .wobble-cloud {
+          animation: wobbleCloud 8s ease-in-out infinite alternate;
+        }
+      `}} />
 
       <div className="max-w-5xl mx-auto space-y-8 relative z-10">
         
@@ -236,7 +250,7 @@ export default function ProfilePage() {
             </div>
             <div className="pt-2 border-t border-blue-900/40 flex items-center justify-between">
               <span className="text-xs text-slate-400">Target Time:</span>
-              <span className="text-lg font-bold font-mono text-amber-400">{data.telemetry.targetDailyHours} Hours / Day</span>
+              <span className="text-lg font-bold font-mono text-amber-400">{data.telemetry.targetDailyHours}h {data.profile.targetDailyMinutes}m / Day</span>
             </div>
           </div>
 
@@ -268,8 +282,8 @@ export default function ProfilePage() {
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {skillCards.map((track) => (
-              <div key={track.id} className="p-5 rounded-2xl bg-[#071026]/70 border border-blue-900/40 flex flex-col justify-between space-y-4 hover:border-amber-500/50 transition-all shadow-[0_0_20px_rgba(7,16,38,0.4)]">
-                <div className="space-y-2">
+              <div key={track.id} className="wobble-cloud relative p-5 rounded-2xl bg-[#071026]/70 border border-blue-900/40 flex flex-col justify-between space-y-4 hover:border-amber-500/50 transition-all shadow-[0_0_20px_rgba(7,16,38,0.4)]">
+                <div className="space-y-2 relative z-10">
                   <div className="flex justify-between items-center">
                     <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-400">
                       STEP {track.currentStep} / {track.totalSteps}
@@ -284,7 +298,7 @@ export default function ProfilePage() {
                   <p className="text-xs text-blue-200/60 line-clamp-2">{track.targetGoal}</p>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-blue-900/40">
+                <div className="space-y-2 pt-2 border-t border-blue-900/40 relative z-10">
                   <div className="flex justify-between text-xs text-slate-400 font-mono">
                     <span>Progress</span>
                     <span className="text-amber-400 font-bold">{track.progress}%</span>
@@ -338,11 +352,23 @@ export default function ProfilePage() {
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 mb-1">Daily Target (Hours)</label>
+                    <label className="block text-slate-300 mb-1">Profession / Focus</label>
+                    <input
+                      type="text"
+                      required
+                      value={formProfession}
+                      onChange={(e) => setFormProfession(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 mb-1">Daily Goal (Hours)</label>
                     <input
                       type="number"
-                      step="0.5"
-                      min="0.5"
+                      min="0"
                       max="12"
                       required
                       value={formTargetHours}
@@ -350,17 +376,18 @@ export default function ProfilePage() {
                       className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-slate-300 mb-1">Profession / Focus</label>
-                  <input
-                    type="text"
-                    required
-                    value={formProfession}
-                    onChange={(e) => setFormProfession(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
-                  />
+                  <div>
+                    <label className="block text-slate-300 mb-1">Daily Goal (Minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      required
+                      value={formTargetMinutes}
+                      onChange={(e) => setFormTargetMinutes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                    />
+                  </div>
                 </div>
 
                 <div>

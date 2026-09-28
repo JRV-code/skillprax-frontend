@@ -63,6 +63,8 @@ interface Workspace {
   domainCategory?: string;
   targetGoal?: string;
   isGenerating?: boolean;
+  totalPlannedSteps?: number;
+  aiEngine?: string;
   steps: SkillStep[];
 }
 
@@ -111,6 +113,7 @@ export default function WorkspacePage() {
   const [isLoadingReflection, setIsLoadingReflection] = useState(false);
   const [reflectionText, setReflectionText] = useState<string | null>(null);
   const [milestonesSummary, setMilestonesSummary] = useState<string[]>([]);
+  const [activeTab, setActiveTab] = useState<"flowchart" | "study" | "evaluation">("study");
 
   const loadWorkspace = useCallback(async () => {
     if (!workspaceId || workspaceId === "undefined") return;
@@ -273,8 +276,13 @@ export default function WorkspacePage() {
   const isPreparingQuiz = workspace.isGenerating || !currentStep;
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-slate-100 p-4 sm:p-8 font-sans">
-      <div className="max-w-5xl mx-auto space-y-6">
+    <div className="min-h-screen bg-[#030714] text-slate-100 p-4 sm:p-8 font-sans relative overflow-hidden">
+      {/* Floating Orb Background */}
+      <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full mix-blend-screen pointer-events-none" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[50%] h-[50%] bg-amber-500/10 blur-[140px] rounded-full mix-blend-screen pointer-events-none" />
+      <div className="absolute top-[40%] left-[30%] w-[30%] h-[30%] bg-cyan-500/10 blur-[100px] rounded-full mix-blend-screen pointer-events-none" />
+
+      <div className="max-w-5xl mx-auto space-y-6 relative z-10">
         
         {/* Header Navigation */}
         <div className="flex items-center justify-between border-b border-[#1E2436] pb-4">
@@ -368,7 +376,7 @@ export default function WorkspacePage() {
 
         {/* Main Step Display */}
         {currentStep ? (
-          <div className="border border-[#1E2436] bg-[#12151F] rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-6">
+          <div className="border border-[#1E2436] bg-[#071026]/80 backdrop-blur-xl rounded-3xl p-6 sm:p-8 shadow-2xl relative space-y-6">
             
             {/* Step Subheader */}
             <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#1E2436] pb-5">
@@ -387,13 +395,13 @@ export default function WorkspacePage() {
               </div>
 
               <div className="flex items-center gap-3 text-xs">
-                <span className="px-3 py-1 rounded-lg bg-[#090A0F] border border-[#1E2436] font-mono text-cyan-300">
+                <span className="px-3 py-1 rounded-lg bg-[#030714] border border-[#1E2436] font-mono text-cyan-300">
                   Evaluation Gate: {questionCount} Questions (Calibrated to Step Complexity)
                 </span>
                 <button
                   onClick={() => handleRegenerate(currentStep.id)}
                   disabled={regeneratingStepId === currentStep.id || workspace.isGenerating}
-                  className="p-2 rounded-lg bg-[#090A0F] border border-[#1E2436] hover:border-cyan-500/40 text-slate-400 hover:text-cyan-300 transition disabled:opacity-50"
+                  className="p-2 rounded-lg bg-[#030714] border border-[#1E2436] hover:border-cyan-500/40 text-slate-400 hover:text-cyan-300 transition disabled:opacity-50"
                   title="Regenerate step content"
                 >
                   <RefreshCw className={`w-3.5 h-3.5 ${regeneratingStepId === currentStep.id ? "animate-spin text-cyan-400" : ""}`} />
@@ -401,160 +409,222 @@ export default function WorkspacePage() {
               </div>
             </div>
 
-            {/* Conceptual Overview */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-400 uppercase">
-                <Sparkles className="w-4 h-4" />
-                Conceptual Overview & Architecture
-              </div>
-              <div className="bg-[#090A0F] border border-[#1E2436] rounded-2xl p-5 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
-                {overviewText}
-              </div>
+            {/* Tripartite Tab Switcher */}
+            <div className="flex gap-2 border-b border-[#1E2436] pb-4">
+              <button
+                onClick={() => setActiveTab("flowchart")}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 ${
+                  activeTab === "flowchart"
+                    ? "bg-cyan-500 text-slate-950 shadow-lg shadow-cyan-500/20"
+                    : "bg-[#030714] border border-[#1E2436] text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                🗺️ Flowchart
+              </button>
+              <button
+                onClick={() => setActiveTab("study")}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 ${
+                  activeTab === "study"
+                    ? "bg-amber-400 text-slate-950 shadow-lg shadow-amber-500/20"
+                    : "bg-[#030714] border border-[#1E2436] text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                📚 Study
+              </button>
+              <button
+                onClick={() => setActiveTab("evaluation")}
+                className={`px-4 py-2 rounded-xl text-xs font-semibold transition flex items-center gap-2 ${
+                  activeTab === "evaluation"
+                    ? "bg-emerald-500 text-slate-950 shadow-lg shadow-emerald-500/20"
+                    : "bg-[#030714] border border-[#1E2436] text-slate-400 hover:text-slate-200"
+                }`}
+              >
+                ⚡ Evaluation
+              </button>
             </div>
 
-            {/* Atomic Competency Units */}
-            {acus.length > 0 && (
-              <div className="space-y-3">
-                <div className="text-xs font-bold tracking-wider text-slate-400 uppercase">
-                  Atomic Competency Units ({acus.length}):
-                </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                  {acus.map((item, idx) => (
-                    <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
-                      <div>
-                        <span className="font-bold text-white block">{item.label}</span>
-                        <span className="text-slate-400 text-[11px]">{item.description}</span>
-                      </div>
+            {activeTab === "flowchart" && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-bold text-cyan-400 uppercase tracking-wider">Workspace Roadmap</h3>
+                <div className="relative border-l-2 border-[#1E2436] pl-6 space-y-6">
+                  {stepsList.map((s, idx) => (
+                    <div key={s.id} className="relative">
+                      <div className={`absolute -left-[33px] w-4 h-4 rounded-full border-2 border-[#071026] ${s.status === "PASSED" ? "bg-emerald-400" : s.status === "IN_PROGRESS" ? "bg-cyan-400" : "bg-slate-600"}`} />
+                      <div className="text-sm font-bold text-white">Step {idx + 1}: {s.title}</div>
+                      <div className="text-xs text-slate-400">{s.status === "PASSED" ? "Mastered" : "Pending Evaluation"}</div>
                     </div>
                   ))}
+                  {stepsList.length < (workspace.totalPlannedSteps || 5) && (
+                    <div className="relative opacity-50">
+                      <div className="absolute -left-[33px] w-4 h-4 rounded-full border-2 border-[#071026] bg-slate-800" />
+                      <div className="text-sm font-bold text-slate-400">Step {stepsList.length + 1}...</div>
+                      <div className="text-xs text-slate-500">Locked</div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}
 
-            {/* Practical Goal Application */}
-            {currentStep.practicalApplication && (
-              <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 text-xs space-y-1">
-                <span className="font-bold text-cyan-400 uppercase tracking-wider block">Target Goal Alignment:</span>
-                <p className="text-slate-300 leading-relaxed">{currentStep.practicalApplication}</p>
-              </div>
-            )}
-
-            {/* Dynamic AI-Curated Learning Resources */}
-            <div className="space-y-4 pt-2">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-400 uppercase">
-                  <BookOpen className="w-4 h-4" />
-                  AI-Curated Destination Materials ({resources.length})
-                </div>
-              </div>
-
-              {resources.length === 0 ? (
-                <div className="p-6 rounded-2xl bg-[#090A0F] border border-[#1E2436] text-center space-y-3">
-                  <p className="text-xs text-slate-400">Direct reference links for {currentStep.title}:</p>
-                  <div className="flex justify-center">
-                    <a
-                      href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(title + ' ' + currentStep.title)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-semibold hover:bg-cyan-900/80 transition"
-                    >
-                      <BookOpen className="w-4 h-4" />
-                      Explore Encyclopedia Reference
-                      <ExternalLink className="w-3.5 h-3.5" />
-                    </a>
+            {activeTab === "study" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                {/* Conceptual Overview */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-400 uppercase">
+                    <Sparkles className="w-4 h-4" />
+                    Conceptual Overview & Architecture
+                  </div>
+                  <div className="bg-[#030714] border border-[#1E2436] rounded-2xl p-5 text-sm text-slate-300 leading-relaxed whitespace-pre-line">
+                    {overviewText}
                   </div>
                 </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {resources.map((res: CuratedResource, idx: number) => {
-                    const resType = res.type || "article";
-                    const IconComponent = RESOURCE_ICON[resType] || RESOURCE_ICON.default;
-                    return (
-                      <div 
-                        key={idx}
-                        className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] hover:border-cyan-500/50 transition-all flex flex-col justify-between gap-3 group"
-                      >
-                        <div className="space-y-2">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-2">
-                              <IconComponent className="w-4 h-4 text-cyan-400 shrink-0" />
-                              <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                                {res.badge || "Core Reference"}
-                              </span>
-                            </div>
-                            {res.sourceOrigin === "fallback" && (
-                              <span className="text-[10px] font-mono text-slate-500">(Canonical)</span>
-                            )}
+
+                {/* Atomic Competency Units */}
+                {acus.length > 0 && (
+                  <div className="space-y-3">
+                    <div className="text-xs font-bold tracking-wider text-slate-400 uppercase">
+                      Atomic Competency Units ({acus.length}):
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {acus.map((item, idx) => (
+                        <div key={idx} className="flex items-start gap-2.5 p-3 rounded-xl bg-[#030714] border border-[#1E2436] text-xs text-slate-300">
+                          <CheckCircle2 className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                          <div>
+                            <span className="font-bold text-white block">{item.label}</span>
+                            <span className="text-slate-400 text-[11px]">{item.description}</span>
                           </div>
-                          <a 
-                            href={res.url} 
-                            target="_blank" 
-                            rel="noopener noreferrer" 
-                            className="text-sm font-semibold text-slate-100 group-hover:text-cyan-300 transition flex items-center gap-1.5"
-                          >
-                            {res.title}
-                            <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-cyan-400 shrink-0" />
-                          </a>
-                          {res.studyGuidance && (
-                            <p className="text-xs text-slate-400 leading-normal">
-                              {res.studyGuidance}
-                            </p>
-                          )}
                         </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
 
-                        <div className="pt-2">
-                          <a
-                            href={res.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-cyan-950/60 hover:bg-cyan-500 hover:text-slate-950 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition"
-                          >
-                            <span>Open Destination Material</span>
-                            <ExternalLink className="w-3.5 h-3.5" />
-                          </a>
-                        </div>
+                {/* Practical Goal Application */}
+                {currentStep.practicalApplication && (
+                  <div className="p-4 rounded-2xl bg-cyan-950/20 border border-cyan-500/30 text-xs space-y-1">
+                    <span className="font-bold text-cyan-400 uppercase tracking-wider block">Target Goal Alignment:</span>
+                    <p className="text-slate-300 leading-relaxed">{currentStep.practicalApplication}</p>
+                  </div>
+                )}
+
+                {/* Dynamic AI-Curated Learning Resources */}
+                <div className="space-y-4 pt-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-xs font-bold tracking-wider text-cyan-400 uppercase">
+                      <BookOpen className="w-4 h-4" />
+                      AI-Curated Destination Materials ({resources.length})
+                    </div>
+                  </div>
+
+                  {resources.length === 0 ? (
+                    <div className="p-6 rounded-2xl bg-[#030714] border border-[#1E2436] text-center space-y-3">
+                      <p className="text-xs text-slate-400">Direct reference links for {currentStep.title}:</p>
+                      <div className="flex justify-center">
+                        <a
+                          href={`https://en.wikipedia.org/wiki/Special:Search?search=${encodeURIComponent(title + ' ' + currentStep.title)}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-cyan-950/60 border border-cyan-500/40 text-cyan-300 text-xs font-semibold hover:bg-cyan-900/80 transition"
+                        >
+                          <BookOpen className="w-4 h-4" />
+                          Explore Encyclopedia Reference
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
                       </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-
-            {/* Evaluation Quiz Footer Action */}
-            <div className="pt-6 border-t border-[#1E2436] flex flex-col sm:flex-row items-center justify-between gap-4">
-              <div className="text-xs text-slate-400">
-                Passing threshold: <strong className="text-slate-200">80% Score</strong> to achieve step mastery.
-              </div>
-
-              {isPreparingQuiz ? (
-                <button
-                  disabled
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-xs cursor-not-allowed opacity-80"
-                >
-                  <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                  Preparing your quiz...
-                </button>
-              ) : (
-                <button
-                  onClick={() => setIsQuizOpen(true)}
-                  disabled={isAdvancingStep}
-                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 transition-all disabled:opacity-50"
-                >
-                  {isAdvancingStep ? (
-                    <>
-                      <Loader2 className="w-4 h-4 animate-spin fill-slate-950" />
-                      Generating Next Step...
-                    </>
+                    </div>
                   ) : (
-                    <>
-                      <Zap className="w-4 h-4 fill-slate-950" />
-                      Take Evaluation Quiz ({questionCount} ACUs)
-                    </>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {resources.map((res: CuratedResource, idx: number) => {
+                        const resType = res.type || "article";
+                        const IconComponent = RESOURCE_ICON[resType] || RESOURCE_ICON.default;
+                        return (
+                          <div 
+                            key={idx}
+                            className="p-4 rounded-2xl bg-[#030714] border border-[#1E2436] hover:border-amber-500/50 transition-all flex flex-col justify-between gap-3 group"
+                          >
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-2">
+                                  <IconComponent className="w-4 h-4 text-amber-400 shrink-0" />
+                                  <span className="px-2.5 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-amber-500/10 text-amber-300 border border-amber-500/30">
+                                    {res.badge || "Core Reference"}
+                                  </span>
+                                </div>
+                                {res.sourceOrigin === "fallback" && (
+                                  <span className="text-[10px] font-mono text-slate-500">(Canonical)</span>
+                                )}
+                              </div>
+                              <a 
+                                href={res.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer" 
+                                className="text-sm font-semibold text-slate-100 group-hover:text-amber-300 transition flex items-center gap-1.5"
+                              >
+                                {res.title}
+                                <ExternalLink className="w-3.5 h-3.5 text-slate-500 group-hover:text-amber-400 shrink-0" />
+                              </a>
+                              {res.studyGuidance && (
+                                <p className="text-xs text-slate-400 leading-normal">
+                                  {res.studyGuidance}
+                                </p>
+                              )}
+                            </div>
+
+                            <div className="pt-2">
+                              <a
+                                href={res.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="w-full inline-flex items-center justify-center gap-1.5 px-4 py-2 rounded-xl bg-amber-950/40 hover:bg-amber-500 hover:text-slate-950 border border-amber-500/40 text-amber-400 text-xs font-semibold transition"
+                              >
+                                <span>Open Destination Material</span>
+                                <ExternalLink className="w-3.5 h-3.5" />
+                              </a>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   )}
-                </button>
-              )}
-            </div>
+                </div>
+              </div>
+            )}
+
+            {activeTab === "evaluation" && (
+              <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2">
+                <div className="text-center p-8 bg-[#030714] border border-[#1E2436] rounded-3xl">
+                  <h3 className="text-lg font-bold text-white mb-2">Step Evaluation</h3>
+                  <p className="text-slate-400 text-sm mb-6">Test your mastery of the concepts covered in this step. You need 80% to proceed.</p>
+                  
+                  {isPreparingQuiz ? (
+                    <button
+                      disabled
+                      className="mx-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-slate-800 border border-slate-700 text-slate-400 font-semibold text-xs cursor-not-allowed opacity-80"
+                    >
+                      <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                      Preparing your quiz...
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setIsQuizOpen(true)}
+                      disabled={isAdvancingStep}
+                      className="mx-auto flex items-center justify-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-emerald-500/20 transition-all disabled:opacity-50"
+                    >
+                      {isAdvancingStep ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin fill-slate-950" />
+                          Generating Next Step...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="w-4 h-4 fill-slate-950" />
+                          Take Evaluation Quiz ({questionCount} ACUs)
+                        </>
+                      )}
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
 
           </div>
         ) : (

@@ -35,6 +35,7 @@ export default function HomePage() {
   const [ageInput, setAgeInput] = useState(18);
   const [professionInput, setProfessionInput] = useState('');
   const [targetHours, setTargetHours] = useState('1');
+  const [targetMinutes, setTargetMinutes] = useState('0');
   const [reminderTime, setReminderTime] = useState('20:00');
   const [savingProfile, setSavingProfile] = useState(false);
 
@@ -75,7 +76,8 @@ export default function HomePage() {
           name: nameInput.trim(),
           age: Number(ageInput),
           profession: professionInput.trim(),
-          targetDailyMinutes: Math.round(Number(targetHours) * 60),
+          targetDailyHours: Number(targetHours),
+          targetDailyMinutes: Number(targetMinutes),
           reminderTime,
         }),
       });
@@ -142,10 +144,10 @@ export default function HomePage() {
       <main className="relative z-10 max-w-7xl mx-auto px-6 pt-12 pb-24 flex flex-col items-center text-center space-y-6">
         
         {/* CENTERPIECE LOGO WITH AMBER & ROYAL BLUE GLOW */}
-        <div className="relative group">
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-blue-600 to-amber-400 blur-2xl opacity-40 group-hover:opacity-60 transition-opacity"/>
-          <div className="relative w-28 h-28 sm:w-36 sm:h-36 rounded-3xl bg-[#071026] border-2 border-blue-600/50 group-hover:border-amber-400 p-4 shadow-[0_0_30px_rgba(37,99,235,0.4)] flex items-center justify-center transition-all">
-            <img src="/logo.png" alt="Skillprax" className="w-full h-full object-contain drop-shadow-md"/>
+        <div className="relative group mt-8">
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-blue-600 to-amber-400 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-500 animate-pulse"/>
+          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-3xl bg-[#030714] border-2 border-blue-600/50 group-hover:border-amber-400 p-4 shadow-[0_0_40px_rgba(37,99,235,0.6)] flex items-center justify-center transition-all duration-300">
+            <img src="/logo.png" alt="Skillprax" className="w-full h-full object-contain drop-shadow-2xl"/>
           </div>
         </div>
 
@@ -391,20 +393,33 @@ export default function HomePage() {
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-300 mb-1">Daily Goal (Hours)</label>
-                  <input
-                    type="number"
-                    step="0.5"
-                    min="0.5"
-                    max="12"
-                    required
-                    value={targetHours}
-                    onChange={(e) => setTargetHours(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
-                  />
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-slate-300 mb-1">Daily Goal (Hours)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="12"
+                      required
+                      value={targetHours}
+                      onChange={(e) => setTargetHours(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-slate-300 mb-1">Daily Goal (Minutes)</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="59"
+                      required
+                      value={targetMinutes}
+                      onChange={(e) => setTargetMinutes(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                    />
+                  </div>
                 </div>
+
                 <div>
                   <label className="block text-slate-300 mb-1">Daily Alert Time (24h)</label>
                   <input
@@ -415,7 +430,6 @@ export default function HomePage() {
                     className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
-              </div>
 
               <div className="pt-2 flex justify-end gap-2">
                 <button
