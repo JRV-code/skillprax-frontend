@@ -13,12 +13,30 @@ import {
   ArrowLeft,
   RefreshCw,
   Sparkles,
+  LogOut,
 } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import api from '@/lib/api';
 import { AIProvider, AdminKeysDTO } from '@/lib/types';
 
 export default function AdminPage() {
+  const router = useRouter();
+  const [authorized, setAuthorized] = useState(false);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem('skillprax_admin_token');
+    if (!token) {
+      router.replace('/profile');
+    } else {
+      setAuthorized(true);
+    }
+  }, [router]);
+
+  const handleLockAndExit = () => {
+    sessionStorage.removeItem('skillprax_admin_token');
+    router.push('/');
+  };
   const [adminSecret, setAdminSecret] = useState('skillprax_admin_2026');
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -128,6 +146,14 @@ export default function AdminPage() {
     }
   };
 
+  if (!authorized) {
+    return (
+      <div className="min-h-screen bg-[#090A0F] flex items-center justify-center text-slate-400 text-xs font-mono">
+        Verifying authorization...
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-[#090A0F] text-slate-100 bg-cyber-grid p-4 sm:p-8">
       {/* Header HUD */}
@@ -152,11 +178,17 @@ export default function AdminPage() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-3">
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono bg-purple-950/50 border border-purple-500/30 text-purple-300">
             <Cpu className="w-3.5 h-3.5 animate-pulse text-purple-400" />
             SYSTEM_LEVEL: ADMIN
           </span>
+          <button
+            onClick={handleLockAndExit}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-rose-950/40 border border-rose-900/60 text-xs text-rose-300 hover:bg-rose-900/50 transition-colors"
+          >
+            <LogOut className="w-3.5 h-3.5"/> Lock & Exit Admin
+          </button>
         </div>
       </div>
 

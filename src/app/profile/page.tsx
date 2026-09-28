@@ -14,6 +14,7 @@ import {
   Loader2, 
   Target 
 } from 'lucide-react';
+import { AdminGateModal } from '@/components/AdminGateModal';
 
 interface ProfileData {
   profile: {
@@ -51,6 +52,7 @@ export default function ProfilePage() {
   const [formAge, setFormAge] = useState(18);
   const [formProfession, setFormProfession] = useState('');
   const [saving, setSaving] = useState(false);
+  const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
 
   const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
@@ -77,6 +79,15 @@ export default function ProfilePage() {
 
   const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Easter Egg Intercept: typing "/admin" triggers the security gate modal
+    if (formProfession.trim().toLowerCase() === '/admin') {
+      setIsEditOpen(false);
+      setFormProfession(data?.profile.profession || 'Full-Stack Builder');
+      setIsAdminGateOpen(true);
+      return;
+    }
+
     setSaving(true);
     try {
       const res = await fetch(`${API_BASE}/api/profile`, {
@@ -304,6 +315,12 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
+
+        {/* Admin Easter Egg Security Gate Modal */}
+        <AdminGateModal
+          isOpen={isAdminGateOpen}
+          onClose={() => setIsAdminGateOpen(false)}
+        />
       </div>
     </div>
   );
