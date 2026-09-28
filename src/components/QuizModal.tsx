@@ -1,538 +1,269 @@
 // skillprax-frontend/src/components/QuizModal.tsx
 
-"use client";
+'use client';
 
-import React, { useState, useEffect, useCallback } from "react";
-import {
-  X,
-  Loader2,
-  CheckCircle2,
-  XCircle,
-  Zap,
-  ArrowRight,
-  ArrowLeft,
-  AlertTriangle,
-  RefreshCw,
-  BookOpen,
-  HelpCircle,
-} from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { CheckCircle2, XCircle, AlertTriangle, ArrowRight, RotateCcw, BookOpen, Loader2 } from 'lucide-react';
 
-export type QuizState = "idle" | "loading" | "active" | "submitting" | "result" | "error";
-
-export interface StudentQuestionOption {
-  id: "A" | "B" | "C" | "D" | string;
-  text: string;
-}
-
-export interface StudentQuestion {
-  id: string;
-  acuId?: string;
-  scenario?: string;
-  question: string;
-  options: string[] | StudentQuestionOption[];
-}
-
-export interface DiagnosticItem {
-  questionId: string;
-  acuId?: string;
-  question?: string;
-  isCorrect: boolean;
-  chosenOptionId?: string;
-  chosenOption: string;
-  correctOptionId?: string;
-  correctOption: string;
-  whyWrong: string;
-}
-
-export interface QuizResultPayload {
-  attemptId: string;
-  scorePercent: number;
-  score?: number;
-  passed: boolean;
-  passingThresholdPercent?: number;
-  correctCount: number;
-  totalQuestions: number;
-  diagnostic: DiagnosticItem[];
-}
-
-interface QuizModalProps {
-  stepId: string;
+export interface QuizModalProps {
   isOpen: boolean;
   onClose: () => void;
+  stepId: string;
   onPassed: () => Promise<void> | void;
 }
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
-
-// Extended loading state — shows longer message after ~4s since backend generates synchronously
-function LoadingQuizState() {
-  const [extended, setExtended] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setExtended(true), 4000);
-    return () => clearTimeout(timer);
-  }, []);
-  return (
-    <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
-      <Loader2 className="w-10 h-10 animate-spin" />
-      <p className="text-xs font-mono text-slate-400">
-        {extended
-          ? "Still preparing your quiz — this can take a bit longer the first time"
-          : "Synthesizing ACU diagnostic questions..."}
-      </p>
-    </div>
-  );
-}
-
-export default function QuizModal({ stepId, isOpen, onClose, onPassed }: QuizModalProps) {
-  const [quizState, setQuizState] = useState<QuizState>("idle");
+export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps) {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [questions, setQuestions] = useState<any[]>([]);
   const [attemptId, setAttemptId] = useState<string | null>(null);
-  const [questions, setQuestions] = useState<StudentQuestion[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [answers, setAnswers] = useState<Record<string, string>>({}); // Maps questionId -> optionId ("A","B","C","D")
-  const [errorMessage, setErrorMessage] = useState<string>("");
-  const [result, setResult] = useState<QuizResultPayload | null>(null);
-  const [showUnansweredConfirm, setShowUnansweredConfirm] = useState(false);
-  const [showExitConfirm, setShowExitConfirm] = useState(false);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [evaluation, setEvaluation] = useState<any | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  // Fetch quiz attempt on open
-  const fetchQuiz = useCallback(async () => {
-    if (!stepId || !isOpen) return;
-    setQuizState("loading");
-    setErrorMessage("");
-    setQuestions([]);
-    setCurrentIndex(0);
-    setAnswers({});
-    setResult(null);
-    setAttemptId(null);
-    setShowUnansweredConfirm(false);
-    setShowExitConfirm(false);
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
+  const loadQuiz = async () => {
+    setLoading(true);
+    setError(null);
+    setEvaluation(null);
+    setSelectedAnswers({});
     try {
-      const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/prompt-quiz`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch(`${API_BASE}/api/steps/${stepId}/prompt-quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
       });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Failed to fetch quiz (HTTP ${res.status})`);
-      }
-
+      if (!res.ok) throw new Error('Failed to generate quiz');
       const data = await res.json();
-      const rawQuestions: StudentQuestion[] = data.questions || [];
-
-      if (rawQuestions.length === 0) {
-        throw new Error("Evaluation gate returned 0 questions. Please retry.");
-      }
-
+      setQuestions(data.questions || []);
       setAttemptId(data.attemptId || null);
-      setQuestions(rawQuestions);
-      setQuizState("active");
     } catch (err: any) {
-      setErrorMessage(err.message || "Failed to load evaluation quiz.");
-      setQuizState("error");
+      setError(err.message || 'Unable to prepare quiz');
+    } finally {
+      setLoading(false);
     }
-  }, [stepId, isOpen]);
+  };
 
   useEffect(() => {
-    if (isOpen) {
-      fetchQuiz();
-    } else {
-      setQuizState("idle");
+    if (isOpen && stepId) {
+      loadQuiz();
     }
-  }, [isOpen, fetchQuiz]);
-
-  const handleSelectOption = (questionId: string, optionId: string) => {
-    setAnswers((prev) => ({
-      ...prev,
-      [questionId]: optionId,
-    }));
-  };
-
-  const currentQuestion = questions[currentIndex];
-  const selectedOptionId = currentQuestion ? answers[currentQuestion.id] : undefined;
-  const isLastQuestion = currentIndex === questions.length - 1;
-  const answeredCount = Object.keys(answers).length;
-
-  const handleSubmitQuiz = async () => {
-    if (!stepId || !attemptId) return;
-
-    if (answeredCount < questions.length && !showUnansweredConfirm) {
-      setShowUnansweredConfirm(true);
-      return;
-    }
-
-    setQuizState("submitting");
-    setErrorMessage("");
-
-    try {
-      const formattedAnswers = Object.entries(answers).map(([qId, optId]) => ({
-        questionId: qId,
-        selectedOptionId: optId,
-      }));
-
-      const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/submit-quiz`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          attemptId,
-          answers: formattedAnswers,
-        }),
-      });
-
-      if (!res.ok) {
-        const errData = await res.json().catch(() => ({}));
-        throw new Error(errData.error || `Evaluation submission failed (HTTP ${res.status})`);
-      }
-
-      const data: QuizResultPayload = await res.json();
-      setResult(data);
-      setQuizState("result");
-    } catch (err: any) {
-      setErrorMessage(err.message || "Failed to submit evaluation answers.");
-      setQuizState("error");
-    }
-  };
-
-  const handleModalClose = () => {
-    if (quizState === "active" || quizState === "submitting") {
-      setShowExitConfirm(true);
-    } else {
-      onClose();
-    }
-  };
+  }, [isOpen, stepId]);
 
   if (!isOpen) return null;
 
+  const handleSelectOption = (questionId: string, optionId: string) => {
+    setSelectedAnswers((prev) => ({ ...prev, [questionId]: optionId }));
+  };
+
+  const handleSubmit = async () => {
+    setSubmitting(true);
+    setError(null);
+
+    const answersPayload = Object.entries(selectedAnswers).map(([questionId, selectedOptionId]) => ({
+      questionId,
+      selectedOptionId,
+    }));
+
+    try {
+      const res = await fetch(`${API_BASE}/api/steps/${stepId}/submit-quiz`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ attemptId: attemptId || undefined, answers: answersPayload }),
+      });
+
+      if (!res.ok) throw new Error('Submission evaluation failed');
+      const resultData = await res.json();
+      setEvaluation(resultData);
+    } catch (err: any) {
+      setError(err.message || 'Failed to score answers');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
-      <div 
-        className="relative w-full max-w-3xl rounded-3xl bg-[#12151F] border border-[#1E2436] p-6 sm:p-8 shadow-2xl text-slate-100 flex flex-col max-h-[90vh] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header Bar */}
-        <div className="flex items-center justify-between border-b border-[#1E2436] pb-4 shrink-0">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-xl bg-cyan-950/60 border border-cyan-500/30 text-cyan-300">
-              <Zap className="w-5 h-5 fill-cyan-400" />
-            </div>
-            <div>
-              <h2 className="text-base font-bold text-white">ACU Diagnostic Evaluation</h2>
-              <p className="text-[11px] font-mono text-slate-400">
-                Passing Score: 80% Threshold
-              </p>
-            </div>
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+      <div className="bg-slate-950 border border-slate-800 rounded-2xl w-full max-w-2xl p-6 shadow-2xl relative my-8 text-slate-100">
+        {/* Loading State */}
+        {loading && (
+          <div className="py-16 text-center space-y-4">
+            <Loader2 className="w-8 h-8 animate-spin text-cyan-400 mx-auto"/>
+            <p className="text-sm text-slate-300 font-medium">Synthesizing resource-bounded evaluation...</p>
+            <p className="text-xs text-slate-500">Formulating scenario assessments calibrated to step competencies.</p>
           </div>
+        )}
 
-          <button
-            onClick={handleModalClose}
-            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
-            aria-label="Close Evaluation Modal"
-          >
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-
-        {/* Modal Exit Confirmation Overlay */}
-        {showExitConfirm && (
-          <div className="absolute inset-0 z-20 bg-slate-950/90 backdrop-blur-sm flex flex-col items-center justify-center p-6 text-center space-y-4">
-            <AlertTriangle className="w-12 h-12 text-amber-400" />
-            <h3 className="text-lg font-bold text-white">Exit Evaluation in Progress?</h3>
-            <p className="text-xs text-slate-300 max-w-md leading-relaxed">
-              Leaving now will abandon your current diagnostic attempt. Your answers for this attempt will not be saved.
-            </p>
-            <div className="flex gap-4 pt-2">
-              <button
-                onClick={() => setShowExitConfirm(false)}
-                className="px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition"
-              >
-                Resume Evaluation
+        {/* Error State */}
+        {!loading && error && (
+          <div className="py-8 text-center space-y-4">
+            <AlertTriangle className="w-10 h-10 text-rose-400 mx-auto"/>
+            <p className="text-sm text-rose-300">{error}</p>
+            <div className="flex justify-center gap-3">
+              <button onClick={loadQuiz} className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-xs text-white rounded-lg">
+                Retry Generation
               </button>
-              <button
-                onClick={onClose}
-                className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold transition"
-              >
-                Exit & Abandon
+              <button onClick={onClose} className="px-4 py-2 bg-slate-900 text-xs text-slate-400 rounded-lg">
+                Close
               </button>
             </div>
           </div>
         )}
 
-        {/* Modal Body Content */}
-        <div className="flex-1 overflow-y-auto py-4 space-y-6">
-          {/* STATE 1: LOADING */}
-          {quizState === "loading" && (
-            <LoadingQuizState />
-          )}
-
-          {/* STATE 2: ERROR */}
-          {quizState === "error" && (
-            <div className="text-center py-12 space-y-4">
-              <div className="w-12 h-12 mx-auto rounded-full bg-red-950/60 border border-red-500/40 flex items-center justify-center text-red-400">
-                <AlertTriangle className="w-6 h-6" />
+        {/* Diagnostic Results Screen */}
+        {!loading && !error && evaluation && (
+          <div className="space-y-6">
+            <div className={`p-4 rounded-xl border flex items-center justify-between ${
+              evaluation.passed ? 'bg-emerald-950/40 border-emerald-800/60' : 'bg-amber-950/40 border-amber-800/60'
+            }`}>
+              <div>
+                <h3 className={`text-base font-bold flex items-center gap-2 ${evaluation.passed ? 'text-emerald-400' : 'text-amber-400'}`}>
+                  {evaluation.passed ? <CheckCircle2 className="w-5 h-5"/> : <XCircle className="w-5 h-5"/>}
+                  {evaluation.passed ? 'Milestone Passed' : 'Competency Review Required'}
+                </h3>
+                <p className="text-xs text-slate-300 mt-1">
+                  {evaluation.passed
+                    ? 'You have demonstrated mastery over the core mechanisms in this step.'
+                    : 'Score below 80% passing threshold. Inspect the misconceptions below before re-attempting.'}
+                </p>
               </div>
-              <h3 className="text-base font-bold text-white">Evaluation Unavailable</h3>
-              <p className="text-xs text-red-300 max-w-md mx-auto">{errorMessage}</p>
-              <div className="flex justify-center gap-3 pt-2">
-                <button
-                  onClick={fetchQuiz}
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 transition"
-                >
-                  <RefreshCw className="w-4 h-4" /> Retry Evaluation
-                </button>
-                <button
-                  onClick={onClose}
-                  className="px-5 py-2.5 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700 transition"
-                >
-                  Cancel
-                </button>
+              <div className="text-right">
+                <span className="text-2xl font-black font-mono text-white">{evaluation.score}%</span>
+                <span className="block text-[10px] text-slate-400">Req: 80%</span>
               </div>
             </div>
-          )}
 
-          {/* STATE 3: ACTIVE QUIZ */}
-          {quizState === "active" && currentQuestion && (
-            <div className="space-y-6">
-              {/* Question Navigation Bar */}
-              <div className="flex items-center justify-between text-xs border-b border-[#1E2436] pb-3">
-                <span className="font-mono text-cyan-400 font-bold">
-                  Question {currentIndex + 1} of {questions.length}
-                </span>
-                {currentQuestion.acuId && (
-                  <span className="px-2.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 text-[10px] font-mono text-cyan-300">
-                    ACU Tag: {currentQuestion.acuId}
-                  </span>
-                )}
-              </div>
-
-              {/* Question Scenario & Prompt */}
-              <div className="space-y-3">
-                {currentQuestion.scenario && (
-                  <div className="p-4 rounded-2xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-300 italic leading-relaxed">
-                    "{currentQuestion.scenario}"
+            {/* Questions Diagnostic Review */}
+            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-2">
+              {(evaluation.results || []).map((r: any, idx: number) => (
+                <div key={idx} className="p-3.5 rounded-xl bg-slate-900/60 border border-slate-800/80 space-y-2 text-xs">
+                  <div className="flex items-start justify-between gap-2">
+                    <p className="font-medium text-slate-200">{idx + 1}. {r.scenario || r.question}</p>
+                    {r.isCorrect ? (
+                      <span className="text-emerald-400 font-bold shrink-0">Correct</span>
+                    ) : (
+                      <span className="text-rose-400 font-bold shrink-0">Missed</span>
+                    )}
                   </div>
-                )}
-                <h3 className="text-base font-bold text-white leading-snug">
-                  {currentQuestion.question}
-                </h3>
-              </div>
 
-              {/* Options Radio List */}
-              <div className="space-y-2.5" role="radiogroup">
-                {currentQuestion.options.map((option, idx) => {
-                  const optionKeys = ["A", "B", "C", "D"];
-                  const optionId = typeof option === "string" 
-                    ? optionKeys[idx] || String(idx) 
-                    : option.id || optionKeys[idx];
-                  const optionText = typeof option === "string" ? option : option.text;
-                  const isChecked = selectedOptionId === optionId;
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-1">
+                    <div className={`p-2 rounded border ${r.isCorrect ? 'bg-emerald-950/20 border-emerald-800/30 text-emerald-300' : 'bg-rose-950/20 border-rose-800/30 text-rose-300'}`}>
+                      <span className="block text-[9px] uppercase tracking-wider text-slate-500">Your Choice</span>
+                      Option {r.chosenOptionId || 'None'}
+                    </div>
+                    {!r.isCorrect && (
+                      <div className="p-2 rounded bg-slate-950 border border-slate-800 text-slate-300">
+                        <span className="block text-[9px] uppercase tracking-wider text-slate-500">Correct Answer</span>
+                        Option {r.correctOptionId}
+                      </div>
+                    )}
+                  </div>
 
-                  return (
-                    <button
-                      key={optionId}
-                      type="button"
-                      role="radio"
-                      aria-checked={isChecked}
-                      onClick={() => handleSelectOption(currentQuestion.id, optionId)}
-                      className={`w-full text-left p-4 rounded-2xl border transition-all flex items-start gap-3 group ${
-                        isChecked
-                          ? "bg-cyan-950/60 border-cyan-500 text-cyan-100 shadow-md shadow-cyan-950/50"
-                          : "bg-[#090A0F] border-[#1E2436] text-slate-300 hover:border-cyan-500/30 hover:bg-[#0d101a]"
-                      }`}
-                    >
-                      <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 transition ${
-                        isChecked
-                          ? "bg-cyan-500 text-slate-950"
-                          : "bg-slate-800 text-slate-400 group-hover:text-slate-200"
-                      }`}>
-                        {optionId}
-                      </span>
-                      <span className="text-xs leading-relaxed pt-0.5">{optionText}</span>
-                    </button>
-                  );
-                })}
-              </div>
+                  {r.whyWrong && (
+                    <div className="p-2.5 rounded bg-amber-950/30 border border-amber-900/40 text-amber-200/90 text-[11px]">
+                      <span className="font-semibold block text-amber-400 mb-0.5">Misconception Analysis:</span>
+                      {r.whyWrong}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
 
-              {/* Unanswered Confirmation Warning Banner */}
-              {showUnansweredConfirm && (
-                <div className="p-3.5 rounded-2xl bg-amber-950/50 border border-amber-500/40 text-amber-200 text-xs flex items-center justify-between">
-                  <span>
-                    You have answered {answeredCount} of {questions.length} questions. Unanswered questions will be scored as incorrect.
-                  </span>
+            {/* Action Footer */}
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between gap-3">
+              {evaluation.passed ? (
+                <button
+                  onClick={async () => {
+                    onClose();
+                    await onPassed();
+                  }}
+                  className="w-full py-3 rounded-xl bg-emerald-400 hover:bg-emerald-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(52,211,153,0.3)]"
+                >
+                  Continue to Next Milestone <ArrowRight className="w-4 h-4"/>
+                </button>
+              ) : (
+                <div className="w-full flex gap-3">
                   <button
-                    onClick={handleSubmitQuiz}
-                    className="px-3 py-1 rounded-lg bg-amber-500 text-slate-950 font-bold text-[11px] hover:bg-amber-400"
+                    onClick={onClose}
+                    className="flex-1 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs flex items-center justify-center gap-1.5"
                   >
-                    Confirm & Submit
+                    <BookOpen className="w-4 h-4"/> Review Lesson Materials
+                  </button>
+                  <button
+                    onClick={loadQuiz}
+                    className="flex-1 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5"
+                  >
+                    <RotateCcw className="w-4 h-4"/> Retake Evaluation
                   </button>
                 </div>
               )}
-
-              {/* Navigation Controls Footer */}
-              <div className="flex items-center justify-between pt-4 border-t border-[#1E2436]">
-                <button
-                  type="button"
-                  onClick={() => setCurrentIndex((prev) => Math.max(0, prev - 1))}
-                  disabled={currentIndex === 0}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 disabled:opacity-30 disabled:cursor-not-allowed transition"
-                >
-                  <ArrowLeft className="w-4 h-4" /> Previous
-                </button>
-
-                {isLastQuestion ? (
-                  <button
-                    type="button"
-                    onClick={handleSubmitQuiz}
-                    disabled={!selectedOptionId && answeredCount === 0}
-                    className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                  >
-                    <span>Submit Evaluation</span>
-                    <Zap className="w-4 h-4 fill-slate-950" />
-                  </button>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={() => setCurrentIndex((prev) => Math.min(questions.length - 1, prev + 1))}
-                    disabled={!selectedOptionId}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-cyan-500 text-slate-950 font-bold text-xs hover:bg-cyan-400 disabled:opacity-40 disabled:cursor-not-allowed transition"
-                  >
-                    <span>Next Question</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
             </div>
-          )}
+          </div>
+        )}
 
-          {/* STATE 4: SUBMITTING */}
-          {quizState === "submitting" && (
-            <div className="flex flex-col items-center justify-center py-16 space-y-4 text-cyan-400">
-              <Loader2 className="w-10 h-10 animate-spin" />
-              <p className="text-xs font-mono text-slate-400">Scoring ACU competencies & evaluating pass threshold...</p>
+        {/* Taking Quiz Screen */}
+        {!loading && !error && !evaluation && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-base font-bold text-white">Competency Evaluation</h2>
+              <span className="text-xs font-mono text-cyan-400">{questions.length} Questions</span>
             </div>
-          )}
 
-          {/* STATE 5: RESULT REPORT */}
-          {quizState === "result" && result && (
-            <div className="space-y-6">
-              {/* Score Banner */}
-              <div className={`p-6 rounded-3xl border text-center space-y-3 ${
-                result.passed
-                  ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-200"
-                  : "bg-rose-950/40 border-rose-500/40 text-rose-200"
-              }`}>
-                <div className="flex items-center justify-center gap-2">
-                  {result.passed ? (
-                    <CheckCircle2 className="w-8 h-8 text-emerald-400" />
-                  ) : (
-                    <XCircle className="w-8 h-8 text-rose-400" />
-                  )}
-                  <span className="text-2xl font-black tracking-tight">
-                    {result.scorePercent}% Score
-                  </span>
-                </div>
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-2">
+              {questions.map((q, idx) => (
+                <div key={q.id || idx} className="space-y-3">
+                  <p className="text-sm font-medium text-slate-100">{idx + 1}. {q.scenario || q.question}</p>
+                  <div className="space-y-2">
+                    {(q.options || []).map((opt: any, optIdx: number) => {
+                      const optionKeys = ["A", "B", "C", "D"];
+                      const optId = typeof opt === "string" ? optionKeys[optIdx] || String(optIdx) : opt.id || optionKeys[optIdx];
+                      const optText = typeof opt === "string" ? opt : opt.text;
+                      const isSelected = selectedAnswers[q.id] === optId;
 
-                <h3 className="text-base font-bold text-white">
-                  {result.passed
-                    ? "Step Mastery Achieved!"
-                    : "Mastery Threshold Not Met"}
-                </h3>
-
-                <p className="text-xs text-slate-300 max-w-md mx-auto">
-                  {result.passed
-                    ? `Congratulations! You answered ${result.correctCount} of ${result.totalQuestions} questions correctly, surpassing the 80% threshold.`
-                    : `You answered ${result.correctCount} of ${result.totalQuestions} questions correctly. Review your diagnostic feedback below before retrying.`}
-                </p>
-              </div>
-
-              {/* Per-Wrong-Question Diagnostic Review */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold tracking-wider text-cyan-400 uppercase flex items-center gap-2">
-                  <HelpCircle className="w-4 h-4" />
-                  Competency Diagnostic Breakdown ({result.diagnostic.length} Evaluated)
-                </h4>
-
-                <div className="space-y-3">
-                  {result.diagnostic.map((item, idx) => (
-                    <div
-                      key={idx}
-                      className={`p-4 rounded-2xl border space-y-2.5 ${
-                        item.isCorrect
-                          ? "bg-[#090A0F] border-emerald-500/20"
-                          : "bg-[#090A0F] border-rose-500/30"
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[11px]">
-                        <span className="font-mono text-slate-400 font-semibold">
-                          Question {idx + 1}
-                        </span>
-                        {item.acuId && (
-                          <span className="px-2 py-0.5 rounded bg-cyan-950/60 text-cyan-300 border border-cyan-500/30 font-mono text-[10px]">
-                            {item.acuId}
+                      return (
+                        <button
+                          key={optId}
+                          type="button"
+                          onClick={() => handleSelectOption(q.id, optId)}
+                          className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-start gap-3 ${
+                            isSelected
+                              ? 'bg-cyan-950/40 border-cyan-400 text-white shadow-[0_0_15px_rgba(6,182,212,0.2)]'
+                              : 'bg-slate-900/50 border-slate-800 text-slate-300 hover:border-slate-700'
+                          }`}
+                        >
+                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border ${
+                            isSelected ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'border-slate-700 text-slate-400'
+                          }`}>
+                            {optId}
                           </span>
-                        )}
-                      </div>
-
-                      {item.question && (
-                        <p className="text-xs font-semibold text-white">{item.question}</p>
-                      )}
-
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs pt-1">
-                        <div className={`p-2.5 rounded-xl border ${
-                          item.isCorrect
-                            ? "bg-emerald-950/30 border-emerald-500/30 text-emerald-300"
-                            : "bg-rose-950/30 border-rose-500/30 text-rose-300"
-                        }`}>
-                          <span className="font-bold block text-[10px] uppercase">Your Choice:</span>
-                          <span>{item.chosenOption}</span>
-                        </div>
-
-                        {!item.isCorrect && (
-                          <div className="p-2.5 rounded-xl bg-emerald-950/30 border border-emerald-500/30 text-emerald-300">
-                            <span className="font-bold block text-[10px] uppercase">Correct Option:</span>
-                            <span>{item.correctOption}</span>
-                          </div>
-                        )}
-                      </div>
-
-                      {!item.isCorrect && item.whyWrong && (
-                        <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 text-xs text-slate-300 leading-normal">
-                          <strong className="text-amber-400 block text-[10px] uppercase tracking-wider">Diagnostic Analysis:</strong>
-                          {item.whyWrong}
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                          <span className="pt-0.5">{optText}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-
-              {/* Action Footer */}
-              <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1E2436]">
-                {result.passed ? (
-                  <button
-                    onClick={async () => {
-                      await onPassed();
-                      onClose();
-                    }}
-                    className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider shadow-lg shadow-cyan-500/20 transition"
-                  >
-                    <span>Continue to Next Step</span>
-                    <ArrowRight className="w-4 h-4 fill-slate-950" />
-                  </button>
-                ) : (
-                  <button
-                    onClick={onClose}
-                    className="px-6 py-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold text-xs uppercase tracking-wider transition"
-                  >
-                    Review Materials Again
-                  </button>
-                )}
-              </div>
+              ))}
             </div>
-          )}
-        </div>
+
+            <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
+              <button onClick={onClose} className="px-4 py-2 text-xs text-slate-400 hover:text-white">
+                Cancel
+              </button>
+              <button
+                disabled={submitting || Object.keys(selectedAnswers).length < questions.length}
+                onClick={handleSubmit}
+                className="px-6 py-2.5 rounded-xl bg-cyan-400 hover:bg-cyan-300 text-slate-950 font-bold text-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-2 text-slate-950 font-bold"
+              >
+                {submitting ? <Loader2 className="w-4 h-4 animate-spin"/> : null}
+                Submit Evaluation
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
 }
+
+export default QuizModal;

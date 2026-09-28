@@ -66,22 +66,27 @@ export interface SkillStepDTO {
 
 export interface WorkspaceDTO {
   id: string;
-  userId: string;
+  userId?: string;
   title: string;
-  category: string;
-  baselineKnowledge: string;
-  targetGoal: string;
-  aiProvider: AIProvider | string;
+  category?: string;
+  domainCategory?: string;
+  baselineKnowledge?: string;
+  targetGoal?: string;
+  aiProvider?: AIProvider | string;
   aiModel?: string | null;
-  status: 'ACTIVE' | 'MASTERED' | 'ARCHIVED' | string;
-  estimatedTotalSteps: number;
-  currentStepIndex: number;
+  status?: 'ACTIVE' | 'MASTERED' | 'ARCHIVED' | string;
+  estimatedTotalSteps?: number;
+  currentStepIndex?: number;
   recommendedBooks?: BookRecommendation[] | null;
-  steps: SkillStepDTO[];
+  steps?: SkillStepDTO[];
   passedStepsCount?: number;
-  completionPercentage: number;
-  createdAt: string;
-  updatedAt: string;
+  completionPercentage?: number;
+  currentStep?: number;
+  totalSteps?: number;
+  progress?: number;
+  engine?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 export interface AdminKeysDTO {

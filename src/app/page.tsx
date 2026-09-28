@@ -208,63 +208,64 @@ export default function DashboardPage() {
           </motion.div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workspaces.map((ws) => {
-              const isMastered = ws.status === 'MASTERED';
+            {workspaces.map((track) => {
+              const isMastered = track.status === 'MASTERED';
+
               return (
                 <motion.div
-                  key={ws.id}
+                  key={track.id}
                   whileHover={{ y: -4 }}
                   className="p-6 rounded-2xl bg-[#12151F] border border-[#1E2436] hover:border-cyan-500/50 transition flex flex-col justify-between space-y-4 group cyber-glow-cyan"
                 >
                   <div>
                     <div className="flex items-center justify-between mb-3">
                       <span className="px-2.5 py-1 rounded-md bg-[#090A0F] border border-[#1E2436] text-[11px] font-mono text-cyan-400">
-                        {ws.category}
+                        {track.category || track.domainCategory || "General"}
                       </span>
-                      <span
-                        className={`px-2.5 py-0.5 rounded-full text-[10px] font-mono border ${
-                          isMastered
-                            ? 'bg-emerald-950/60 border-emerald-500/40 text-emerald-300'
-                            : 'bg-cyan-950/60 border-cyan-500/40 text-cyan-300'
-                        }`}
-                      >
-                        {isMastered ? 'MASTERED' : `STEP ${ws.currentStepIndex}/${ws.estimatedTotalSteps}`}
+
+                      {/* Step Counter Badge */}
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/40 text-cyan-400">
+                        {isMastered ? 'MASTERED' : `STEP ${track.currentStep ?? 1} / ${track.totalSteps ?? 1}`}
                       </span>
                     </div>
 
                     <h3 className="text-base font-bold text-slate-100 group-hover:text-cyan-400 transition line-clamp-1">
-                      {ws.title}
+                      {track.title}
                     </h3>
                     
                     <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
                       <span className="text-slate-300 font-medium">Goal: </span>
-                      {ws.targetGoal}
+                      {track.targetGoal}
                     </p>
                   </div>
 
                   {/* Progress Bar & Footer */}
                   <div className="pt-4 border-t border-[#1E2436]/60 space-y-3">
-                    <div>
-                      <div className="flex items-center justify-between text-[11px] font-mono mb-1.5">
-                        <span className="text-slate-400">Mastery Progress</span>
-                        <span className="text-cyan-400 font-bold">{ws.completionPercentage}%</span>
+                    {/* Mastery Progress Bar & Value */}
+                    <div className="mt-4">
+                      <div className="flex justify-between text-xs text-slate-400 mb-1">
+                        <span>Mastery Progress</span>
+                        <span className="font-mono text-cyan-400 font-semibold">
+                          {track.progress ?? 0}%
+                        </span>
                       </div>
-                      <div className="w-full h-2 rounded-full bg-[#090A0F] border border-[#1E2436] overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-gradient-to-r from-cyan-500 to-emerald-400 rounded-full transition-all duration-500"
-                          style={{ width: `${ws.completionPercentage}%` }}
+                          className="h-full bg-cyan-400 rounded-full transition-all duration-300"
+                          style={{ width: `${track.progress ?? 0}%` }}
                         />
                       </div>
                     </div>
 
                     <div className="flex items-center justify-between pt-1">
-                      <span className="text-[11px] text-slate-500 font-mono">
-                        Engine: {ws.aiProvider?.toUpperCase()}
-                      </span>
+                      {/* Engine Label */}
+                      <div className="text-xs text-slate-500 mt-3">
+                        Engine: <span className="text-slate-300 font-mono">{track.engine || 'Groq LLaMA 3.3'}</span>
+                      </div>
 
                       <Link
-                        href={`/workspace/${ws.id}`}
-                        className="px-4 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition flex items-center gap-1.5"
+                        href={`/workspace/${track.id}`}
+                        className="px-4 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition flex items-center gap-1.5 mt-3"
                       >
                         <span>Launch Studio</span>
                         <ArrowRight className="w-3.5 h-3.5" />

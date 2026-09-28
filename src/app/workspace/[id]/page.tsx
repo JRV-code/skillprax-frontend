@@ -167,32 +167,47 @@ export default function WorkspacePage() {
     }
   }
 
-  const handlePassed = async () => {
-    setIsQuizOpen(false);
-    setIsAdvancingStep(true);
-    setActionError(null);
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000";
+  const fetchWorkspace = loadWorkspace;
 
+  const handleMilestonePassed = async () => {
     try {
-      const data = await apiFetch<any>(
-        `${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/${workspaceId}/next-step`,
-        { method: "POST" }
-      );
+      setIsQuizOpen(false);
+      setIsAdvancingStep(true);
+      setActionError(null);
+
+      const res = await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/next-step`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      });
+
+      if (!res.ok) {
+        console.warn('Next-step endpoint returned non-200, refreshing workspace');
+        await fetchWorkspace();
+        return;
+      }
+
+      const data = await res.json();
       const updated = data?.workspace || data;
 
-      if (updated && Array.isArray(updated.steps) && updated.steps.length > 0) {
+      if (updated && Array.isArray(updated.steps)) {
         setWorkspace(updated);
-        setActiveStep(updated.steps[updated.steps.length - 1]);
+        if (updated.steps.length > 0) {
+          setActiveStep(updated.steps[updated.steps.length - 1]);
+        }
       } else {
-        await loadWorkspace();
+        await fetchWorkspace();
       }
     } catch (err) {
-      console.error("Error during next-step transition:", err);
-      setActionError(err instanceof Error ? err.message : "Could not generate next step.");
-      await loadWorkspace();
+      console.error('Next-step progression error:', err);
+      await fetchWorkspace();
     } finally {
       setIsAdvancingStep(false);
     }
   };
+
+  const handlePassed = handleMilestonePassed;
 
   if (isLoading) {
     return (
@@ -252,8 +267,7 @@ export default function WorkspacePage() {
       : [];
 
   const overviewText = currentStep?.description || "Master foundational principles and mental models.";
-  const questionCount = currentStep?.questionCount || 
-    (Array.isArray(acus) ? acus.length : 5);
+  const questionCount = activeStep?.questionCount || (Array.isArray(activeStep?.assessableUnits) ? activeStep.assessableUnits.length : (Array.isArray(acus) ? acus.length : 5));
   const completedStepsCount = stepsList.filter((s) => s.status === "PASSED").length;
 
   const isPreparingQuiz = workspace.isGenerating || !currentStep;
