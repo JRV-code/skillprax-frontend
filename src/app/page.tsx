@@ -133,14 +133,6 @@ export default function DashboardPage() {
             <span>Profile</span>
           </Link>
 
-          <Link
-            href="/admin"
-            className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] hover:border-purple-500/50 text-xs font-medium text-slate-300 hover:text-purple-300 transition flex items-center gap-2"
-          >
-            <Cpu className="w-4 h-4 text-purple-400" />
-            <span>Admin Command Center</span>
-          </Link>
-
           <button
             onClick={() => {
               setWizardStage(1);
