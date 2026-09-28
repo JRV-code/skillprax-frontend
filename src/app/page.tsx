@@ -1,499 +1,370 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import {
-  Plus,
-  Compass,
-  ArrowRight,
-  Sparkles,
-  BookOpen,
-  CheckCircle2,
-  Cpu,
-  Layers,
-  ShieldAlert,
-  Loader2,
-  RefreshCw,
-  FolderKanban,
-  Target,
-  User,
-} from 'lucide-react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import api from '@/lib/api';
-import { WorkspaceDTO, AIProvider } from '@/lib/types';
-import { UNIVERSAL_DOMAINS } from '@/lib/pillars';
+import { 
+  BarChart3, 
+  User, 
+  Plus, 
+  ArrowRight, 
+  Sparkles, 
+  Layers, 
+  ChevronRight,
+  CheckCircle2,
+  Loader2
+} from 'lucide-react';
+import { SkillBlueprintBackground } from '@/components/SkillBlueprintBackground';
+import { TelemetryModal } from '@/components/TelemetryModal';
+import { InitiateTrackModal } from '@/components/InitiateTrackModal';
 
-export default function DashboardPage() {
-  const router = useRouter();
-  const [workspaces, setWorkspaces] = useState<WorkspaceDTO[]>([]);
+export default function HomePage() {
+  const [profileData, setProfileData] = useState<any>(null);
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
-  // Calibration Wizard state
-  const [isWizardOpen, setIsWizardOpen] = useState(false);
-  const [wizardStage, setWizardStage] = useState<1 | 2 | 3>(1);
-  const [isSynthesizing, setIsSynthesizing] = useState(false);
-  const [telemetryText, setTelemetryText] = useState('Calibrating baseline experience...');
+  // Modals & Navigation States
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
+  const [isNewSkillOpen, setIsNewSkillOpen] = useState(false);
+  const [isChoiceOpen, setIsChoiceOpen] = useState(false);
+  const [isFirstTimeProfileOpen, setIsFirstTimeProfileOpen] = useState(false);
 
-  const [formData, setFormData] = useState({
-    title: '',
-    category: UNIVERSAL_DOMAINS[0].label,
-    baselineKnowledge: '',
-    targetGoal: '',
-    preferredProvider: 'groq' as AIProvider,
-  });
+  // First time profile form
+  const [nameInput, setNameInput] = useState('');
+  const [ageInput, setAgeInput] = useState(18);
+  const [professionInput, setProfessionInput] = useState('');
+  const [savingProfile, setSavingProfile] = useState(false);
 
-  const fetchWorkspaces = async () => {
-    setLoading(true);
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
+
+  const loadData = async () => {
     try {
-      const data = await api.workspaces.getAll();
-      setWorkspaces(data);
-    } catch (err: any) {
-      setError(err.message || 'Failed to load workspaces.');
+      const [profRes, wsRes] = await Promise.all([
+        fetch(`${API_BASE}/api/profile`),
+        fetch(`${API_BASE}/api/workspaces`),
+      ]);
+      if (profRes.ok) setProfileData(await profRes.json());
+      if (wsRes.ok) setWorkspaces(await wsRes.json());
+    } catch (e) {
+      console.error('Failed to load portal data:', e);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchWorkspaces();
+    loadData();
   }, []);
 
-  // Telemetry loading animation texts
-  useEffect(() => {
-    if (!isSynthesizing) return;
-    const steps = [
-      'Calibrating baseline experience & background...',
-      'Curating foundational literature & search vault...',
-      'Synthesizing Step 1 objective & evaluation threshold...',
-      'Building JIT Learning Studio workspace...',
-    ];
-    let index = 0;
-    const interval = setInterval(() => {
-      index = (index + 1) % steps.length;
-      setTelemetryText(steps[index]);
-    }, 1200);
-    return () => clearInterval(interval);
-  }, [isSynthesizing]);
+  const isProfileConfigured = Boolean(
+    profileData?.profile?.name && 
+    profileData?.profile?.name !== 'Explorer' && 
+    profileData?.profile?.name !== 'Skillprax Learner'
+  );
 
-  const handleInitiateWorkspace = async () => {
-    if (!formData.title.trim() || !formData.baselineKnowledge.trim() || !formData.targetGoal.trim()) {
-      alert('Please fill in all required fields.');
-      return;
-    }
-
-    setIsSynthesizing(true);
-    try {
-      const newWs = await api.workspaces.initiate({
-        title: formData.title,
-        category: formData.category,
-        baselineKnowledge: formData.baselineKnowledge,
-        targetGoal: formData.targetGoal,
-        preferredProvider: formData.preferredProvider,
-      });
-
-      setIsWizardOpen(false);
-      setIsSynthesizing(false);
-      router.push(`/workspace/${newWs.id}`);
-    } catch (err: any) {
-      setIsSynthesizing(false);
-      alert(`Initialization failed: ${err.message || err}`);
+  const handleGetStartedClick = () => {
+    if (!isProfileConfigured) {
+      setIsFirstTimeProfileOpen(true);
+    } else {
+      setIsChoiceOpen(true);
     }
   };
 
-  const categories = UNIVERSAL_DOMAINS.map((d) => d.label);
+  const handleSaveInitialProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSavingProfile(true);
+    try {
+      const res = await fetch(`${API_BASE}/api/profile`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: nameInput.trim(),
+          age: Number(ageInput),
+          profession: professionInput.trim(),
+        }),
+      });
+      if (res.ok) {
+        setIsFirstTimeProfileOpen(false);
+        await loadData();
+        // Immediately route to Add New Skill after first-time profile creation
+        setIsNewSkillOpen(true);
+      }
+    } catch (err) {
+      console.error('Initial profile setup failed:', err);
+    } finally {
+      setSavingProfile(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-slate-100 bg-cyber-grid p-4 sm:p-8">
-      {/* HUD Navigation Banner */}
-      <div className="max-w-7xl mx-auto mb-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-[#1E2436] pb-6">
-        <div>
-          <Link className="flex items-center gap-3 group select-none" href="/">
-            <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-slate-900/80 border border-slate-800 group-hover:border-cyan-500/50 transition-all p-1">
-              <img
-                src="/logo.png"
-                alt="Skillprax Logo"
-                className="w-full h-full object-contain"
-              />
+    <div className="min-h-screen bg-[#030714] text-slate-100 relative overflow-hidden font-sans">
+      <SkillBlueprintBackground/>
+
+      {/* TOP NAVIGATION BAR */}
+      <header className="relative z-20 border-b border-blue-900/40 bg-[#030714]/80 backdrop-blur-md px-6 py-4">
+        <div className="max-w-7xl mx-auto flex items-center justify-between">
+          
+          {/* Logo & Brand Wordmark */}
+          <Link className="flex items-center gap-3.5 group select-none" href="/">
+            <div className="relative w-10 h-10 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-blue-950/60 border border-blue-700/40 group-hover:border-amber-400/60 transition-all p-1 shadow-[0_0_20px_rgba(37,99,235,0.25)]">
+              <img src="/logo.png" alt="Skillprax" className="w-full h-full object-contain"/>
             </div>
             <div className="flex flex-col">
-              <span className="font-extrabold text-white text-base tracking-tight leading-tight group-hover:text-cyan-400 transition-colors">
+              <span className="font-black text-lg tracking-tight text-white group-hover:text-amber-400 transition-colors flex items-center gap-1.5">
                 Skillprax
+                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-ping"/>
               </span>
-              <span className="text-[10px] text-slate-500 font-medium tracking-wide">
-                Adaptive Mastery Engine
+              <span className="text-[10px] text-blue-300/70 font-mono tracking-wider uppercase">
+                Autonomous Mastery Engine
               </span>
             </div>
           </Link>
-        </div>
 
-        <div className="flex items-center gap-3">
-          <Link
-            href="/profile"
-            className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] hover:border-cyan-500/50 text-xs font-medium text-slate-300 hover:text-cyan-300 transition flex items-center gap-2"
-          >
-            <User className="w-4 h-4 text-cyan-400" />
-            <span>Profile</span>
-          </Link>
-
-          <button
-            onClick={() => {
-              setWizardStage(1);
-              setIsWizardOpen(true);
-            }}
-            className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs tracking-wider uppercase transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ New Skill Track</span>
-          </button>
-        </div>
-      </div>
-
-      {/* Main Content Hub */}
-      <div className="max-w-7xl mx-auto">
-        <div className="flex items-center justify-between mb-6">
-          <div className="flex items-center gap-2">
-            <FolderKanban className="w-5 h-5 text-cyan-400" />
-            <h2 className="text-lg font-semibold text-slate-200">Active Skill Tracks & Workspaces</h2>
-          </div>
-          <button
-            onClick={fetchWorkspaces}
-            className="text-xs text-slate-400 hover:text-cyan-400 transition flex items-center gap-1.5"
-          >
-            <RefreshCw className="w-3.5 h-3.5" /> Refresh
-          </button>
-        </div>
-
-        {loading ? (
-          <div className="py-20 flex flex-col items-center justify-center text-slate-400 gap-3">
-            <Loader2 className="w-8 h-8 animate-spin text-cyan-400" />
-            <p className="text-xs font-mono">Loading active mastery workspaces...</p>
-          </div>
-        ) : error ? (
-          <div className="p-6 rounded-2xl bg-red-950/30 border border-red-500/30 text-red-300 text-sm flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <ShieldAlert className="w-6 h-6 text-red-400" />
-              <div>
-                <p className="font-semibold">Backend Error</p>
-                <p className="text-xs text-slate-400">{error}</p>
-              </div>
-            </div>
+          {/* Action Icons */}
+          <div className="flex items-center gap-3">
+            {/* Graph / Telemetry Icon */}
             <button
-              onClick={fetchWorkspaces}
-              className="px-4 py-2 rounded-lg bg-red-900/50 hover:bg-red-800 text-xs font-medium"
+              onClick={() => setIsTelemetryOpen(true)}
+              title="Telemetry & Daily Streak"
+              className="p-2.5 rounded-xl bg-blue-950/50 border border-blue-800/40 text-blue-300 hover:text-amber-400 hover:border-amber-500/50 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)] flex items-center gap-2"
             >
-              Retry
+              <BarChart3 className="w-4 h-4"/>
+              <span className="text-xs font-mono font-semibold hidden sm:inline">
+                {profileData?.streak?.currentStreak || 0}d
+              </span>
+            </button>
+
+            {/* Profile Section Icon */}
+            <Link className="p-2.5 rounded-xl bg-blue-950/50 border border-blue-800/40 text-blue-300 hover:text-white hover:border-blue-500/60 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)] flex items-center gap-2" href="/profile" title="Learner Profile">
+              <User className="w-4 h-4 text-blue-400"/>
+              <span className="text-xs font-medium hidden sm:inline">
+                {profileData?.profile?.name ? profileData.profile.name.split(' ')[0] : 'Profile'}
+              </span>
+            </Link>
+
+            {/* Add New Skill Quick Button */}
+            <button
+              onClick={() => setIsNewSkillOpen(true)}
+              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.25)] transition-all"
+            >
+              <Plus className="w-4 h-4"/> <span className="hidden sm:inline">New Skill</span>
             </button>
           </div>
-        ) : workspaces.length === 0 ? (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="py-16 px-6 rounded-3xl bg-[#12151F] border border-[#1E2436] text-center max-w-xl mx-auto space-y-4 cyber-glow-cyan"
-          >
-            <div className="w-16 h-16 rounded-2xl bg-cyan-500/10 border border-cyan-500/20 flex items-center justify-center mx-auto text-cyan-400">
-              <Compass className="w-8 h-8" />
-            </div>
-            <div>
-              <h3 className="text-lg font-bold text-slate-100">No Skill Tracks Created Yet</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-md mx-auto">
-                Calibrate your baseline experience and target build goals to generate a JIT adaptive learning track.
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                setWizardStage(1);
-                setIsWizardOpen(true);
-              }}
-              className="px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition inline-flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-            >
-              <Plus className="w-4 h-4 stroke-[3]" /> Create Your First Skill Track
-            </button>
-          </motion.div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workspaces.map((track) => {
-              const isMastered = track.status === 'MASTERED';
+        </div>
+      </header>
 
-              return (
-                <motion.div
+      {/* HERO SECTION / FIRST INTERACTIVE INTERFACE */}
+      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-16 pb-24 flex flex-col items-center text-center space-y-8">
+        
+        {/* Sci-Fi Badge */}
+        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-950/70 border border-blue-800/50 text-blue-300 text-xs font-mono shadow-[0_0_25px_rgba(37,99,235,0.25)]">
+          <Sparkles className="w-3.5 h-3.5 text-amber-400"/>
+          <span>Dynamic Socratic Curriculum • Resource Bounded</span>
+        </div>
+
+        {/* Centerpiece Logo & Hero Heading */}
+        <div className="space-y-4 max-w-3xl">
+          <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-white leading-tight">
+            Build Unbreakable Competency With{' '}
+            <span className="bg-gradient-to-r from-blue-400 via-amber-300 to-amber-500 bg-clip-text text-transparent">
+              Skillprax
+            </span>
+          </h1>
+          <p className="text-sm sm:text-base text-blue-200/70 max-w-2xl mx-auto font-normal leading-relaxed">
+            High-friction cognitive checkpoints, autonomous research discovery, and scenario-based distractor evaluation. No superficial checklists.
+          </p>
+        </div>
+
+        {/* PRIMARY CTA: GET STARTED BUTTON */}
+        <div className="pt-2">
+          <button
+            onClick={handleGetStartedClick}
+            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-black text-sm tracking-wide shadow-[0_0_35px_rgba(37,99,235,0.4)] hover:shadow-[0_0_45px_rgba(245,158,11,0.5)] transition-all transform hover:-translate-y-0.5"
+          >
+            <span>GET STARTED</span>
+            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
+          </button>
+        </div>
+
+        {/* ENROLLED TRACKS QUICK GRID */}
+        {workspaces.length > 0 && (
+          <div className="w-full pt-16 space-y-6 text-left" id="skills-section">
+            <div className="flex items-center justify-between border-b border-blue-900/40 pb-3">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <Layers className="w-5 h-5 text-amber-400"/> Active Tracks ({workspaces.length})
+              </h2>
+              <span className="text-xs font-mono text-blue-400">Continuous Mastery</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {workspaces.map((track) => (
+                <div
                   key={track.id}
-                  whileHover={{ y: -4 }}
-                  className="p-6 rounded-2xl bg-[#12151F] border border-[#1E2436] hover:border-cyan-500/50 transition flex flex-col justify-between space-y-4 group cyber-glow-cyan"
+                  className="p-5 rounded-2xl bg-[#071026]/70 border border-blue-900/50 hover:border-amber-500/50 transition-all flex flex-col justify-between space-y-4 shadow-[0_0_20px_rgba(7,16,38,0.5)]"
                 >
-                  <div>
-                    <div className="flex items-center justify-between mb-3">
-                      <span className="px-2.5 py-1 rounded-md bg-[#090A0F] border border-[#1E2436] text-[11px] font-mono text-cyan-400">
-                        {track.category || track.domainCategory || "General"}
+                  <div className="space-y-2">
+                    <div className="flex justify-between items-center">
+                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-400">
+                        STEP {track.currentStep ?? 1} / {track.totalSteps ?? 1}
                       </span>
-
-                      {/* Step Counter Badge */}
-                      <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-cyan-950/80 border border-cyan-800/40 text-cyan-400">
-                        {isMastered ? 'MASTERED' : `STEP ${track.currentStep ?? 1} / ${track.totalSteps ?? 1}`}
-                      </span>
+                      {track.progress === 100 && (
+                        <span className="text-[10px] font-semibold px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3"/> Mastered
+                        </span>
+                      )}
                     </div>
-
-                    <h3 className="text-base font-bold text-slate-100 group-hover:text-cyan-400 transition line-clamp-1">
-                      {track.title}
-                    </h3>
-                    
-                    <p className="text-xs text-slate-400 mt-2 line-clamp-2 leading-relaxed">
-                      <span className="text-slate-300 font-medium">Goal: </span>
-                      {track.targetGoal}
-                    </p>
+                    <h3 className="text-base font-bold text-white">{track.title}</h3>
+                    <p className="text-xs text-blue-200/60 line-clamp-2">{track.targetGoal}</p>
                   </div>
 
-                  {/* Progress Bar & Footer */}
-                  <div className="pt-4 border-t border-[#1E2436]/60 space-y-3">
-                    {/* Mastery Progress Bar & Value */}
-                    <div className="mt-4">
-                      <div className="flex justify-between text-xs text-slate-400 mb-1">
-                        <span>Mastery Progress</span>
-                        <span className="font-mono text-cyan-400 font-semibold">
-                          {track.progress ?? 0}%
-                        </span>
+                  <div className="space-y-3 pt-2 border-t border-blue-900/40">
+                    <div>
+                      <div className="flex justify-between text-xs text-slate-400 mb-1 font-mono">
+                        <span>Mastery</span>
+                        <span className="text-amber-400 font-bold">{track.progress ?? 0}%</span>
                       </div>
-                      <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                      <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
                         <div
-                          className="h-full bg-cyan-400 rounded-full transition-all duration-300"
+                          className="h-full bg-gradient-to-r from-blue-500 to-amber-400 rounded-full"
                           style={{ width: `${track.progress ?? 0}%` }}
                         />
                       </div>
                     </div>
-
-                    <div className="flex items-center justify-between pt-1">
-                      {/* Engine Label */}
-                      <div className="text-xs text-slate-500 mt-3">
-                        Engine: <span className="text-slate-300 font-mono">{track.engine || 'Groq LLaMA 3.3'}</span>
-                      </div>
-
-                      <Link
-                        href={`/workspace/${track.id}`}
-                        className="px-4 py-1.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/80 border border-cyan-500/40 text-cyan-300 text-xs font-semibold transition flex items-center gap-1.5 mt-3"
-                      >
-                        <span>Launch Studio</span>
-                        <ArrowRight className="w-3.5 h-3.5" />
-                      </Link>
-                    </div>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* 3-STAGE CALIBRATION WIZARD MODAL */}
-      <AnimatePresence>
-        {isWizardOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl rounded-3xl bg-[#12151F] border border-[#1E2436] p-6 sm:p-8 space-y-6 cyber-glow-cyan relative overflow-hidden"
-            >
-              {/* Telemetry Loader Overlay during LLM synthesis */}
-              {isSynthesizing ? (
-                <div className="py-16 flex flex-col items-center justify-center space-y-6 text-center">
-                  <div className="relative w-20 h-20 flex items-center justify-center">
-                    <div className="absolute inset-0 rounded-full border-2 border-cyan-500/20 border-t-cyan-400 animate-spin" />
-                    <Cpu className="w-8 h-8 text-cyan-400 animate-pulse" />
-                  </div>
-                  <div>
-                    <h3 className="text-lg font-bold text-slate-100">AI Curriculum Synthesis</h3>
-                    <p className="text-xs font-mono text-cyan-400 mt-2 animate-pulse">
-                      {telemetryText}
-                    </p>
+                    <Link className="w-full py-2.5 rounded-xl bg-blue-950/80 hover:bg-amber-400 hover:text-slate-950 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1.5 transition-all border border-blue-800/40 hover:border-amber-400" href={`/workspace/${track.id}`}>
+                      Launch Studio <ArrowRight className="w-3.5 h-3.5"/>
+                    </Link>
                   </div>
                 </div>
-              ) : (
-                <>
-                  {/* Wizard Header */}
-                  <div className="flex items-center justify-between border-b border-[#1E2436] pb-4">
-                    <div>
-                      <span className="text-[10px] font-mono uppercase tracking-widest text-cyan-400">
-                        Calibration Stage {wizardStage} of 3
-                      </span>
-                      <h2 className="text-xl font-bold text-slate-100 mt-0.5">
-                        {wizardStage === 1 && 'Domain & Track Definition'}
-                        {wizardStage === 2 && 'Baseline & Target Goal Assessment'}
-                        {wizardStage === 3 && 'AI Multi-LLM Engine Selection'}
-                      </h2>
-                    </div>
-
-                    <button
-                      onClick={() => setIsWizardOpen(false)}
-                      className="text-xs text-slate-400 hover:text-slate-200"
-                    >
-                      Close ✕
-                    </button>
-                  </div>
-
-                  {/* Stage 1 */}
-                  {wizardStage === 1 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Skill Track Title
-                        </label>
-                        <input
-                          type="text"
-                          value={formData.title}
-                          onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                          placeholder="e.g. Distributed Systems Architecture & Consensus"
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-2">
-                          Domain Category
-                        </label>
-                        <div className="flex flex-wrap gap-2">
-                          {categories.map((cat) => (
-                            <button
-                              key={cat}
-                              type="button"
-                              onClick={() => setFormData({ ...formData, category: cat })}
-                              className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition ${
-                                formData.category === cat
-                                  ? 'bg-cyan-950/60 border-cyan-500 text-cyan-300'
-                                  : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200'
-                              }`}
-                            >
-                              {cat}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="pt-4 flex justify-end">
-                        <button
-                          onClick={() => {
-                            if (!formData.title.trim()) {
-                              alert('Please enter a skill track title.');
-                              return;
-                            }
-                            setWizardStage(2);
-                          }}
-                          className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                        >
-                          Next: Baseline & Goals <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Stage 2 */}
-                  {wizardStage === 2 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Baseline Knowledge (What do you already know?)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={formData.baselineKnowledge}
-                          onChange={(e) => setFormData({ ...formData, baselineKnowledge: e.target.value })}
-                          placeholder="e.g. Undergraduate linear algebra, proficient in Python, no prior quantum physics background."
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-1">
-                          Target Goal (What do you want to build or achieve?)
-                        </label>
-                        <textarea
-                          rows={3}
-                          value={formData.targetGoal}
-                          onChange={(e) => setFormData({ ...formData, targetGoal: e.target.value })}
-                          placeholder="e.g. Write quantum simulation algorithms using Qiskit and simulate Shor's algorithm."
-                          className="w-full px-4 py-2.5 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs focus:outline-none focus:border-cyan-500"
-                        />
-                      </div>
-
-                      <div className="pt-4 flex justify-between">
-                        <button
-                          onClick={() => setWizardStage(1)}
-                          className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
-                        >
-                          Back
-                        </button>
-
-                        <button
-                          onClick={() => {
-                            if (!formData.baselineKnowledge.trim() || !formData.targetGoal.trim()) {
-                              alert('Please provide baseline experience and target goal.');
-                              return;
-                            }
-                            setWizardStage(3);
-                          }}
-                          className="px-5 py-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs uppercase tracking-wider transition flex items-center gap-2"
-                        >
-                          Next: Select AI Engine <ArrowRight className="w-4 h-4" />
-                        </button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Stage 3 */}
-                  {wizardStage === 3 && (
-                    <div className="space-y-4">
-                      <div>
-                        <label className="block text-xs font-medium text-slate-300 mb-3">
-                          Select AI Engine for Curriculum Synthesis & Evaluation
-                        </label>
-                        <div className="grid grid-cols-2 gap-3">
-                          {[
-                            { id: 'groq', name: 'Groq Cloud (Free)', desc: 'GPT-OSS 120B (Recommended — Ultra Fast)' },
-                            { id: 'gemini', name: 'Google Gemini (Free)', desc: 'Gemini 3.7 Flash (Comprehensive Multimodal)' },
-                            { id: 'openrouter', name: 'OpenRouter (Free)', desc: 'GPT-OSS 120B :free (Universal Backup)' },
-                            { id: 'openai', name: 'OpenAI Platform', desc: 'GPT-4o (Flagship) | o3-mini (STEM & Logic)' },
-                          ].map((prov) => (
-                            <button
-                              key={prov.id}
-                              type="button"
-                              onClick={() => setFormData({ ...formData, preferredProvider: prov.id as AIProvider })}
-                              className={`p-3.5 rounded-xl border text-left transition ${
-                                formData.preferredProvider === prov.id
-                                  ? 'bg-cyan-950/50 border-cyan-500 text-cyan-300 cyber-glow-cyan'
-                                  : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:border-slate-700'
-                              }`}
-                            >
-                              <p className="text-xs font-bold text-slate-200">{prov.name}</p>
-                              <p className="text-[11px] text-slate-500 mt-0.5">{prov.desc}</p>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      <div className="pt-4 flex justify-between">
-                        <button
-                          onClick={() => setWizardStage(2)}
-                          className="px-4 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-slate-400 hover:text-slate-200 text-xs"
-                        >
-                          Back
-                        </button>
-
-                        <button
-                          onClick={handleInitiateWorkspace}
-                          className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-emerald-500 hover:from-cyan-400 hover:to-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider transition flex items-center gap-2 shadow-lg shadow-cyan-500/20"
-                        >
-                          <Sparkles className="w-4 h-4 fill-current" />
-                          Synthesize Step 1 & Launch Track
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </>
-              )}
-            </motion.div>
+              ))}
+            </div>
           </div>
         )}
-      </AnimatePresence>
+      </main>
+
+      {/* CONTINUATION CHOICE MODAL (FOR RETURNING USERS) */}
+      {isChoiceOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#071026] border border-blue-900/60 rounded-2xl w-full max-w-md p-6 relative space-y-5 shadow-[0_0_50px_rgba(37,99,235,0.25)]">
+            <h3 className="text-base font-bold text-white text-center">Select Your Next Directive</h3>
+            <div className="grid grid-cols-1 gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setIsChoiceOpen(false);
+                  const el = document.getElementById('skills-section');
+                  if (el) el.scrollIntoView({ behavior: 'smooth' });
+                }}
+                className="p-4 rounded-xl bg-blue-950/40 border border-blue-800/50 hover:border-blue-400 text-left transition-all flex items-center justify-between group"
+              >
+                <div>
+                  <h4 className="text-sm font-bold text-white group-hover:text-blue-300">Continue Existing Skill</h4>
+                  <p className="text-xs text-slate-400">Resume in-progress milestones from active tracks</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-blue-400 group-hover:translate-x-1 transition-transform"/>
+              </button>
+
+              <button
+                onClick={() => {
+                  setIsChoiceOpen(false);
+                  setIsNewSkillOpen(true);
+                }}
+                className="p-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-amber-950/30 border border-amber-500/40 hover:border-amber-400 text-left transition-all flex items-center justify-between group"
+              >
+                <div>
+                  <h4 className="text-sm font-bold text-amber-300">Add New Skill Track</h4>
+                  <p className="text-xs text-slate-400">Initialize a new autonomous pedagogical roadmap</p>
+                </div>
+                <Plus className="w-5 h-5 text-amber-400 group-hover:rotate-90 transition-transform"/>
+              </button>
+            </div>
+            <button
+              onClick={() => setIsChoiceOpen(false)}
+              className="w-full py-2 text-xs text-slate-400 hover:text-white"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* FIRST-TIME PROFILE SETUP MODAL */}
+      {isFirstTimeProfileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#071026] border border-blue-900/60 rounded-2xl w-full max-w-md p-6 relative space-y-4 shadow-[0_0_50px_rgba(37,99,235,0.3)]">
+            <div className="text-center space-y-1">
+              <div className="w-12 h-12 rounded-xl bg-blue-950 border border-blue-700/60 text-amber-400 mx-auto flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+                <User className="w-6 h-6"/>
+              </div>
+              <h3 className="text-base font-bold text-white">Initialize Learner Profile</h3>
+              <p className="text-xs text-slate-400">Configure your persona before crafting your first skill roadmap.</p>
+            </div>
+
+            <form onSubmit={handleSaveInitialProfile} className="space-y-3.5 text-xs pt-2">
+              <div>
+                <label className="block text-slate-300 mb-1">Your Full Name</label>
+                <input
+                  type="text"
+                  required
+                  placeholder="e.g. Manendra Patel"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-slate-300 mb-1">Age</label>
+                  <input
+                    type="number"
+                    min={10}
+                    max={120}
+                    required
+                    value={ageInput}
+                    onChange={(e) => setAgeInput(Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                  />
+                </div>
+                <div>
+                  <label className="block text-slate-300 mb-1">Profession / Focus</label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Class 12 Science"
+                    value={professionInput}
+                    onChange={(e) => setProfessionInput(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
+                  />
+                </div>
+              </div>
+
+              <button
+                type="submit"
+                disabled={savingProfile || !nameInput.trim()}
+                className="w-full mt-2 py-3 rounded-xl bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all disabled:opacity-40"
+              >
+                {savingProfile ? <Loader2 className="w-4 h-4 animate-spin"/> : <Sparkles className="w-4 h-4"/>}
+                Save & Add First Skill
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* TELEMETRY & STREAK MODAL */}
+      <TelemetryModal 
+        isOpen={isTelemetryOpen} 
+        onClose={() => setIsTelemetryOpen(false)}
+        streak={profileData?.streak || { currentStreak: 0, longestStreak: 0, streakFreezes: 0 }}
+        telemetry={profileData?.telemetry || { todayMinutes: 0, todayHours: 0, targetDailyMinutes: 60, targetDailyHours: 1, goalCompleted: false, history: [] }}
+      />
+
+      {/* INITIATE TRACK MODAL */}
+      <InitiateTrackModal 
+        isOpen={isNewSkillOpen} 
+        onClose={() => {
+          setIsNewSkillOpen(false);
+          loadData();
+        }}
+      />
     </div>
   );
 }

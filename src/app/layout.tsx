@@ -15,7 +15,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" className="dark">
-      <body className="bg-[#090A0F] text-slate-100 min-h-screen font-sans antialiased selection:bg-[#00F0FF] selection:text-black">
+      <body className="bg-[#030714] text-slate-100 min-h-screen font-sans antialiased selection:bg-[#00F0FF] selection:text-black">
         {/* CRT scanlines overlay */}
         <div className="fixed inset-0 cyber-scanlines z-50 pointer-events-none opacity-40" />
 
