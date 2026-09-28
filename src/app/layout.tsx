@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { ClientProviders } from "@/components/ClientProviders";
 
 export const metadata: Metadata = {
   title: "Skillprax | Autonomous Competency Learning Platform",
@@ -30,7 +31,7 @@ export default function RootLayout({
 
         {/* Main content above watermark */}
         <div className="relative z-10">
-          {children}
+          <ClientProviders>{children}</ClientProviders>
         </div>
       </body>
     </html>
