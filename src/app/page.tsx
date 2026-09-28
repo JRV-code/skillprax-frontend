@@ -16,6 +16,7 @@ import {
   RefreshCw,
   FolderKanban,
   Target,
+  User,
 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -124,6 +125,14 @@ export default function DashboardPage() {
         </div>
 
         <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] hover:border-cyan-500/50 text-xs font-medium text-slate-300 hover:text-cyan-300 transition flex items-center gap-2"
+          >
+            <User className="w-4 h-4 text-cyan-400" />
+            <span>Profile</span>
+          </Link>
+
           <Link
             href="/admin"
             className="px-4 py-2 rounded-xl bg-[#12151F] border border-[#1E2436] hover:border-purple-500/50 text-xs font-medium text-slate-300 hover:text-purple-300 transition flex items-center gap-2"
