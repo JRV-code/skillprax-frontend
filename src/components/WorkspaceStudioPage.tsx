@@ -4,6 +4,8 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { SkillTrack, FlowchartNode, AIEngine, StudyResource, QuizQuestion } from '@/types';
 import { SkillpraxLogo } from '@/components/SkillpraxLogo';
 import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
+import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
+import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import {
   GitBranch,
   BookOpen,
@@ -375,6 +377,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 }) => {
   const [activeTab, setActiveTab] = useState<'roadmap' | 'resources' | 'evaluation'>('roadmap');
   const [showEngineModal, setShowEngineModal] = useState<boolean>(false);
+  const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
 
   const [nodes, setNodes] = useState<FlowchartNode[]>([
     {
@@ -787,6 +790,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 ? 'LLaMA 3.1 8B'
                 : 'Mixtral 8x7B'}
             </span>
+          </button>
+
+          <button
+            onClick={() => setShowEnrollModal(true)}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-heading font-semibold text-emerald-800 hover:text-emerald-900 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.96]"
+          >
+            <Plus className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Enroll Skill</span>
           </button>
 
           <button
@@ -1321,540 +1332,40 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-6"
             >
-              {quizState === 'ready' && (
-                <motion.div
-                  key="gateway-launchpad"
-                  initial={{ opacity: 0, scale: 0.94, y: 24, filter: 'blur(8px)' }}
-                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, scale: 0.94, y: -20, filter: 'blur(8px)' }}
-                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-                  className="p-8 md:p-12 rounded-3xl bg-white border border-emerald-200/90 shadow-xl text-center relative overflow-hidden card-pro-max"
-                >
-                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-br from-emerald-400/15 via-sky-400/10 to-transparent rounded-full blur-3xl pointer-events-none" />
-
-                  <div className="max-w-2xl mx-auto space-y-6 relative z-10">
-                    <div className="relative inline-flex items-center justify-center">
-                      <div className="absolute -inset-4 rounded-full bg-emerald-500/15 animate-radar-ring pointer-events-none" />
-                      <div className="absolute -inset-8 rounded-full bg-emerald-500/10 animate-radar-ring-delayed pointer-events-none" />
-                      
-                      <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-500/30 relative z-10">
-                        <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-emerald-600">
-                          <Target className="w-10 h-10 animate-pulse" />
-                        </div>
-                      </div>
-                      <span className="absolute -top-1 -right-1 flex h-4 w-4 z-20">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
-                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
-                        <span>Socratic Competency Gate</span>
-                      </div>
-                      <h3 className="text-2xl md:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
-                        Ready for In-Place Evaluation?
-                      </h3>
-                      <p className="text-sm md:text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
-                        Verify conceptual clarity for{' '}
-                        <strong className="text-slate-900 font-semibold">{selectedNode.label}</strong>.
-                        Achieving ≥ 80% marks the node as PASSED and triggers the high-voltage energy beam!
-                      </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 text-left">
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
-                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs font-mono">
-                          04
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900">Dynamic Items</div>
-                          <div className="text-[11px] text-slate-500">Fisher-Yates shuffled</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
-                        <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs font-mono">
-                          80%
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900">Passing Mastery</div>
-                          <div className="text-[11px] text-slate-500">Unlocks next node</div>
-                        </div>
-                      </div>
-
-                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
-                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
-                          ⚡
-                        </div>
-                        <div>
-                          <div className="text-xs font-bold text-slate-900">Misconceptions</div>
-                          <div className="text-[11px] text-slate-500">In-place debunks</div>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="pt-4 flex flex-col items-center justify-center gap-3">
-                      <div className="relative p-[3px] rounded-2xl conic-beam shadow-2xl shadow-emerald-500/30 group animate-pulse-glow">
-                        <button
-                          onClick={() => setQuizState('evaluating')}
-                          className="relative z-10 px-9 py-4.5 rounded-[14px] bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-heading font-extrabold text-sm md:text-base tracking-wide flex items-center gap-3 cursor-pointer btn-pro-max btn-shimmer"
-                        >
-                          <Zap className="w-5 h-5 text-amber-300 animate-pulse" />
-                          <span>⚡ Ready for Quiz — Start Socratic Evaluation</span>
-                          <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1.5" />
-                        </button>
-                      </div>
-
-                      <span className="text-xs text-slate-500 flex items-center gap-1.5">
-                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-                        Instant diagnostic breakdown • Zero route changes • Full React landing motion
-                      </span>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {quizState === 'evaluating' && (
-                <motion.div
-                  key="active-evaluation-window"
-                  initial={{ opacity: 0, scale: 0.95, y: 28, filter: 'blur(10px)' }}
-                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
-                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-6"
-                >
-                  <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs font-mono shadow-xs">
-                        {Object.keys(selectedAnswers).length}/{quizQuestions.length}
-                      </div>
-                      <div>
-                        <div className="text-xs font-bold text-slate-900">
-                          {Object.keys(selectedAnswers).length} of {quizQuestions.length} Questions Answered
-                        </div>
-                        <div className="text-[11px] text-slate-500">
-                          Select first-principles mechanics for each question
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-1.5">
-                      {quizQuestions.map((q) => (
-                        <div
-                          key={q.id}
-                          className={`w-7 h-2 rounded-full transition-all duration-300 ${
-                            selectedAnswers[q.id] ? 'bg-emerald-500 shadow-xs' : 'bg-slate-200'
-                          }`}
-                        />
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="space-y-5">
-                    {quizQuestions.map((q, qIndex) => {
-                      const isAnswered = selectedAnswers[q.id] !== undefined;
-                      return (
-                        <motion.div
-                          key={q.id}
-                          initial={{ opacity: 0, y: 16 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: qIndex * 0.08, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                          className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm transition-all hover:border-slate-300 hover:shadow-md card-pro-max"
-                        >
-                          <div className="flex items-start justify-between gap-4 mb-3">
-                            <div className="flex items-center gap-2">
-                              <span className="w-7 h-7 rounded-lg bg-slate-900 text-white text-xs font-bold font-mono flex items-center justify-center">
-                                0{qIndex + 1}
-                              </span>
-                              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                Question {qIndex + 1} of {quizQuestions.length}
-                              </span>
-                            </div>
-                            {isAnswered ? (
-                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-200">
-                                <CheckCircle2 className="w-3.5 h-3.5" /> Response Selected
-                              </span>
-                            ) : (
-                              <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-amber-200">
-                                <AlertTriangle className="w-3.5 h-3.5" /> Pending Response
-                              </span>
-                            )}
-                          </div>
-
-                          <h3 className="text-base md:text-lg font-heading font-semibold text-slate-900 leading-snug mb-2">
-                            {q.question}
-                          </h3>
-
-                          <p className="text-xs text-slate-500 italic mb-5 flex items-center gap-1.5">
-                            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-                            {q.socraticContext}
-                          </p>
-
-                          <div className="grid grid-cols-1 gap-2.5">
-                            {q.options.map((opt, optIndex) => {
-                              const optionLetters = ['A', 'B', 'C', 'D'];
-                              const letter = optionLetters[optIndex] || String.fromCharCode(65 + optIndex);
-                              const isSelected = selectedAnswers[q.id] === opt.id;
-
-                              return (
-                                <div
-                                  key={opt.id}
-                                  onClick={() =>
-                                    setSelectedAnswers((prev) => ({ ...prev, [q.id]: opt.id }))
-                                  }
-                                  className={`p-3.5 rounded-xl border text-sm transition-all duration-150 cursor-pointer flex items-start gap-3.5 relative overflow-hidden select-none quiz-option-card active:scale-[0.98] ${
-                                    isSelected
-                                      ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-medium shadow-md ring-2 ring-emerald-400/40 translate-x-1'
-                                      : 'bg-slate-50/60 hover:bg-slate-100/90 border-slate-200 text-slate-700 hover:border-slate-300'
-                                  }`}
-                                >
-                                  <span
-                                    className={`w-6 h-6 rounded-md text-xs font-bold font-mono flex items-center justify-center shrink-0 transition-all ${
-                                      isSelected
-                                        ? 'bg-emerald-600 text-white shadow-xs scale-110'
-                                        : 'bg-white border border-slate-300 text-slate-600'
-                                    }`}
-                                  >
-                                    {letter}
-                                  </span>
-                                  <span className="text-slate-800 leading-relaxed pt-0.5 flex-1">
-                                    {opt.text}
-                                  </span>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-
-                  <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shadow-2xs">
-                        <TrendingUp className="w-5 h-5 text-emerald-600" />
-                      </div>
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">
-                          {Object.keys(selectedAnswers).length} of {quizQuestions.length} Questions Answered
-                        </div>
-                        <div className="text-xs text-slate-500">
-                          {allAnswered
-                            ? 'All items recorded. Ready to verify mastery.'
-                            : 'Complete all questions to enable diagnostic submission.'}
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="flex items-center gap-2">
-                      <button
-                        type="button"
-                        onClick={() => setQuizState('ready')}
-                        className="px-4 py-3 rounded-xl font-heading font-semibold text-xs text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer btn-pro-max"
-                      >
-                        Cancel
-                      </button>
-
-                      <div
-                        className={`relative p-[1.5px] rounded-xl ${
-                          allAnswered ? 'conic-beam shadow-lg shadow-emerald-500/25' : ''
-                        }`}
-                      >
-                        <button
-                          disabled={!allAnswered || isSubmittingQuiz}
-                          onClick={handleSubmitEvaluation}
-                          className={`px-7 py-3 rounded-[10px] font-heading font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
-                            allAnswered
-                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white btn-pro-max btn-shimmer'
-                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
-                          }`}
-                        >
-                          {isSubmittingQuiz ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                              <span>Diagnosing Mental Models...</span>
-                            </>
-                          ) : (
-                            <>
-                              <span>Submit Evaluation for Competency Check</span>
-                              <ArrowRight className="w-4 h-4" />
-                            </>
-                          )}
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                </motion.div>
-              )}
-
-              {quizState === 'completed' && evaluationFeedback && (
-                <motion.div
-                  key="diagnostic-board"
-                  initial={{ opacity: 0, scale: 0.95, y: 28, filter: 'blur(10px)' }}
-                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
-                  exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
-                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-                  className="space-y-6"
-                >
-                  <div
-                    className={`p-6 md:p-8 rounded-3xl border shadow-xl relative overflow-hidden card-pro-max ${
-                      evaluationFeedback.passed
-                        ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-emerald-300'
-                        : 'bg-gradient-to-br from-amber-50 via-white to-rose-50/40 border-amber-300'
-                    }`}
-                  >
-                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
-                      <div className="flex items-center gap-5">
-                        <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
-                          <svg className="w-24 h-24 transform -rotate-90">
-                            <circle
-                              cx="48"
-                              cy="48"
-                              r="40"
-                              stroke="currentColor"
-                              strokeWidth="8"
-                              fill="transparent"
-                              className="text-slate-200"
-                            />
-                            <circle
-                              cx="48"
-                              cy="48"
-                              r="40"
-                              stroke="currentColor"
-                              strokeWidth="8"
-                              fill="transparent"
-                              strokeDasharray={2 * Math.PI * 40}
-                              strokeDashoffset={
-                                2 * Math.PI * 40 * (1 - evaluationFeedback.scorePercent / 100)
-                              }
-                              strokeLinecap="round"
-                              className={`transition-all duration-1000 animate-gauge-spin ${
-                                evaluationFeedback.passed ? 'text-emerald-500' : 'text-amber-500'
-                              }`}
-                            />
-                          </svg>
-                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
-                            <span className="text-xl font-heading font-extrabold text-slate-900 stat-counter-glow">
-                              {evaluationFeedback.scorePercent}%
-                            </span>
-                            <span className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
-                              Mastery
-                            </span>
-                          </div>
-                        </div>
-
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span
-                              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
-                                evaluationFeedback.passed
-                                  ? 'bg-emerald-600 text-white'
-                                  : 'bg-amber-500 text-white'
-                              }`}
-                            >
-                              {evaluationFeedback.passed ? (
-                                <>
-                                  <CheckCircle2 className="w-3.5 h-3.5" /> COMPETENCY PASSED
-                                </>
-                              ) : (
-                                <>
-                                  <AlertTriangle className="w-3.5 h-3.5" /> COMPETENCY DEFICIT DETECTED
-                                </>
-                              )}
-                            </span>
-                            <span className="text-xs font-mono font-bold text-slate-600">
-                              {evaluationFeedback.correctCount}/{evaluationFeedback.totalCount} Correct
-                            </span>
-                          </div>
-                          <h3 className="text-lg md:text-xl font-heading font-bold text-slate-900">
-                            {evaluationFeedback.passed
-                              ? 'Milestone Validated! Node Unlocked in Flowchart'
-                              : 'Remediation Required: Passing Score 80%'}
-                          </h3>
-                          <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
-                            {evaluationFeedback.passed
-                              ? 'Your mental model accurately separated canonical mechanics from distractor traps. The node graph is updated.'
-                              : 'Review the targeted misconception breakdowns below before retrying the gate with novel randomized questions.'}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="w-full md:w-64 bg-white/80 p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
-                        <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
-                          <span>Accuracy Ratio</span>
-                          <span className="font-mono">
-                            {evaluationFeedback.correctCount} / {evaluationFeedback.totalCount}
-                          </span>
-                        </div>
-                        <div className="grid grid-cols-4 gap-1.5 h-3.5 rounded-full overflow-hidden">
-                          {quizQuestions.map((q, idx) => {
-                            const isCorrect =
-                              q.options.find((o) => o.id === selectedAnswers[q.id])?.isCorrect ?? false;
-                            return (
-                              <div
-                                key={idx}
-                                className={`rounded-sm transition-all ${
-                                  isCorrect ? 'bg-emerald-500 shadow-xs' : 'bg-rose-500'
-                                }`}
-                              />
-                            );
-                          })}
-                        </div>
-                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2">
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Correct
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <span className="w-2 h-2 rounded-full bg-rose-500" /> Distractor Trap
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div className="mt-6 pt-5 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => {
-                            generateQuestions();
-                            setQuizState('evaluating');
-                          }}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer btn-pro-max"
-                        >
-                          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
-                          <span>Retake Evaluation (Synthesizes New Novel Questions)</span>
-                        </button>
-
-                        <button
-                          onClick={() => setActiveTab('resources')}
-                          className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer btn-pro-max"
-                        >
-                          <BookOpen className="w-3.5 h-3.5 text-sky-500" />
-                          <span>Review Milestone Study Resources</span>
-                        </button>
-                      </div>
-
-                      {evaluationFeedback.passed && (
-                        <button
-                          onClick={() => setActiveTab('roadmap')}
-                          className="px-5 py-2.5 rounded-xl text-xs font-heading font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer btn-pro-max btn-shimmer"
-                        >
-                          <Award className="w-4 h-4 text-emerald-100" />
-                          <span>Advance to Next Milestone ➔</span>
-                        </button>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h4 className="text-sm font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
-                        <HelpCircle className="w-4 h-4 text-slate-500" />
-                        <span>Item-by-Item Misconception Breakdown</span>
-                      </h4>
-                      <span className="text-xs text-slate-500">
-                        Targeted diagnostics explaining why distractors fail
-                      </span>
-                    </div>
-
-                    {quizQuestions.map((q, idx) => {
-                      const chosenOptionId = selectedAnswers[q.id];
-                      const chosenOption = q.options.find((o) => o.id === chosenOptionId);
-                      const correctOption = q.options.find((o) => o.isCorrect);
-                      const isCorrect = chosenOption?.isCorrect ?? false;
-
-                      return (
-                        <motion.div
-                          key={q.id}
-                          initial={{ opacity: 0, y: 14 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: idx * 0.08, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
-                          className={`p-6 rounded-2xl bg-white border transition-all card-pro-max ${
-                            isCorrect
-                              ? 'border-emerald-200/90 shadow-2xs'
-                              : 'border-rose-200/90 shadow-2xs bg-rose-50/15'
-                          }`}
-                        >
-                          <div className="flex items-start justify-between gap-4 mb-3">
-                            <div className="flex items-center gap-2.5">
-                              <span
-                                className={`w-6 h-6 rounded-md text-xs font-bold font-mono flex items-center justify-center ${
-                                  isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
-                                }`}
-                              >
-                                0{idx + 1}
-                              </span>
-                              <span
-                                className={`text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 ${
-                                  isCorrect
-                                    ? 'bg-emerald-100 text-emerald-800'
-                                    : 'bg-rose-100 text-rose-800'
-                                }`}
-                              >
-                                {isCorrect ? (
-                                  <>
-                                    <CheckCircle2 className="w-3.5 h-3.5" /> Correct
-                                  </>
-                                ) : (
-                                  <>
-                                    <XCircle className="w-3.5 h-3.5" /> Distractor Selected
-                                  </>
-                                )}
-                              </span>
-                            </div>
-                          </div>
-
-                          <h5 className="text-base font-heading font-semibold text-slate-900 mb-3">
-                            {q.question}
-                          </h5>
-
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
-                            <div
-                              className={`p-3.5 rounded-xl border text-xs ${
-                                isCorrect
-                                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
-                                  : 'bg-rose-50/70 border-rose-300 text-rose-950'
-                              }`}
-                            >
-                              <div className="font-semibold uppercase tracking-wider text-[10px] mb-1 opacity-75">
-                                Your Selected Answer
-                              </div>
-                              <div className="font-medium text-slate-900">{chosenOption?.text}</div>
-                            </div>
-
-                            <div className="p-3.5 rounded-xl border bg-emerald-50/70 border-emerald-300 text-xs text-emerald-950">
-                              <div className="font-semibold uppercase tracking-wider text-[10px] mb-1 text-emerald-700">
-                                Authoritative Scientific Answer
-                              </div>
-                              <div className="font-medium text-slate-900">{correctOption?.text}</div>
-                            </div>
-                          </div>
-
-                          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-xs space-y-2">
-                            <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase tracking-wider text-[10px]">
-                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
-                              <span>Socratic Misconception Rationale</span>
-                            </div>
-
-                            {!isCorrect && chosenOption?.misconceptionExplanation && (
-                              <p className="text-rose-700 font-medium">
-                                <strong>Why your choice was a distractor trap:</strong>{' '}
-                                {chosenOption.misconceptionExplanation}
-                              </p>
-                            )}
-
-                            <p className="text-slate-600 leading-relaxed">
-                              <strong className="text-slate-800">First-Principles Core Truth:</strong>{' '}
-                              {q.correctExplanation}
-                            </p>
-                          </div>
-                        </motion.div>
-                      );
-                    })}
-                  </div>
-                </motion.div>
-              )}
+              <QuizAndEvaluationEngine
+                stepId={`${currentTrack.id}-step-${currentTrack.currentStep}`}
+                stepIndex={currentTrack.currentStep}
+                stepTitle={selectedNode?.label || currentTrack.title}
+                acus={
+                  selectedNode?.acus?.map((a, idx) => ({
+                    id: `acu-${idx + 1}`,
+                    title: a,
+                    description: `Assessable concept unit ${idx + 1}`,
+                  })) || [
+                    { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
+                    { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },
+                  ]
+                }
+                onStepPassed={() => {
+                  setEnergyBeamFired(true);
+                  setTimeout(() => setEnergyBeamFired(false), 2500);
+                  setNodes((prev) => {
+                    let foundActive = false;
+                    return prev.map((n) => {
+                      if (n.status === 'active') {
+                        foundActive = true;
+                        return { ...n, status: 'completed' as const };
+                      }
+                      if (foundActive && n.status === 'locked') {
+                        foundActive = false;
+                        return { ...n, status: 'active' as const };
+                      }
+                      return n;
+                    });
+                  });
+                  onPassEvaluation();
+                }}
+              />
             </motion.div>
           )}
         </AnimatePresence>
@@ -1925,6 +1436,20 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         onClose={() => setShowEngineModal(false)}
         selectedEngine={selectedEngine}
         onSelectEngine={onSelectEngine}
+      />
+
+      <EnrollSkillModal
+        isOpen={showEnrollModal}
+        onClose={() => setShowEnrollModal(false)}
+        onEnroll={(newTrack) => {
+          try {
+            const saved = localStorage.getItem('skillprax_tracks');
+            const current = saved ? JSON.parse(saved) : [];
+            localStorage.setItem('skillprax_tracks', JSON.stringify([...current, newTrack]));
+          } catch {}
+          onNavigate('studio');
+          window.location.href = `/workspace/${newTrack.id}`;
+        }}
       />
     </motion.div>
   );

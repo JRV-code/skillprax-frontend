@@ -203,8 +203,8 @@ export default function WorkspacePage() {
   };
 
   const handlePassEvaluation = () => {
-    setTracks((prev) =>
-      prev.map((t) => {
+    setTracks((prev) => {
+      const updated = prev.map((t) => {
         if (t.id === currentTrack.id) {
           const nextStep = Math.min(t.totalSteps, t.currentStep + 1);
           const nextPercent = Math.round((nextStep / t.totalSteps) * 100);
@@ -220,8 +220,12 @@ export default function WorkspacePage() {
           };
         }
         return t;
-      })
-    );
+      });
+      try {
+        localStorage.setItem('skillprax_tracks', JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
   };
 
   return (
