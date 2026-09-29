@@ -2,49 +2,81 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { 
-  BarChart3, 
-  User, 
-  Plus, 
-  ArrowRight, 
-  Sparkles, 
-  Layers, 
-  ChevronRight,
-  CheckCircle2,
+import { useRouter } from 'next/navigation';
+import {
+  User,
+  Bell,
+  ChevronUp,
+  ChevronDown,
+  ArrowRight,
+  Sparkles,
+  LogIn,
+  Zap,
+  Activity,
+  Flame,
+  Shield,
+  Compass,
+  GitBranch,
+  Award,
+  Layers,
+  X,
+  UserPlus,
+  Plus,
   Loader2,
-  UserPlus
+  BarChart3
 } from 'lucide-react';
-import { TelemetryModal } from '@/components/TelemetryModal';
-import { InitiateTrackModal } from '@/components/InitiateTrackModal';
-import { FloatingSchematicsCanvas } from '@/components/SkillBlueprintBackground';
 import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
 
-export default function HomePage() {
+export default function LandingPage() {
+  const router = useRouter();
   const [profileData, setProfileData] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const [workspaces, setWorkspaces] = useState<any[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
 
-  // Modal Dialogs
-  const [isTelemetryOpen, setIsTelemetryOpen] = useState(false);
-  const [isNewSkillOpen, setIsNewSkillOpen] = useState(false);
-  const [isGetStartedOpen, setIsGetStartedOpen] = useState(false);
-  const [isCreateProfileOpen, setIsCreateProfileOpen] = useState(false);
-  const [isChoiceOpen, setIsChoiceOpen] = useState(false);
+  // Gateway Modal state
+  const [isGatewayOpen, setIsGatewayOpen] = useState<boolean>(false);
+  const [gatewayMode, setGatewayMode] = useState<'existing' | 'create'>('existing');
 
-  // New Profile Form
-  const [nameInput, setNameInput] = useState('');
-  const [ageInput, setAgeInput] = useState(18);
-  const [professionInput, setProfessionInput] = useState('');
-  const [targetHours, setTargetHours] = useState('1');
-  const [targetMinutes, setTargetMinutes] = useState('0');
+  // Form states for Create New Profile
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('18');
+  const [profession, setProfession] = useState('Class 12 Science (NEET / JEE)');
+  const [targetHours, setTargetHours] = useState<number>(1);
+  const [targetMinutes, setTargetMinutes] = useState<number>(0);
   const [reminderTime, setReminderTime] = useState('20:00');
+  const [enableAlerts, setEnableAlerts] = useState(true);
   const [savingProfile, setSavingProfile] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
+  // Selected workspace track
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string>('');
 
-  const loadData = async () => {
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  const loadPortalData = async () => {
     try {
-      const profRes = await fetch(`${API_BASE}/api/profile`);
-      if (profRes.ok) setProfileData(await profRes.json());
+      const profRes = await fetch(`${API_BASE_URL}/api/profile`);
+      if (profRes.ok) {
+        const pData = await profRes.json();
+        setProfileData(pData);
+        setName(pData.profile?.name || '');
+        setAge((pData.profile?.age || 18).toString());
+        setProfession(pData.profile?.profession || 'Class 12 Science (NEET / JEE)');
+        setTargetHours(pData.profile?.targetDailyHours || 1);
+        setTargetMinutes(pData.profile?.targetDailyMinutes || 0);
+        setReminderTime(pData.profile?.reminderTime || '20:00');
+
+        const profileId = pData.profile?.id || 'global';
+        const wsRes = await fetch(`${API_BASE_URL}/api/workspaces?profileId=${profileId}`);
+        if (wsRes.ok) {
+          const wsData = await wsRes.json();
+          const list = Array.isArray(wsData) ? wsData : (wsData.workspaces || wsData.tracks || []);
+          setWorkspaces(list);
+          if (list.length > 0) {
+            setSelectedWorkspaceId(list[0].id);
+          }
+        }
+      }
     } catch (e) {
       console.error('Failed to load portal data:', e);
     } finally {
@@ -53,359 +85,491 @@ export default function HomePage() {
   };
 
   useEffect(() => {
-    loadData();
+    loadPortalData();
   }, []);
 
-  const handleGetStartedClick = () => {
-    // Open choice modal: "Create New Profile" OR "Continue with Existing Profile"
-    setIsGetStartedOpen(true);
+  const handleOpenGetStarted = (mode: 'existing' | 'create' = 'existing') => {
+    setGatewayMode(mode);
+    setIsGatewayOpen(true);
   };
 
-  const handleSaveNewProfile = async (e: React.FormEvent) => {
+  const handleResumeExisting = () => {
+    setIsGatewayOpen(false);
+    if (selectedWorkspaceId) {
+      router.push(`/workspace/${selectedWorkspaceId}`);
+    } else {
+      router.push('/profile');
+    }
+  };
+
+  const handleCreateNewProfile = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (profession.trim().toLowerCase() === '/admin') {
+      setIsGatewayOpen(false);
+      sessionStorage.setItem('skillprax_admin_token', 'authorized');
+      router.push('/admin');
+      return;
+    }
+
     setSavingProfile(true);
     try {
-      const res = await fetch(`${API_BASE}/api/profile`, {
+      const res = await fetch(`${API_BASE_URL}/api/profile`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: nameInput.trim(),
-          age: Number(ageInput),
-          profession: professionInput.trim(),
-          targetDailyHours: Number(targetHours),
-          targetDailyMinutes: Number(targetMinutes),
+          name: name.trim() || 'Learner',
+          age: parseInt(age, 10) || 18,
+          profession: profession.trim() || 'Class 12 Student',
+          targetDailyHours: Math.max(0, Math.min(24, targetHours)),
+          targetDailyMinutes: Math.max(0, Math.min(59, targetMinutes)),
           reminderTime,
         }),
       });
 
       if (res.ok) {
-        setIsCreateProfileOpen(false);
-        await loadData();
-        // Immediately transition to creating the new skill
-        setIsNewSkillOpen(true);
+        setIsGatewayOpen(false);
+        router.push('/profile');
       }
     } catch (err) {
-      console.error('Failed to save profile:', err);
+      console.error('Failed to create profile:', err);
     } finally {
       setSavingProfile(false);
     }
   };
 
-  return (
-    <div className="min-h-screen bg-background text-foreground relative overflow-hidden font-sans">
-      <FloatingSchematicsCanvas />
+  const handleHourSpin = (delta: number) => {
+    setTargetHours((prev) => Math.max(0, Math.min(24, prev + delta)));
+  };
 
-      {/* TOP NAVIGATION BAR */}
-      <header className="relative z-20 border-b border-border bg-background/80 backdrop-blur-xl/80 backdrop-blur-md px-6 py-4">
-        <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link className="flex items-center gap-3 group select-none hover:brightness-110 active:scale-95 transition-all" href="/">
-            <SkillpraxLogo size="sm" showWordmark={true} />
+  const handleMinSpin = (delta: number) => {
+    setTargetMinutes((prev) => {
+      const next = prev + delta;
+      if (next < 0) return 55;
+      if (next > 55) return 0;
+      return next;
+    });
+  };
+
+  return (
+    <div className="relative min-h-screen w-full flex flex-col justify-between bg-tech-grid text-slate-800 pt-16 pb-12 px-4 sm:px-6 lg:px-8 overflow-hidden select-none font-sans">
+      {/* Background Motion Video Layer */}
+      <CinematicVideoBackground src="/assets/background-motion.mp4" overlayOpacity={0.25} />
+
+      {/* Top Header Bar */}
+      <header className="fixed top-0 left-0 right-0 z-40 bg-white/85 backdrop-blur-md border-b border-emerald-100/80 px-4 sm:px-8 py-3 flex items-center justify-between shadow-xs">
+        {/* Brand Zone */}
+        <Link href="/" className="flex items-center gap-2 group cursor-pointer">
+          <SkillpraxLogo size="sm" showWordmark={true} className="hover:brightness-110 active:scale-95 transition-all" />
+        </Link>
+
+        {/* Clean Nav Zone & Action Buttons */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          <Link
+            href="/profile"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group"
+          >
+            <User className="w-3.5 h-3.5 text-emerald-600 transition-transform duration-200 group-hover:scale-120" />
+            <span>Learner Profile</span>
           </Link>
 
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setIsTelemetryOpen(true)}
-              title="Telemetry & Daily Streak"
-              className="p-2.5 rounded-xl bg-muted border border-border text-primary hover:text-accent hover:border-amber-500/50 transition-all flex items-center gap-2"
-            >
-              <BarChart3 className="w-4 h-4"/>
-              <span className="text-xs font-mono font-semibold hidden sm:inline">
-                {profileData?.streak?.currentStreak || 0}d
-              </span>
-            </button>
+          <button
+            onClick={() => handleOpenGetStarted('existing')}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-all duration-200 cursor-pointer active:scale-95 group"
+          >
+            <LogIn className="w-3.5 h-3.5 transition-transform duration-200 group-hover:translate-x-0.5" />
+            <span>Log In</span>
+          </button>
 
-            <Link className="p-2.5 rounded-xl bg-muted border border-border text-primary hover:text-foreground hover:border-border transition-all flex items-center gap-2" href="/profile">
-              <User className="w-4 h-4 text-primary"/>
-              <span className="text-xs font-medium hidden sm:inline">
-                {profileData?.profile?.name ? profileData.profile.name.split(' ')[0] : 'Profile'}
-              </span>
-            </Link>
-
+          {/* Primary CTA with Conic Border Beam & Shimmer Sweep */}
+          <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-600/20">
             <button
-              onClick={() => setIsNewSkillOpen(true)}
-              className="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow-[0_0_20px_rgba(245,158,11,0.25)] transition-all"
+              onClick={() => handleOpenGetStarted('existing')}
+              className="relative z-10 px-4 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded-[10px] text-xs font-bold tracking-wide shadow-md btn-tactile btn-shimmer cursor-pointer uppercase flex items-center gap-1.5 active:scale-95"
             >
-              <Plus className="w-4 h-4"/> <span className="hidden sm:inline">New Skill</span>
+              <span>Get Started</span>
+              <Sparkles className="w-3 h-3 text-amber-300 animate-pulse" />
             </button>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION WITH CENTERPIECE LOGO */}
-      <main className="relative z-10 max-w-7xl mx-auto px-6 pt-12 pb-24 flex flex-col items-center text-center space-y-6">
-        
-        {/* CENTERPIECE LOGO WITH AMBER & ROYAL BLUE GLOW */}
-        <div className="relative group mt-8">
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-blue-600 to-amber-400 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-500 animate-pulse"/>
-          <div className="relative p-6 rounded-3xl bg-background/80 backdrop-blur-xl border-2 border-border group-hover:border-amber-400 shadow-[0_0_40px_rgba(37,99,235,0.6)] flex items-center justify-center transition-all duration-300 hover:brightness-110 active:scale-95 cursor-pointer">
+      {/* Main Cinematic Landing Arena */}
+      <main className="relative z-10 max-w-5xl mx-auto w-full flex-1 flex flex-col items-center justify-center py-10 sm:py-16 text-center">
+        {/* Animated Badge Pill */}
+        <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/90 backdrop-blur-md border border-emerald-200/90 text-emerald-800 text-xs sm:text-sm font-semibold tracking-wide shadow-md shadow-emerald-500/10 mb-6 animate-pulse-glow">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+          <span>✦ Dynamic Socratic Curriculum • Resource Bounded</span>
+        </div>
+
+        {/* Centerpiece Hero Logo with Blooming Auroral Halo */}
+        <div className="relative my-2 sm:my-4 group cursor-pointer" onClick={() => handleOpenGetStarted('existing')}>
+          <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-emerald-500 to-sky-400 blur-3xl opacity-40 group-hover:opacity-75 transition-opacity duration-500 animate-pulse" />
+          <div className="relative p-6 rounded-3xl bg-white/90 backdrop-blur-md border-2 border-emerald-200/80 group-hover:border-emerald-400 shadow-2xl transition-all duration-300">
             <SkillpraxLogo size="lg" showWordmark={true} />
           </div>
         </div>
 
-        {/* Sci-Fi Badge */}
-        <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-muted border border-border text-primary text-xs font-mono shadow-[0_0_25px_rgba(37,99,235,0.25)]">
-          <Sparkles className="w-3.5 h-3.5 text-accent"/>
-          <span>Autonomous Mastery Engine • Pure Cognitive Telemetry</span>
-        </div>
-
-        <div className="space-y-3 max-w-3xl">
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-600 via-emerald-600 to-amber-500 bg-clip-text text-transparent leading-tight">
-            Skillprax: Autonomous Mastery Engine
+        {/* High-Contrast Hero Typography */}
+        <div className="space-y-4 max-w-2xl mt-4">
+          <h1 className="text-3xl sm:text-5xl md:text-6xl font-heading font-extrabold text-slate-900 tracking-tight leading-tight">
+            Autonomous Mastery Engine
           </h1>
-          <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed">
-            High-friction cognitive checkpoints, curated video tutorials, and scenario-based distractor evaluation.
+          <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
+            Dynamic competency roadmaps synthesized with active graph visualization, strict 2-video YouTube quotas, verified canonical documentation, and diagnostic Socratic gates.
           </p>
         </div>
 
-        {/* PRIMARY CTA: GET STARTED BUTTON */}
-        <div className="pt-2">
-          <button
-            onClick={handleGetStartedClick}
-            className="group relative inline-flex items-center gap-3 px-8 py-4 rounded-2xl bg-gradient-to-r from-blue-600 via-blue-500 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-black text-sm tracking-wide shadow-[0_0_35px_rgba(37,99,235,0.4)] hover:shadow-[0_0_45px_rgba(245,158,11,0.5)] transition-all transform hover:-translate-y-0.5"
+        {/* HERO GET STARTED BUTTON */}
+        <div className="pt-8 flex flex-col sm:flex-row items-center justify-center gap-4 w-full">
+          <div className="relative p-[2.5px] rounded-2xl conic-beam shadow-xl shadow-emerald-500/20">
+            <button
+              onClick={() => handleOpenGetStarted('existing')}
+              className="relative z-10 px-10 py-4 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white rounded-[14px] font-heading font-extrabold text-base sm:text-lg tracking-wider shadow-2xl btn-tactile btn-shimmer cursor-pointer uppercase flex items-center gap-3 active:scale-95 group"
+            >
+              <Zap className="w-5 h-5 text-amber-300 animate-bounce" />
+              <span>Get Started</span>
+              <ArrowRight className="w-5 h-5 transition-transform duration-300 group-hover:translate-x-2" />
+            </button>
+          </div>
+
+          <Link
+            href="/profile"
+            className="px-6 py-4 bg-white/90 hover:bg-white text-slate-700 hover:text-slate-900 border border-slate-200/90 rounded-2xl font-heading font-semibold text-sm shadow-sm hover:shadow-md wobble-card cursor-pointer flex items-center gap-2.5 transition-all group active:scale-95"
           >
-            <span>GET STARTED</span>
-            <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform"/>
-          </button>
+            <Compass className="w-4 h-4 text-sky-600 transition-transform duration-300 group-hover:rotate-45" />
+            <span>Explore Learner Telemetry</span>
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+          </Link>
+        </div>
+
+        {/* 3 Pillar Feature Cloud Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-12 max-w-4xl w-full text-left">
+          <div
+            onClick={() => handleOpenGetStarted('existing')}
+            className="bg-white/85 backdrop-blur-md rounded-2xl p-5 border border-emerald-200/70 shadow-sm hover:shadow-md wobble-card cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="p-2 bg-emerald-100 text-emerald-800 rounded-xl group-hover:scale-110 transition-transform">
+                <GitBranch className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-heading font-bold text-slate-900">
+                Flowchart Roadmaps
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">
+              Milestone dependency graphs with live energy pulses and assessable ACU nodes.
+            </p>
+          </div>
+
+          <div
+            onClick={() => handleOpenGetStarted('existing')}
+            className="bg-white/85 backdrop-blur-md rounded-2xl p-5 border border-emerald-200/70 shadow-sm hover:shadow-md wobble-card cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="p-2 bg-amber-100 text-amber-800 rounded-xl group-hover:scale-110 transition-transform">
+                <Flame className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-heading font-bold text-slate-900">
+                Telemetry & Streaks
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">
+              7-day study cadence bar graphs, flame streaks, and active freeze shield badges.
+            </p>
+          </div>
+
+          <div
+            onClick={() => handleOpenGetStarted('existing')}
+            className="bg-white/85 backdrop-blur-md rounded-2xl p-5 border border-emerald-200/70 shadow-sm hover:shadow-md wobble-card cursor-pointer group"
+          >
+            <div className="flex items-center gap-2.5 mb-2">
+              <div className="p-2 bg-sky-100 text-sky-800 rounded-xl group-hover:scale-110 transition-transform">
+                <Award className="w-4 h-4" />
+              </div>
+              <h3 className="text-xs font-heading font-bold text-slate-900">
+                Socratic Duel Gates
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 leading-snug">
+              Randomized Fisher-Yates questions with instant misconception diagnostic analysis.
+            </p>
+          </div>
         </div>
       </main>
 
-      {/* MODAL 1: GET STARTED CHOICE DIALOG */}
-      {isGetStartedOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border rounded-2xl w-full max-w-md p-6 relative space-y-5 shadow-[0_0_50px_rgba(37,99,235,0.25)]">
-            <h3 className="text-base font-bold text-foreground text-center">Get Started on Skillprax</h3>
-            <p className="text-xs text-muted-foreground text-center -mt-3">Choose how you wish to proceed</p>
+      {/* Footer */}
+      <footer className="relative z-10 max-w-7xl mx-auto w-full pt-6 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-3">
+        <div className="flex items-center gap-2">
+          <span className="font-semibold text-slate-700 font-heading">Skillprax Engine</span>
+          <span>© 2026 Socratic Curriculum Architecture</span>
+        </div>
+        <div className="flex items-center gap-4 text-slate-500">
+          <button
+            onClick={() => handleOpenGetStarted('existing')}
+            className="hover:text-emerald-700 transition-colors cursor-pointer"
+          >
+            Log In / Get Started
+          </button>
+          <span>·</span>
+          <Link href="/profile" className="hover:text-emerald-700 transition-colors cursor-pointer">
+            Profile & Telemetry
+          </Link>
+        </div>
+      </footer>
 
-            <div className="grid grid-cols-1 gap-3 pt-1">
-              {/* Option A: Continue With Existing Profile */}
+      {/* POPUP GATEWAY MODAL */}
+      {isGatewayOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-md view-transition-enter overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-emerald-200/90 ring-1 ring-black/5 my-6 max-h-[92vh] overflow-y-auto">
+            {/* Close Button */}
+            <button
+              onClick={() => setIsGatewayOpen(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            {/* Modal Header */}
+            <div className="text-center sm:text-left mb-6">
+              <div className="flex items-center justify-center sm:justify-start gap-2 mb-1.5">
+                <Activity className="w-4 h-4 text-emerald-600 animate-pulse" />
+                <span className="text-[10px] font-mono font-bold text-emerald-800 uppercase tracking-wider">
+                  Competency Gateway
+                </span>
+              </div>
+              <h2 className="text-xl font-heading font-bold text-slate-900">
+                Enter Autonomous Mastery Engine
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Choose to continue with your saved learner profile or initialize a new track
+              </p>
+            </div>
+
+            {/* Segmented Controller */}
+            <div className="flex items-center p-1 bg-slate-100 rounded-2xl mb-6 shadow-inner">
               <button
-                onClick={() => {
-                  setIsGetStartedOpen(false);
-                  setIsChoiceOpen(true);
-                }}
-                className="p-4 rounded-xl bg-muted border border-border hover:border-blue-400 text-left transition-all flex items-center justify-between group"
+                type="button"
+                onClick={() => setGatewayMode('existing')}
+                className={`flex-1 py-2 rounded-xl text-xs font-heading font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  gatewayMode === 'existing'
+                    ? 'bg-white text-emerald-900 shadow-sm scale-[1.02]'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
               >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-muted text-primary">
-                    <User className="w-5 h-5"/>
+                <LogIn className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Login with Existing</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setGatewayMode('create')}
+                className={`flex-1 py-2 rounded-xl text-xs font-heading font-bold transition-all duration-200 cursor-pointer flex items-center justify-center gap-1.5 ${
+                  gatewayMode === 'create'
+                    ? 'bg-white text-emerald-900 shadow-sm scale-[1.02]'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                <UserPlus className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Create New Profile</span>
+              </button>
+            </div>
+
+            {/* Existing Profile Branch */}
+            {gatewayMode === 'existing' && (
+              <div className="space-y-5">
+                <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-mono font-bold bg-emerald-200 text-emerald-900 px-2.5 py-0.5 rounded-full">
+                      ACTIVE PROFILE FOUND
+                    </span>
+                    <span className="text-xs text-slate-400 font-mono">
+                      {profileData?.profile?.name || 'Explorer'}
+                    </span>
+                  </div>
+
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-700 font-heading font-bold text-lg flex items-center justify-center border-2 border-emerald-400 shadow-sm">
+                      {profileData?.profile?.name ? profileData.profile.name.substring(0, 2).toUpperCase() : 'SP'}
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-heading font-bold text-slate-900">
+                        {profileData?.profile?.name || 'Learner Persona'}
+                      </h3>
+                      <p className="text-xs text-emerald-700 font-medium">
+                        {profileData?.profile?.profession || 'Class 12 Student (NEET / JEE)'} • {profileData?.profile?.age || 18} yrs
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {workspaces.length > 0 && (
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-semibold text-slate-700">
+                      Select Competency Track to Resume:
+                    </label>
+                    <select
+                      value={selectedWorkspaceId}
+                      onChange={(e) => setSelectedWorkspaceId(e.target.value)}
+                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-800"
+                    >
+                      {workspaces.map((t: any) => (
+                        <option key={t.id} value={t.id}>
+                          {t.title || t.targetGoal} ({t.category || 'Science'}) — STEP {t.currentStep || 1}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="pt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleResumeExisting}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl font-heading font-bold text-xs tracking-wider uppercase shadow-lg shadow-emerald-500/25 btn-tactile btn-shimmer cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    <span>Continue to Workspace ➔</span>
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Create New Profile Branch */}
+            {gatewayMode === 'create' && (
+              <form onSubmit={handleCreateNewProfile} className="space-y-4">
+                <div className="grid grid-cols-3 gap-2">
+                  <div className="col-span-2">
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Full Name
+                    </label>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Maya Sharma"
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-foreground group-hover:text-primary">
-                      Continue with Existing Profile
-                    </h4>
-                    <p className="text-xs text-muted-foreground">
-                      Current: {profileData?.profile?.name || 'Explorer'} ({profileData?.profile?.profession || 'Learner'})
-                    </p>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Age
+                    </label>
+                    <input
+                      type="number"
+                      value={age}
+                      onChange={(e) => setAge(e.target.value)}
+                      min="10"
+                      max="99"
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    />
                   </div>
                 </div>
-                <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform"/>
-              </button>
 
-              {/* Option B: Create New Profile */}
-              <button
-                onClick={() => {
-                  setIsGetStartedOpen(false);
-                  setNameInput('');
-                  setProfessionInput('');
-                  setIsCreateProfileOpen(true);
-                }}
-                className="p-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-amber-950/30 border border-amber-500/40 hover:border-amber-400 text-left transition-all flex items-center justify-between group"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-amber-500/10 text-accent">
-                    <UserPlus className="w-5 h-5"/>
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-[11px] font-semibold text-slate-600">
+                      Profession / Academic Focus
+                    </label>
+                    <span className="text-[10px] text-slate-400 font-mono">Type /admin for console</span>
                   </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-amber-300">Create New Profile</h4>
-                    <p className="text-xs text-muted-foreground">Configure a fresh persona and schedule</p>
-                  </div>
-                </div>
-                <ChevronRight className="w-5 h-5 text-accent group-hover:translate-x-1 transition-transform"/>
-              </button>
-            </div>
-
-            <button
-              onClick={() => setIsGetStartedOpen(false)}
-              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 2: DIRECTIVE CHOICE (EXISTING PROFILE) */}
-      {isChoiceOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border rounded-2xl w-full max-w-md p-6 relative space-y-5 shadow-[0_0_50px_rgba(37,99,235,0.25)]">
-            <h3 className="text-base font-bold text-foreground text-center">Select Your Learning Directive</h3>
-            <div className="grid grid-cols-1 gap-3 pt-1">
-              <button
-                onClick={() => {
-                  setIsChoiceOpen(false);
-                  const el = document.getElementById('skills-section');
-                  if (el) el.scrollIntoView({ behavior: 'smooth' });
-                }}
-                className="p-4 rounded-xl bg-muted border border-border hover:border-blue-400 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <h4 className="text-sm font-bold text-foreground group-hover:text-primary">Resume Existing Skill</h4>
-                  <p className="text-xs text-muted-foreground">Continue active milestones from enrolled tracks</p>
-                </div>
-                <ChevronRight className="w-5 h-5 text-primary group-hover:translate-x-1 transition-transform"/>
-              </button>
-
-              <button
-                onClick={() => {
-                  setIsChoiceOpen(false);
-                  setIsNewSkillOpen(true);
-                }}
-                className="p-4 rounded-xl bg-gradient-to-r from-blue-950/60 to-amber-950/30 border border-amber-500/40 hover:border-amber-400 text-left transition-all flex items-center justify-between group"
-              >
-                <div>
-                  <h4 className="text-sm font-bold text-amber-300">Add New Skill Track</h4>
-                  <p className="text-xs text-muted-foreground">Initialize a new pedagogical curriculum</p>
-                </div>
-                <Plus className="w-5 h-5 text-accent group-hover:rotate-90 transition-transform"/>
-              </button>
-            </div>
-            <button
-              onClick={() => setIsChoiceOpen(false)}
-              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground"
-            >
-              Back
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* MODAL 3: CREATE NEW PROFILE FORM */}
-      {isCreateProfileOpen && (
-        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-          <div className="bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border rounded-2xl w-full max-w-md p-6 relative space-y-4 shadow-[0_0_50px_rgba(37,99,235,0.3)]">
-            <div className="text-center space-y-1">
-              <div className="w-12 h-12 rounded-xl bg-muted border border-border text-accent mx-auto flex items-center justify-center shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-                <UserPlus className="w-6 h-6"/>
-              </div>
-              <h3 className="text-base font-bold text-foreground">Create New Learner Profile</h3>
-              <p className="text-xs text-muted-foreground">Setup your persona, goals, and daily study cadence.</p>
-            </div>
-
-            <form onSubmit={handleSaveNewProfile} className="space-y-3.5 text-xs pt-2">
-              <div>
-                <label className="block text-muted-foreground mb-1">Your Full Name</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="e.g. Manendra Patel"
-                  value={nameInput}
-                  onChange={(e) => setNameInput(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400"
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-muted-foreground mb-1">Age</label>
-                  <input
-                    type="number"
-                    min={10}
-                    max={120}
-                    required
-                    value={ageInput}
-                    onChange={(e) => setAgeInput(Number(e.target.value))}
-                    className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
-                  />
-                </div>
-                <div>
-                  <label className="block text-muted-foreground mb-1">Profession / Role</label>
                   <input
                     type="text"
+                    value={profession}
+                    onChange={(e) => setProfession(e.target.value)}
+                    placeholder="e.g. Class 12 Student (NEET / JEE)"
                     required
-                    placeholder="e.g. Class 12 Science"
-                    value={professionInput}
-                    onChange={(e) => setProfessionInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400"
-                  />
-                </div>
-              </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-muted-foreground mb-1">Daily Goal (Hours)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="12"
-                      required
-                      value={targetHours}
-                      onChange={(e) => setTargetHours(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-muted-foreground mb-1">Daily Goal (Minutes)</label>
-                    <input
-                      type="number"
-                      min="0"
-                      max="59"
-                      required
-                      value={targetMinutes}
-                      onChange={(e) => setTargetMinutes(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-muted-foreground mb-1">Daily Alert Time (24h)</label>
-                  <input
-                    type="time"
-                    required
-                    value={reminderTime}
-                    onChange={(e) => setReminderTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
                   />
                 </div>
 
-              <div className="pt-2 flex justify-end gap-2">
-                <button
-                  type="button"
-                  onClick={() => setIsCreateProfileOpen(false)}
-                  className="px-4 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-muted-foreground hover:text-foreground"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={savingProfile || !nameInput.trim()}
-                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-bold flex items-center gap-1.5 transition-all disabled:opacity-40"
-                >
-                  {savingProfile ? <Loader2 className="w-3.5 h-3.5 animate-spin"/> : <Sparkles className="w-3.5 h-3.5"/>}
-                  Save & Add Skill
-                </button>
-              </div>
-            </form>
+                <div className="grid grid-cols-2 gap-3 pt-1">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Target Hours
+                    </label>
+                    <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="24"
+                        value={targetHours}
+                        onChange={(e) => setTargetHours(parseInt(e.target.value, 10) || 0)}
+                        className="w-full bg-transparent text-sm font-bold text-slate-800 text-center focus:outline-none"
+                      />
+                      <div className="flex flex-col ml-1">
+                        <button
+                          type="button"
+                          onClick={() => handleHourSpin(1)}
+                          className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleHourSpin(-1)}
+                          className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Minutes
+                    </label>
+                    <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
+                      <input
+                        type="number"
+                        min="0"
+                        max="59"
+                        step="5"
+                        value={targetMinutes}
+                        onChange={(e) => setTargetMinutes(parseInt(e.target.value, 10) || 0)}
+                        className="w-full bg-transparent text-sm font-bold text-slate-800 text-center focus:outline-none"
+                      />
+                      <div className="flex flex-col ml-1">
+                        <button
+                          type="button"
+                          onClick={() => handleMinSpin(5)}
+                          className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                        >
+                          <ChevronUp className="w-3.5 h-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleMinSpin(-5)}
+                          className="text-slate-400 hover:text-slate-700 p-0.5 cursor-pointer"
+                        >
+                          <ChevronDown className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    type="submit"
+                    disabled={savingProfile}
+                    className="w-full py-3 bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white rounded-xl font-heading font-bold text-xs tracking-wider uppercase shadow-lg shadow-emerald-500/25 btn-tactile btn-shimmer cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                  >
+                    {savingProfile ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <UserPlus className="w-4 h-4" />
+                    )}
+                    <span>Create Profile & Launch Studio ➔</span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
-
-      {/* TELEMETRY & STREAK MODAL */}
-      <TelemetryModal 
-        isOpen={isTelemetryOpen} 
-        onClose={() => setIsTelemetryOpen(false)}
-        streak={profileData?.streak || { currentStreak: 0, longestStreak: 0, streakFreezes: 0 }}
-        telemetry={profileData?.telemetry || { todayMinutes: 0, todayHours: 0, targetDailyMinutes: 60, targetDailyHours: 1, goalCompleted: false, history: [] }}
-      />
-
-      {/* INITIATE NEW TRACK MODAL */}
-      <InitiateTrackModal 
-        isOpen={isNewSkillOpen} 
-        onClose={() => {
-          setIsNewSkillOpen(false);
-          loadData();
-        }}
-      />
     </div>
   );
 }
