@@ -149,8 +149,8 @@ export default function HomePage() {
         </div>
 
         <div className="space-y-3 max-w-3xl">
-          <h1 className="text-4xl sm:text-6xl font-black tracking-tight text-foreground leading-tight">
-            Skillprax
+          <h1 className="text-4xl sm:text-6xl font-black tracking-tight bg-gradient-to-r from-sky-600 via-emerald-600 to-amber-500 bg-clip-text text-transparent leading-tight">
+            Skillprax: Autonomous Mastery Engine
           </h1>
           <p className="text-base sm:text-lg text-muted-foreground max-w-2xl mx-auto font-normal leading-relaxed">
             High-friction cognitive checkpoints, curated video tutorials, and scenario-based distractor evaluation.

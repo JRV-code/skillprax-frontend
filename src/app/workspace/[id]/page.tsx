@@ -5,11 +5,12 @@ import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { 
   Flame, Shield, ArrowLeft, CheckCircle, 
-  Lock, BookOpen, Layers, Menu, X, ExternalLink
+  Lock, BookOpen, Layers, Menu, X, ExternalLink, Zap, Sparkles, Loader2
 } from 'lucide-react';
 import { SkillpraxLogo } from '@/components/SkillpraxLogo';
 import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
+import { InteractiveNodeFlow } from '@/components/InteractiveNodeFlow';
 
 export default function WorkspacePage() {
   const params = useParams();
@@ -21,8 +22,37 @@ export default function WorkspacePage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState<'study' | 'flowchart'>('study');
+  const [isCurriculumLoaded, setIsCurriculumLoaded] = useState<Record<string, boolean>>({});
+  const [loadingCurriculum, setLoadingCurriculum] = useState<boolean>(false);
 
   const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+
+  const handleLoadCurriculum = async (stepId: string) => {
+    setLoadingCurriculum(true);
+    try {
+      const res = await fetch(`${API_BASE_URL}/api/steps/${stepId}/level-up-resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.resources) {
+          setWorkspace((prev: any) => ({
+            ...prev,
+            steps: prev.steps.map((s: any) =>
+              s.id === stepId ? { ...s, resources: data.resources } : s
+            ),
+          }));
+        }
+      }
+    } catch (e) {
+      console.error('Failed to load curriculum:', e);
+    } finally {
+      setIsCurriculumLoaded((prev) => ({ ...prev, [stepId]: true }));
+      setLoadingCurriculum(false);
+    }
+  };
 
   const loadWorkspaceData = useCallback(async () => {
     if (!workspaceId || workspaceId === 'undefined') return;
@@ -164,74 +194,139 @@ export default function WorkspacePage() {
 
         {/* Active Step Workspace Surface */}
         <main className="flex-1 w-full max-w-4xl space-y-6">
-          <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
-            <div>
-              <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
-                Milestone {activeStepIndex} of {workspace?.steps?.length || 5}
-              </span>
-              <h2 className="text-2xl font-bold text-slate-900 mt-1">{activeStep?.title}</h2>
-              {activeStep?.description && (
-                <p className="text-xs text-slate-500 mt-1">{activeStep.description}</p>
-              )}
-            </div>
+          {/* View Tab Switcher */}
+          <div className="flex items-center gap-2 p-1.5 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm w-fit">
+            <button
+              onClick={() => setActiveTab('study')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'study'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+              }`}
+            >
+              Study & Evaluation Surface
+            </button>
+            <button
+              onClick={() => setActiveTab('flowchart')}
+              className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                activeTab === 'flowchart'
+                  ? 'bg-emerald-600 text-white shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60'
+              }`}
+            >
+              <Zap className="w-3.5 h-3.5 text-amber-400" />
+              Interactive Living Node Graph
+            </button>
           </div>
 
-          {/* Curated Resources Section */}
-          {activeStep?.resources && activeStep.resources.length > 0 && (
-            <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm space-y-3">
-              <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
-                <BookOpen className="w-4 h-4 text-emerald-600" />
-                Curated Milestone Materials
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                {activeStep.resources.map((res: any, rIdx: number) => (
-                  <a
-                    key={rIdx}
-                    href={res.url || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-400 bg-white/60 hover:bg-white transition-all text-xs group"
-                  >
-                    <div className="flex items-center justify-between gap-1 mb-1">
-                      <span className="font-semibold text-slate-900 group-hover:text-emerald-700 truncate">
-                        {res.title}
-                      </span>
-                      <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
-                    </div>
-                    {res.studyGuidance && (
-                      <p className="text-[11px] text-slate-500 line-clamp-2">{res.studyGuidance}</p>
-                    )}
-                  </a>
-                ))}
-              </div>
+          {activeTab === 'flowchart' ? (
+            <div className="view-transition-enter">
+              <InteractiveNodeFlow
+                workspace={workspace}
+                onOpenQuiz={() => setActiveTab('study')}
+                onPassEvaluation={() => loadWorkspaceData()}
+              />
             </div>
-          )}
+          ) : (
+            <div className="view-transition-enter space-y-6">
+              <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-emerald-600 uppercase tracking-widest">
+                    Milestone {activeStepIndex} of {workspace?.steps?.length || 5}
+                  </span>
+                  <h2 className="text-2xl font-bold text-slate-900 mt-1">{activeStep?.title}</h2>
+                  {activeStep?.description && (
+                    <p className="text-xs text-slate-500 mt-1">{activeStep.description}</p>
+                  )}
+                </div>
+              </div>
 
-          {/* Socratic Engine */}
-          {activeStep && (
-            <QuizAndEvaluationEngine
-              stepId={activeStep.id}
-              stepIndex={activeStep.stepIndex}
-              stepTitle={activeStep.title}
-              acus={activeStep.assessableUnits || activeStep.acus || []}
-              onStepPassed={async () => {
-                setWorkspace((prev: any) => ({
-                  ...prev,
-                  steps: prev.steps.map((s: any) =>
-                    s.stepIndex === activeStepIndex ? { ...s, status: 'PASSED' } : s
-                  ),
-                }));
-                try {
-                  await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/next-step`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                  });
-                  loadWorkspaceData();
-                } catch (e) {
-                  console.error('Failed to advance step:', e);
-                }
-              }}
-            />
+              {/* Lazy-Gated Milestone Study Curriculum Hub */}
+              {activeStep && (
+                <div className="p-6 bg-white/80 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-sm font-bold text-slate-800 flex items-center gap-2">
+                      <BookOpen className="w-4 h-4 text-emerald-600" />
+                      Milestone Study Curriculum
+                    </h3>
+                    <span className="text-[10px] font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                      Token-Saver Lazy Load
+                    </span>
+                  </div>
+
+                  {!isCurriculumLoaded[activeStep.id] && (!activeStep.resources || activeStep.resources.length === 0) ? (
+                    <div className="p-8 text-center bg-slate-50/70 border border-slate-200/60 rounded-xl space-y-3">
+                      <Sparkles className="w-8 h-8 text-emerald-600 mx-auto" />
+                      <h4 className="text-base font-bold text-slate-800">Milestone Curriculum Ready</h4>
+                      <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                        Synthesize high-yield documentation links and canonical video segments for Milestone {activeStepIndex}.
+                      </p>
+                      <button
+                        onClick={() => handleLoadCurriculum(activeStep.id)}
+                        disabled={loadingCurriculum}
+                        className="btn-primary inline-flex items-center"
+                      >
+                        {loadingCurriculum ? (
+                          <Loader2 className="w-4 h-4 animate-spin mr-2" />
+                        ) : (
+                          <Zap className="w-4 h-4 mr-2 text-amber-300" />
+                        )}
+                        ⚡ Build My Milestone Curriculum
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      {(activeStep.resources || []).map((res: any, rIdx: number) => (
+                        <a
+                          key={rIdx}
+                          href={res.url || '#'}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-3.5 rounded-xl border border-slate-200 hover:border-emerald-400 bg-white/60 hover:bg-white transition-all text-xs group"
+                        >
+                          <div className="flex items-center justify-between gap-1 mb-1">
+                            <span className="font-semibold text-slate-900 group-hover:text-emerald-700 truncate">
+                              {res.title}
+                            </span>
+                            <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-emerald-600 shrink-0" />
+                          </div>
+                          {res.studyGuidance && (
+                            <p className="text-[11px] text-slate-500 line-clamp-2">{res.studyGuidance}</p>
+                          )}
+                        </a>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Socratic Engine */}
+              {activeStep && (
+                <QuizAndEvaluationEngine
+                  stepId={activeStep.id}
+                  stepIndex={activeStep.stepIndex}
+                  stepTitle={activeStep.title}
+                  acus={activeStep.assessableUnits || activeStep.acus || []}
+                  onStepPassed={async () => {
+                    setWorkspace((prev: any) => ({
+                      ...prev,
+                      steps: prev.steps.map((s: any) =>
+                        s.stepIndex === activeStepIndex ? { ...s, status: 'PASSED' } : s
+                      ),
+                    }));
+                    try {
+                      await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}/next-step`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      });
+                      loadWorkspaceData();
+                    } catch (e) {
+                      console.error('Failed to advance step:', e);
+                    }
+                  }}
+                />
+              )}
+            </div>
           )}
         </main>
       </div>
