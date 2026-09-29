@@ -477,10 +477,131 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   } | null>(null);
 
   const [energyBeamFired, setEnergyBeamFired] = useState<boolean>(false);
+  const [levelUpData, setLevelUpData] = useState<{
+    score: number;
+    xpEarned: number;
+    isFinalStep: boolean;
+    nextStepIndex: number | null;
+  } | null>(null);
+
+  // Hydrate flowchart nodes dynamically from database workspace steps
+  useEffect(() => {
+    if (rawWorkspace?.steps && Array.isArray(rawWorkspace.steps) && rawWorkspace.steps.length > 0) {
+      const sortedSteps = [...rawWorkspace.steps].sort((a: any, b: any) => (a.stepIndex || 0) - (b.stepIndex || 0));
+      const mappedNodes: FlowchartNode[] = sortedSteps.map((step: any, idx: number) => {
+        const isPassed = step.status === 'PASSED';
+        const isUnlocked = step.status !== 'LOCKED';
+        let nodeStatus: 'completed' | 'active' | 'locked' = 'locked';
+        if (isPassed) {
+          nodeStatus = 'completed';
+        } else if (isUnlocked) {
+          nodeStatus = 'active';
+        }
+
+        const acusList = Array.isArray(step.acus)
+          ? step.acus.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
+          : Array.isArray(step.assessableUnits)
+          ? step.assessableUnits.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
+          : [];
+
+        return {
+          id: step.id || `node-${step.stepIndex || idx + 1}`,
+          label: `Step ${step.stepIndex || idx + 1}: ${step.title}`,
+          subLabel: step.title || `Milestone ${idx + 1}`,
+          status: nodeStatus,
+          x: 80 + idx * 280,
+          y: 110,
+          width: 200,
+          height: 80,
+          tier: step.stepIndex || idx + 1,
+          objectives: acusList.length > 0 ? acusList : [`Master step ${idx + 1} competencies`],
+          acus: acusList.length > 0 ? acusList : [`ACU-${idx + 1}01: Core Invariants`, `ACU-${idx + 1}02: Verification`],
+          aiSummary: isPassed ? 'Milestone cleared.' : isUnlocked ? 'Active study milestone.' : 'Locked milestone.',
+        };
+      });
+      setNodes(mappedNodes);
+
+      const firstActive = mappedNodes.find(n => n.status === 'active') || mappedNodes[0];
+      if (firstActive) {
+        setActiveNodeId(firstActive.id);
+      }
+    }
+  }, [rawWorkspace]);
 
   const selectedNode = useMemo(() => {
-    return nodes.find((n) => n.id === activeNodeId) || nodes[1];
-  }, [nodes, activeNodeId]);
+    return nodes.find((n) => n.id === activeNodeId) || nodes[0] || { id: 'node-1', label: currentTrack.title, subLabel: 'Milestone 1', status: 'active', tier: 1, acus: [], objectives: [] };
+  }, [nodes, activeNodeId, currentTrack.title]);
+
+  const activeStepObj = useMemo(() => {
+    if (!rawWorkspace?.steps || !Array.isArray(rawWorkspace.steps)) return null;
+    return rawWorkspace.steps.find((s: any) => s.id === activeNodeId || s.stepIndex === selectedNode?.tier) || rawWorkspace.steps[0];
+  }, [rawWorkspace, activeNodeId, selectedNode]);
+
+  const activeStepId = activeStepObj?.id || currentTrack.id;
+  const activeStepNum = activeStepObj?.stepIndex || selectedNode?.tier || currentTrack.currentStep;
+  const activeStepTitle = activeStepObj?.title || selectedNode?.label || currentTrack.title;
+
+  const activeStepAcus = useMemo(() => {
+    if (activeStepObj?.acus && Array.isArray(activeStepObj.acus) && activeStepObj.acus.length > 0) {
+      return activeStepObj.acus.map((a: any, idx: number) => ({
+        id: a.id || `acu-${idx + 1}`,
+        title: typeof a === 'string' ? a : (a.title || `ACU ${idx + 1}`),
+        description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a.description || 'ACU description'),
+      }));
+    }
+    return selectedNode?.acus?.map((a, idx) => ({
+      id: `acu-${idx + 1}`,
+      title: typeof a === 'string' ? a : (a as any).title || 'ACU',
+      description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a as any).description || 'ACU description',
+    })) || [
+      { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
+      { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },
+    ];
+  }, [activeStepObj, selectedNode]);
+
+  const handleStepPassed = (score: number, passPayload?: any) => {
+    const totalCount = nodes.length || 5;
+    const isFinal = passPayload?.isFinalStep || activeStepNum >= totalCount;
+    const nextIdx = passPayload?.nextStepIndex || activeStepNum + 1;
+
+    setLevelUpData({
+      score,
+      xpEarned: passPayload?.xpEarned || activeStepNum * 500,
+      isFinalStep: isFinal,
+      nextStepIndex: isFinal ? null : nextIdx,
+    });
+
+    setEnergyBeamFired(true);
+    setTimeout(() => setEnergyBeamFired(false), 2500);
+
+    setNodes((prev) => {
+      let foundActive = false;
+      return prev.map((n) => {
+        if (n.id === activeNodeId || n.tier === activeStepNum) {
+          foundActive = true;
+          return { ...n, status: 'completed' as const };
+        }
+        if (foundActive && n.status === 'locked') {
+          foundActive = false;
+          return { ...n, status: 'active' as const };
+        }
+        return n;
+      });
+    });
+
+    onPassEvaluation();
+  };
+
+  const handleAdvanceToNextMilestone = () => {
+    if (levelUpData?.nextStepIndex) {
+      const nextNode = nodes.find(n => n.tier === levelUpData.nextStepIndex);
+      if (nextNode) {
+        setActiveNodeId(nextNode.id);
+      }
+      setLevelUpData(null);
+      setActiveTab('roadmap');
+    }
+  };
 
   const generateQuestions = useCallback(() => {
     const isChemistry =
@@ -545,15 +666,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   const handleSynthesizeMaterials = async () => {
     setIsSynthesizing(true);
     try {
-      const activeStep = rawWorkspace?.steps?.find((s: any) => s.stepIndex === currentTrack.currentStep) || rawWorkspace?.steps?.[0];
-      const stepIdToUse = activeStep?.id || currentTrack.id;
+      const stepIdToUse = activeStepId || currentTrack.id;
 
       const res = await fetch(`/api/steps/${stepIdToUse}/level-up-resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stepIndex: currentTrack.currentStep,
-          title: selectedNode?.label || currentTrack.title,
+          stepIndex: activeStepNum,
+          title: activeStepTitle,
           workspaceTitle: currentTrack.title,
         }),
       });
@@ -566,10 +686,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
             id: `res-${idx}`,
             type: (r.url && (r.url.includes('youtube.com') || r.url.includes('youtu.be'))) ? 'youtube' : 'doc',
             title: r.title || 'Curated Resource',
-            subtitle: r.studyGuidance || r.badge || 'Verified Study Resource',
+            subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
             url: r.url || '#',
-            durationOrPages: r.badge || 'Canonical',
-            viewsOrCitation: r.badge || 'Verified',
+            durationOrPages: r.type === 'VIDEO' ? 'Tutorial Video' : 'Documentation',
+            viewsOrCitation: 'Verified Resource',
             thumbnailUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
             verified: true,
             organization: 'Skillprax Verified',
@@ -1373,46 +1493,64 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               className="space-y-6"
             >
               <QuizAndEvaluationEngine
-                stepId={
-                  rawWorkspace?.steps?.find((s: any) => s.stepIndex === currentTrack.currentStep)?.id ||
-                  rawWorkspace?.steps?.[0]?.id ||
-                  currentTrack.id
-                }
-                stepIndex={currentTrack.currentStep}
-                stepTitle={selectedNode?.label || currentTrack.title}
-                acus={
-                  selectedNode?.acus?.map((a, idx) => ({
-                    id: `acu-${idx + 1}`,
-                    title: typeof a === 'string' ? a : (a as any).title || 'ACU',
-                    description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a as any).description || 'ACU description',
-                  })) || [
-                    { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
-                    { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },
-                  ]
-                }
-                onStepPassed={() => {
-                  setEnergyBeamFired(true);
-                  setTimeout(() => setEnergyBeamFired(false), 2500);
-                  setNodes((prev) => {
-                    let foundActive = false;
-                    return prev.map((n) => {
-                      if (n.status === 'active') {
-                        foundActive = true;
-                        return { ...n, status: 'completed' as const };
-                      }
-                      if (foundActive && n.status === 'locked') {
-                        foundActive = false;
-                        return { ...n, status: 'active' as const };
-                      }
-                      return n;
-                    });
-                  });
-                  onPassEvaluation();
+                stepId={activeStepId}
+                stepIndex={activeStepNum}
+                stepTitle={activeStepTitle}
+                acus={activeStepAcus}
+                onStepPassed={(score, passPayload) => {
+                  handleStepPassed(score, passPayload);
                 }}
               />
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* LEVEL-UP INTERSTITIAL MODAL UPON PASSING MILESTONE */}
+        {levelUpData && (
+          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
+            <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
+              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+                <ShieldCheck className="w-9 h-9"/>
+              </div>
+
+              <div>
+                <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3.5 py-1 rounded-full border border-emerald-200">
+                  {levelUpData.isFinalStep ? 'Track Mastery Achieved!' : `Milestone Cleared`}
+                </span>
+                <h3 className="text-2xl font-heading font-extrabold text-slate-900 mt-3">
+                  Score: {levelUpData.score}% Verified
+                </h3>
+                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                  {levelUpData.isFinalStep
+                    ? `Congratulations! You have completed all milestones for "${currentTrack.title}".`
+                    : `You have satisfied all competency units for this milestone. Step ${levelUpData.nextStepIndex} is now unlocked.`}
+                </p>
+              </div>
+
+              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-500">Reward Earned</span>
+                <span className="text-amber-600 font-mono font-extrabold text-sm">+{levelUpData.xpEarned} XP</span>
+              </div>
+
+              {levelUpData.isFinalStep ? (
+                <button
+                  onClick={() => onNavigate('profile')}
+                  className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer btn-shimmer"
+                >
+                  Return to Profile Hub ➔
+                </button>
+              ) : (
+                <button
+                  onClick={handleAdvanceToNextMilestone}
+                  className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer btn-shimmer"
+                >
+                  <span>Level Up: Enter Milestone {levelUpData.nextStepIndex}</span>
+                  <ArrowRight className="w-4 h-4"/>
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </main>
 
       <AnimatePresence>

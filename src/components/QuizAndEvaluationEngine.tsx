@@ -43,7 +43,7 @@ interface QuizAndEvaluationEngineProps {
   stepIndex: number;
   stepTitle: string;
   acus: ACU[];
-  onStepPassed: (score: number) => void;
+  onStepPassed: (score: number, passPayload?: any) => void;
   onRemediationStateChange?: (isRemediation: boolean) => void;
 }
 
@@ -70,6 +70,18 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
   const [prescription, setPrescription] = useState<DiagnosticPrescription | null>(null);
   const [reviewedResources, setReviewedResources] = useState<Record<string, boolean>>({});
   const [isRetestMode, setIsRetestMode] = useState<boolean>(false);
+
+  // Cleanly reset engine when user selects or advances to another step
+  React.useEffect(() => {
+    setEngineState('STANDBY_UNGENERATED');
+    setQuestions([]);
+    setSelectedAnswers({});
+    setLastScore(0);
+    setPrescription(null);
+    setReviewedResources({});
+    setIsRetestMode(false);
+    if (onRemediationStateChange) onRemediationStateChange(false);
+  }, [stepId]);
 
   // Fisher-Yates Shuffle algorithm
   const shuffleOptions = <T,>(arr: T[]): T[] => {
@@ -152,7 +164,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       if (data.passed) {
         setEngineState('PASSED_VIEW');
         onRemediationStateChange?.(false);
-        onStepPassed(score);
+        onStepPassed(score, data);
       } else {
         setPrescription(data.diagnosticPrescription || null);
         setReviewedResources({});
