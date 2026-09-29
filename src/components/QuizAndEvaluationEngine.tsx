@@ -509,20 +509,23 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                     <button
                       type="button"
                       onClick={() => markResourceReviewed(docKey, area.resources?.docUrl || '#')}
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
                         isDocReviewed
-                          ? 'border-emerald-300 bg-emerald-50/50 text-slate-900'
-                          : 'border-slate-200/90 hover:border-emerald-400 bg-slate-50/70 text-slate-800'
+                          ? 'border-emerald-400 bg-emerald-50/50 text-slate-800'
+                          : 'border-slate-200 hover:border-cyan-400 bg-white text-slate-700 shadow-xs'
                       }`}
                     >
-                      <BookOpen className={`w-5 h-5 mt-0.5 shrink-0 ${isDocReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
+                      <div className={`p-2.5 rounded-xl ${isDocReviewed ? 'bg-emerald-100 text-emerald-700' : 'bg-cyan-50 text-cyan-700'} flex-shrink-0`}>
+                        <BookOpen className="w-4 h-4" />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-heading font-bold truncate">{area.resources?.docTitle || 'Curated Documentation'}</p>
-                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-[10px] font-mono font-bold uppercase text-cyan-800 tracking-wider">Reference Doc</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{area.resources?.criticalTakeaway || 'Key conceptual breakdown'}</p>
-                        <span className="text-[10px] font-bold text-emerald-600 mt-1 inline-block">
+                        <p className="text-xs font-heading font-bold text-slate-900 mt-1 truncate">{area.resources?.docTitle || 'Canonical Reference'}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{area.resources?.criticalTakeaway || 'Targeted study reference.'}</p>
+                        <span className={`text-[10px] font-bold mt-2 inline-block ${isDocReviewed ? 'text-emerald-700' : 'text-cyan-700'}`}>
                           {isDocReviewed ? '✓ Reviewed' : 'Read Section →'}
                         </span>
                       </div>
@@ -532,20 +535,23 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                     <button
                       type="button"
                       onClick={() => markResourceReviewed(videoKey, area.resources?.videoUrl || '#')}
-                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
+                      className={`p-4 rounded-2xl border text-left transition-all flex items-start gap-3.5 cursor-pointer ${
                         isVideoReviewed
-                          ? 'border-emerald-300 bg-emerald-50/50 text-slate-900'
-                          : 'border-slate-200/90 hover:border-emerald-400 bg-slate-50/70 text-slate-800'
+                          ? 'border-emerald-400 bg-emerald-50/50 text-slate-800'
+                          : 'border-slate-200 hover:border-rose-400 bg-white text-slate-700 shadow-xs'
                       }`}
                     >
-                      <Video className={`w-5 h-5 mt-0.5 shrink-0 ${isVideoReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
+                      <div className={`p-2.5 rounded-xl ${isVideoReviewed ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-50 text-rose-700'} flex-shrink-0`}>
+                        <Video className="w-4 h-4" />
+                      </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-heading font-bold truncate">{area.resources?.videoTitle || 'Targeted Tutorial Video'}</p>
-                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="text-[10px] font-mono font-bold uppercase text-rose-800 tracking-wider">Video Tutorial</span>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-0.5">Canonical Video Segment</p>
-                        <span className="text-[10px] font-bold text-emerald-600 mt-1 inline-block">
+                        <p className="text-xs font-heading font-bold text-slate-900 mt-1 truncate">{area.resources?.videoTitle || 'Video Walkthrough'}</p>
+                        <p className="text-[11px] text-slate-500 mt-0.5">Canonical Video Demonstration</p>
+                        <span className={`text-[10px] font-bold mt-2 inline-block ${isVideoReviewed ? 'text-emerald-700' : 'text-rose-700'}`}>
                           {isVideoReviewed ? '✓ Watched' : 'Watch Segment →'}
                         </span>
                       </div>
