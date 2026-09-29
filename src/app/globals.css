@@ -3,30 +3,66 @@
 @tailwind utilities;
 
 :root {
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 210 40% 96.1%;
-  --accent-foreground: 222.2 47.4% 11.2%;
-  --border: 217.2 32.6% 17.5%;
-  --ring: 212.7 26.8% 83.9%;
+  --background: #F8FAF9;
+  --foreground: #1E293B;
+  --card: #FFFFFF;
+  --card-foreground: #1E293B;
+  --muted: #F1F5F9;
+  --muted-foreground: #64748B;
+  --accent: #F1F5F9;
+  --accent-foreground: #0F172A;
+  --border: #E2E8F0;
+  --ring: #10B981;
   --color-primary: #0284c7;
   --color-gold: #f59e0b;
   --color-mint: #10b981;
+}
+
+@layer base {
+  body {
+    font-family: 'Open Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--foreground);
+    background-color: var(--background);
+    overflow-x: hidden;
+  }
+
+  h1, h2, h3, h4, h5, h6, .font-heading {
+    font-family: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+  }
+
+  code, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+/* --- TECHNICAL GRID CANVAS BACKGROUNDS --- */
+.bg-tech-grid {
+  background-color: #F8FAF9;
+  background-image: 
+    linear-gradient(to right, rgba(16, 185, 129, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.08) 1px, transparent 1px);
+  background-size: 32px 32px;
+}
+
+.bg-tech-grid-dense {
+  background-color: #F8FAF9;
+  background-image: 
+    linear-gradient(to right, rgba(16, 185, 129, 0.12) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(16, 185, 129, 0.12) 1px, transparent 1px);
+  background-size: 20px 20px;
 }
 
 /* --- HARDWARE-ACCELERATED PAGE & STATE TRANSITIONS --- */
 @keyframes viewFadeInScale {
   0% {
     opacity: 0;
-    transform: translateY(8px) scale(0.99);
+    transform: translateY(12px) scale(0.985);
+    filter: blur(4px);
   }
   100% {
     opacity: 1;
     transform: translateY(0) scale(1);
+    filter: blur(0px);
   }
 }
 
@@ -41,18 +77,18 @@
 
 .view-transition-enter {
   animation: viewFadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-  will-change: transform, opacity;
+  will-change: transform, opacity, filter;
 }
 
 /* --- TELEMETRY BADGE ANIMATIONS --- */
 @keyframes flamePulsing {
   0%, 100% {
     transform: scale(1) rotate(-1deg);
-    filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.4));
+    filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.5));
   }
   50% {
-    transform: scale(1.08) rotate(1.5deg);
-    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.7));
+    transform: scale(1.12) rotate(2deg);
+    filter: drop-shadow(0 0 14px rgba(249, 115, 22, 0.8));
   }
 }
 
@@ -68,7 +104,7 @@
 }
 
 .flame-active {
-  animation: flamePulsing 2s ease-in-out infinite;
+  animation: flamePulsing 1.8s ease-in-out infinite;
 }
 
 .ember-particle {
@@ -99,10 +135,123 @@
   background: linear-gradient(
     90deg,
     transparent,
-    rgba(255, 255, 255, 0.5) 50%,
+    rgba(255, 255, 255, 0.6) 50%,
     transparent
   );
   animation: shieldSweep 3.5s ease-in-out infinite;
+}
+
+/* --- CONIC BORDER BEAMS & SHIMMER EFFECTS --- */
+@keyframes conicSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.conic-beam {
+  position: relative;
+  overflow: hidden;
+}
+
+.conic-beam::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent 0 280deg, #10B981 320deg, #38BDF8 360deg);
+  animation: conicSpin 2.8s linear infinite;
+  z-index: 0;
+}
+
+.conic-beam-amber {
+  position: relative;
+  overflow: hidden;
+}
+
+.conic-beam-amber::before {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 200%;
+  height: 200%;
+  background: conic-gradient(from 0deg, transparent 0 280deg, #F59E0B 320deg, #FBBF24 360deg);
+  animation: conicSpin 2.8s linear infinite;
+  z-index: 0;
+}
+
+@keyframes shimmerLaser {
+  0% {
+    transform: translateX(-150%) skewX(-20deg);
+  }
+  30%, 100% {
+    transform: translateX(200%) skewX(-20deg);
+  }
+}
+
+.btn-shimmer {
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -50%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0) 100%
+  );
+  animation: shimmerLaser 3s ease-in-out infinite;
+  pointer-events: none;
+}
+
+/* --- TACTILE BUTTON DYNAMICS --- */
+.btn-pro-max {
+  @apply relative inline-flex items-center justify-center font-semibold rounded-xl px-5 py-3 transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn-pro-max bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 hover:shadow-emerald-600/30;
+}
+
+.btn-gold {
+  @apply btn-pro-max bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20 hover:shadow-amber-500/30;
+}
+
+.btn-tactile {
+  transition: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform, box-shadow;
+}
+
+.btn-tactile:hover {
+  transform: scale(1.02) translateY(-1.5px);
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.35), 0 4px 12px rgba(16, 185, 129, 0.15);
+}
+
+.btn-tactile:active {
+  transform: scale(0.96) translateY(0);
+}
+
+/* Wobble Card 3D Effect */
+.wobble-card {
+  transition: transform 300ms cubic-bezier(0.16, 1, 0.3, 1), box-shadow 300ms cubic-bezier(0.16, 1, 0.3, 1), border-color 300ms ease;
+  will-change: transform, box-shadow;
+}
+
+.wobble-card:hover {
+  transform: translateY(-3px) perspective(1000px) rotateX(1deg) rotateY(-1deg);
+  box-shadow: 0 16px 32px -8px rgba(16, 185, 129, 0.12), 0 8px 16px -4px rgba(2, 132, 199, 0.08);
 }
 
 /* Custom Scrollbar */
@@ -122,17 +271,4 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
-}
-
-/* --- STANDARDIZED BUTTONS --- */
-.btn-pro-max {
-  @apply relative inline-flex items-center justify-center font-semibold rounded-xl px-5 py-3 transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
-}
-
-.btn-primary {
-  @apply btn-pro-max bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 hover:shadow-emerald-600/30;
-}
-
-.btn-gold {
-  @apply btn-pro-max bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20 hover:shadow-amber-500/30;
 }

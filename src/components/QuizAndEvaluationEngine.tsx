@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { 
   Sparkles, CheckCircle2, AlertTriangle, BookOpen, 
-  Video, ArrowRight, RotateCcw, ShieldCheck, ExternalLink 
+  Video, ArrowRight, RotateCcw, ShieldCheck, ExternalLink, Target, Flame, XCircle, Shield
 } from 'lucide-react';
 
 interface ACU {
@@ -44,6 +44,7 @@ interface QuizAndEvaluationEngineProps {
   stepTitle: string;
   acus: ACU[];
   onStepPassed: (score: number) => void;
+  onRemediationStateChange?: (isRemediation: boolean) => void;
 }
 
 type EngineState = 
@@ -60,6 +61,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
   stepTitle,
   acus,
   onStepPassed,
+  onRemediationStateChange,
 }) => {
   const [engineState, setEngineState] = useState<EngineState>('STANDBY_UNGENERATED');
   const [questions, setQuestions] = useState<Question[]>([]);
@@ -69,7 +71,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
   const [reviewedResources, setReviewedResources] = useState<Record<string, boolean>>({});
   const [isRetestMode, setIsRetestMode] = useState<boolean>(false);
 
-  // Fisher-Yates Shuffle
+  // Fisher-Yates Shuffle algorithm
   const shuffleOptions = <T,>(arr: T[]): T[] => {
     const copy = [...arr];
     for (let i = copy.length - 1; i > 0; i--) {
@@ -79,7 +81,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
     return copy;
   };
 
-  // 1. Lazy Generate Evaluation
+  // 1. Lazy Generate Socratic Evaluation (Token-Saver)
   const handleGenerateEvaluation = async (retest: boolean = false) => {
     setEngineState('GENERATING_QUIZ');
     try {
@@ -106,7 +108,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       if (!res.ok) throw new Error('Evaluation generation failed');
       const data = await res.json();
 
-      // Apply Fisher-Yates shuffling on options and normalize prompt
+      // Apply Fisher-Yates shuffling on options
       const formattedQuestions: Question[] = (data.questions || []).map((q: any) => ({
         id: q.id,
         prompt: q.prompt || q.scenario || q.question || 'Scenario Evaluation',
@@ -118,13 +120,14 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       setSelectedAnswers({});
       setIsRetestMode(retest);
       setEngineState('ACTIVE_EVALUATION');
+      onRemediationStateChange?.(false);
     } catch (err) {
       console.error(err);
       setEngineState('STANDBY_UNGENERATED');
     }
   };
 
-  // 2. Submit Evaluation
+  // 2. Submit Socratic Evaluation
   const handleSubmitEvaluation = async () => {
     setEngineState('SUBMITTING');
     try {
@@ -148,11 +151,13 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
       if (data.passed) {
         setEngineState('PASSED_VIEW');
+        onRemediationStateChange?.(false);
         onStepPassed(score);
       } else {
         setPrescription(data.diagnosticPrescription || null);
         setReviewedResources({});
         setEngineState('TARGETED_REMEDIATION');
+        onRemediationStateChange?.(true);
       }
     } catch (err) {
       console.error(err);
@@ -180,37 +185,98 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
   return (
     <div className="w-full transition-all duration-300">
-      {/* --- STATE 1: UNGENERATED STANDBY --- */}
+      {/* --- STATE 1: STANDBY UNGENERATED (LAUNCHPAD) --- */}
       {engineState === 'STANDBY_UNGENERATED' && (
-        <div className="view-transition-enter p-8 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200/80 shadow-sm text-center">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center mb-4">
-            <Sparkles className="w-6 h-6" />
+        <div className="view-transition-enter p-8 md:p-10 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/80 shadow-xl shadow-emerald-950/5 text-center relative overflow-hidden wobble-card">
+          {/* Ambient Auroral Glow */}
+          <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-br from-emerald-400/10 via-sky-400/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+          <div className="max-w-2xl mx-auto space-y-6 relative z-10">
+            {/* Target Beacon Icon */}
+            <div className="relative inline-flex items-center justify-center">
+              <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-500/25">
+                <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-emerald-600">
+                  <Target className="w-10 h-10 animate-pulse" />
+                </div>
+              </div>
+              <span className="absolute -top-1 -right-1 flex h-4 w-4">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
+              </span>
+            </div>
+
+            {/* Headline */}
+            <div className="space-y-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-heading font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Socratic Milestone Gate {stepIndex}</span>
+              </div>
+              <h3 className="text-2xl md:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
+                {stepTitle} Evaluation Gate
+              </h3>
+              <p className="text-xs md:text-sm text-slate-600 leading-relaxed max-w-xl mx-auto">
+                Evaluates your mastery across {acus.length || 'core'} targeted competency units with scenario-based challenges. Passing threshold is 80%.
+              </p>
+            </div>
+
+            {/* Metric Badges */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 text-left">
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs font-mono shrink-0">
+                  {acus.length ? Math.min(Math.max(acus.length, 3), 6) : '3-6'}
+                </div>
+                <div>
+                  <div className="text-xs font-heading font-bold text-slate-900">ACU Items</div>
+                  <div className="text-[11px] text-slate-500">Fisher-Yates shuffled</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
+                  80%
+                </div>
+                <div>
+                  <div className="text-xs font-heading font-bold text-slate-900">Passing Threshold</div>
+                  <div className="text-[11px] text-slate-500">Unlocks next step</div>
+                </div>
+              </div>
+
+              <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs shrink-0">
+                  ⚡
+                </div>
+                <div>
+                  <div className="text-xs font-heading font-bold text-slate-900">Misconceptions</div>
+                  <div className="text-[11px] text-slate-500">In-place debunks</div>
+                </div>
+              </div>
+            </div>
+
+            {/* Hero Conic Beam Button */}
+            <div className="pt-3">
+              <div className="relative p-[2px] rounded-2xl conic-beam shadow-xl shadow-emerald-500/20 inline-block">
+                <button
+                  onClick={() => handleGenerateEvaluation(false)}
+                  className="relative z-10 px-8 py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 hover:from-emerald-500 hover:to-teal-500 text-white font-heading font-extrabold text-sm sm:text-base rounded-xl btn-shimmer flex items-center gap-2.5 cursor-pointer active:scale-95 transition-transform"
+                >
+                  <Sparkles className="w-5 h-5 text-amber-300 animate-pulse" />
+                  <span>⚡ Generate Socratic Evaluation</span>
+                  <ArrowRight className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
-          <h3 className="text-xl font-bold text-slate-800 mb-2">
-            Milestone {stepIndex} Competency Evaluation
-          </h3>
-          <p className="text-sm text-slate-500 max-w-md mx-auto mb-6">
-            Evaluates your mastery across {acus.length || 'core'} targeted competency units with 
-            scenario-based challenges. Passing threshold is 80%.
-          </p>
-          <button
-            onClick={() => handleGenerateEvaluation(false)}
-            className="btn-primary"
-          >
-            <Sparkles className="w-4 h-4 mr-2" />
-            Generate Socratic Evaluation
-          </button>
         </div>
       )}
 
       {/* --- STATE 2: LOADING SKELETON --- */}
       {engineState === 'GENERATING_QUIZ' && (
-        <div className="view-transition-enter p-12 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200/80 text-center">
-          <div className="w-10 h-10 border-3 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-          <p className="text-base font-semibold text-slate-800">
+        <div className="view-transition-enter p-12 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/80 shadow-xl text-center space-y-3">
+          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <h4 className="text-base font-heading font-bold text-slate-900">
             Synthesizing Scenario Evaluation...
-          </p>
-          <p className="text-xs text-slate-400 mt-1">
+          </h4>
+          <p className="text-xs text-slate-500 max-w-sm mx-auto">
             Balancing equal-length options and mapping distractors to tested competencies.
           </p>
         </div>
@@ -219,108 +285,180 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       {/* --- STATE 3: ACTIVE EVALUATION --- */}
       {engineState === 'ACTIVE_EVALUATION' && (
         <div className="view-transition-enter space-y-6">
-          <div className="flex items-center justify-between p-4 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200">
+          {/* Progress Strip */}
+          <div className="p-4 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/80 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div>
-              <span className="text-xs font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-md">
-                {isRetestMode ? 'Adaptive Retest Active' : `Evaluation • Step ${stepIndex}`}
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 bg-emerald-100/90 px-3 py-1 rounded-full border border-emerald-200">
+                {isRetestMode ? 'Adaptive Retest Active' : `Evaluation • Milestone ${stepIndex}`}
               </span>
-              <h4 className="text-base font-semibold text-slate-800 mt-1">{stepTitle}</h4>
+              <h4 className="text-base font-heading font-bold text-slate-900 mt-1">{stepTitle}</h4>
             </div>
-            <span className="text-xs text-slate-500">
-              {Object.keys(selectedAnswers).length} of {questions.length} Answered
-            </span>
+            <div className="flex items-center gap-2 self-end sm:self-center">
+              <span className="text-xs font-mono font-bold text-slate-600 bg-slate-100 px-3 py-1 rounded-xl">
+                {Object.keys(selectedAnswers).length} of {questions.length} Answered
+              </span>
+            </div>
           </div>
 
-          {questions.map((q, qIndex) => (
-            <div key={q.id} className="p-6 bg-white/90 backdrop-blur-md rounded-xl border border-slate-200/80 shadow-sm">
-              <p className="text-sm font-semibold text-slate-900 mb-4">
-                <span className="text-emerald-700 mr-2">Q{qIndex + 1}.</span>
-                {q.prompt}
-              </p>
-              <div className="space-y-2.5">
-                {q.options.map(opt => {
-                  const isSelected = selectedAnswers[q.id] === opt.id;
-                  return (
-                    <label
-                      key={opt.id}
-                      onClick={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
-                      className={`flex items-start gap-3 p-3.5 rounded-lg border text-sm cursor-pointer transition-all duration-150 ${
-                        isSelected 
-                          ? 'border-emerald-600 bg-emerald-50/60 text-emerald-950 font-medium' 
-                          : 'border-slate-200 hover:border-slate-300 bg-slate-50/40 text-slate-700'
-                      }`}
-                    >
-                      <input
-                        type="radio"
-                        name={q.id}
-                        checked={isSelected}
-                        onChange={() => {}}
-                        className="mt-0.5 text-emerald-600 focus:ring-emerald-500"
-                      />
-                      <span>{opt.text}</span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+          {/* Questions Container */}
+          <div className="space-y-5">
+            {questions.map((q, qIndex) => {
+              const isAnswered = selectedAnswers[q.id] !== undefined;
 
-          <div className="flex justify-end pt-2">
-            <button
-              onClick={handleSubmitEvaluation}
-              disabled={Object.keys(selectedAnswers).length < questions.length}
-              className="btn-primary"
-            >
-              Submit Evaluation
-              <ArrowRight className="w-4 h-4 ml-2" />
-            </button>
+              return (
+                <div key={q.id} className="p-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-sm space-y-4 wobble-card">
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-mono font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-100">
+                      Question {qIndex + 1} of {questions.length}
+                    </span>
+                    {isAnswered ? (
+                      <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-emerald-200">
+                        <CheckCircle2 className="w-3.5 h-3.5" /> Response Selected
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold text-amber-600 bg-amber-50 px-2.5 py-0.5 rounded-full flex items-center gap-1 border border-amber-200">
+                        <AlertTriangle className="w-3.5 h-3.5" /> Pending Response
+                      </span>
+                    )}
+                  </div>
+
+                  <p className="text-base font-heading font-semibold text-slate-900 leading-snug">
+                    {q.prompt}
+                  </p>
+
+                  {/* Options List */}
+                  <div className="space-y-2.5 pt-1">
+                    {q.options.map((opt, optIdx) => {
+                      const letter = String.fromCharCode(65 + optIdx);
+                      const isSelected = selectedAnswers[q.id] === opt.id;
+
+                      return (
+                        <div
+                          key={opt.id}
+                          onClick={() => setSelectedAnswers(prev => ({ ...prev, [q.id]: opt.id }))}
+                          className={`p-4 rounded-xl border text-xs cursor-pointer transition-all duration-200 flex items-start gap-3.5 select-none ${
+                            isSelected 
+                              ? 'border-emerald-600 bg-emerald-50/90 text-emerald-950 font-medium ring-2 ring-emerald-400/30 shadow-xs scale-[1.01]' 
+                              : 'border-slate-200/90 hover:border-emerald-300 bg-slate-50/60 text-slate-700 hover:bg-white'
+                          }`}
+                        >
+                          <span
+                            className={`w-6 h-6 rounded-md text-xs font-bold font-mono flex items-center justify-center shrink-0 transition-all ${
+                              isSelected
+                                ? 'bg-emerald-600 text-white shadow-xs'
+                                : 'bg-white border border-slate-300 text-slate-600'
+                            }`}
+                          >
+                            {letter}
+                          </span>
+                          <span className="leading-relaxed pt-0.5 flex-1">{opt.text}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Sticky Submit Dock */}
+          <div className="p-5 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/90 shadow-md flex items-center justify-between gap-4">
+            <span className="text-xs font-semibold text-slate-600">
+              {Object.keys(selectedAnswers).length === questions.length
+                ? 'All questions recorded. Ready for Socratic submission.'
+                : `Complete all questions (${Object.keys(selectedAnswers).length}/${questions.length}) to submit.`}
+            </span>
+            <div className={`relative p-[1.5px] rounded-xl ${Object.keys(selectedAnswers).length === questions.length ? 'conic-beam shadow-md shadow-emerald-500/20' : ''}`}>
+              <button
+                onClick={handleSubmitEvaluation}
+                disabled={Object.keys(selectedAnswers).length < questions.length}
+                className={`px-6 py-3 rounded-[10px] font-heading font-bold text-xs tracking-wide transition-all flex items-center gap-2 cursor-pointer ${
+                  Object.keys(selectedAnswers).length === questions.length
+                    ? 'bg-emerald-600 hover:bg-emerald-700 text-white btn-shimmer active:scale-95'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <span>Submit Evaluation</span>
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* --- STATE 4: PASSED VIEW --- */}
-      {engineState === 'PASSED_VIEW' && (
-        <div className="view-transition-enter p-8 bg-emerald-50/80 border border-emerald-200 rounded-2xl text-center">
-          <div className="w-14 h-14 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg shadow-emerald-600/30">
-            <ShieldCheck className="w-8 h-8" />
-          </div>
-          <span className="text-xs font-black uppercase tracking-widest text-emerald-700 bg-emerald-100 px-3 py-1 rounded-full">
-            Mastery Verified
-          </span>
-          <h3 className="text-2xl font-bold text-slate-900 mt-2">
-            Score: {lastScore}% • Milestone Passed!
-          </h3>
-          <p className="text-sm text-slate-600 max-w-md mx-auto mt-2">
-            You have satisfied the competency requirements for Step {stepIndex}.
-            The next milestone is now unlocked.
+      {/* --- STATE 4: SUBMITTING SPINNER --- */}
+      {engineState === 'SUBMITTING' && (
+        <div className="view-transition-enter p-12 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/80 shadow-xl text-center space-y-3">
+          <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+          <h4 className="text-base font-heading font-bold text-slate-900">
+            Diagnosing Mental Models & Verifying Mastery...
+          </h4>
+          <p className="text-xs text-slate-500">
+            Synthesizing item-by-item diagnostic feedback.
           </p>
         </div>
       )}
 
-      {/* --- STATE 5: TARGETED REMEDIATION GATE (FAILED TEST) --- */}
+      {/* --- STATE 5: PASSED VIEW --- */}
+      {engineState === 'PASSED_VIEW' && (
+        <div className="view-transition-enter p-8 md:p-10 bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border border-emerald-300 rounded-3xl text-center shadow-xl space-y-5 relative overflow-hidden">
+          <div className="relative w-24 h-24 mx-auto flex items-center justify-center">
+            <svg className="w-24 h-24 transform -rotate-90">
+              <circle cx="48" cy="48" r="40" stroke="#E2E8F0" strokeWidth="8" fill="transparent" />
+              <circle
+                cx="48"
+                cy="48"
+                r="40"
+                stroke="#10B981"
+                strokeWidth="8"
+                fill="transparent"
+                strokeDasharray={2 * Math.PI * 40}
+                strokeDashoffset={2 * Math.PI * 40 * (1 - (lastScore / 100))}
+                strokeLinecap="round"
+              />
+            </svg>
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-xl font-heading font-extrabold text-slate-900">{lastScore}%</span>
+              <span className="text-[9px] uppercase font-bold text-emerald-700 tracking-wider">Passed</span>
+            </div>
+          </div>
+
+          <div className="space-y-1">
+            <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-white bg-emerald-600 px-3 py-1 rounded-full shadow-xs inline-block">
+              Mastery Verified
+            </span>
+            <h3 className="text-2xl font-heading font-bold text-slate-900 pt-2">
+              Score: {lastScore}% • Milestone Passed!
+            </h3>
+            <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+              You have satisfied the competency requirements for Milestone {stepIndex}. The next milestone map node is now unlocked.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* --- STATE 6: TARGETED REMEDIATION GATE (FAILED TEST) --- */}
       {engineState === 'TARGETED_REMEDIATION' && prescription && (
         <div className="view-transition-enter space-y-6">
           {/* Header Banner */}
-          <div className="p-6 bg-amber-50/90 border border-amber-200 rounded-2xl flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="p-6 bg-gradient-to-br from-amber-50 via-white to-rose-50/40 border border-amber-300 rounded-3xl shadow-lg flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               <div className="flex items-center gap-2">
-                <AlertTriangle className="w-5 h-5 text-amber-600" />
-                <span className="text-xs font-bold uppercase tracking-wider text-amber-800 bg-amber-200/60 px-2.5 py-0.5 rounded-md">
+                <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0" />
+                <span className="text-xs font-heading font-extrabold uppercase tracking-wider text-amber-900 bg-amber-200/80 px-2.5 py-0.5 rounded-md">
                   Competency Gap Detected • Score: {lastScore}%
                 </span>
               </div>
-              <h3 className="text-lg font-bold text-slate-900 mt-1.5">
+              <h3 className="text-lg font-heading font-bold text-slate-900 mt-2">
                 Targeted Remediation Required
               </h3>
-              <p className="text-xs text-slate-600 mt-0.5">
+              <p className="text-xs text-slate-600 mt-1 max-w-xl">
                 You do not need to restart the entire step. Review the diagnosed weak areas below to unlock your retest.
               </p>
             </div>
-            <div className="text-right">
-              <span className="text-xs font-semibold text-amber-900 bg-white/80 px-3 py-1.5 rounded-lg border border-amber-200">
-                Passing Threshold: 80%
-              </span>
-            </div>
+            <span className="text-xs font-bold text-amber-900 bg-white/90 px-3.5 py-2 rounded-xl border border-amber-200 shadow-xs shrink-0 self-start md:self-center">
+              Passing Threshold: 80%
+            </span>
           </div>
 
           {/* Diagnostic Weakness Cards */}
@@ -332,24 +470,24 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
               const isVideoReviewed = reviewedResources[videoKey];
 
               return (
-                <div key={idx} className="p-6 bg-white/95 rounded-2xl border border-slate-200 shadow-sm space-y-4">
+                <div key={idx} className="p-6 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 shadow-sm space-y-4 wobble-card">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-amber-500" />
+                    <h4 className="text-sm font-heading font-bold text-slate-900 flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
                       Deficit Area: {area.topic}
                     </h4>
-                    <span className="text-xs text-slate-400">Unit Focus {idx + 1}</span>
+                    <span className="text-xs font-mono text-slate-400">Unit Focus {idx + 1}</span>
                   </div>
 
-                  {/* Socratic Feedback */}
+                  {/* Socratic Feedback Side-by-Side */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
-                    <div className="p-3.5 bg-rose-50/70 border border-rose-100 rounded-xl">
-                      <span className="font-bold text-rose-800 block mb-1">Identified Misconception:</span>
-                      <p className="text-rose-900 leading-relaxed">{area.misconceptionAnalysis}</p>
+                    <div className="p-4 bg-rose-50/80 border border-rose-200/80 rounded-2xl space-y-1">
+                      <span className="font-heading font-bold text-rose-900 block mb-1">Identified Misconception:</span>
+                      <p className="text-rose-950 leading-relaxed">{area.misconceptionAnalysis}</p>
                     </div>
-                    <div className="p-3.5 bg-emerald-50/70 border border-emerald-100 rounded-xl">
-                      <span className="font-bold text-emerald-800 block mb-1">Target Mental Model:</span>
-                      <p className="text-emerald-900 leading-relaxed">{area.coreConcept}</p>
+                    <div className="p-4 bg-emerald-50/80 border border-emerald-200/80 rounded-2xl space-y-1">
+                      <span className="font-heading font-bold text-emerald-900 block mb-1">Target Mental Model:</span>
+                      <p className="text-emerald-950 leading-relaxed">{area.coreConcept}</p>
                     </div>
                   </div>
 
@@ -357,18 +495,19 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
                     {/* Documentation Card */}
                     <button
+                      type="button"
                       onClick={() => markResourceReviewed(docKey, area.resources?.docUrl || '#')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         isDocReviewed
-                          ? 'border-emerald-300 bg-emerald-50/40 text-slate-800'
-                          : 'border-slate-200 hover:border-emerald-400 bg-slate-50/60 text-slate-700'
+                          ? 'border-emerald-300 bg-emerald-50/50 text-slate-900'
+                          : 'border-slate-200/90 hover:border-emerald-400 bg-slate-50/70 text-slate-800'
                       }`}
                     >
-                      <BookOpen className={`w-5 h-5 mt-0.5 ${isDocReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
+                      <BookOpen className={`w-5 h-5 mt-0.5 shrink-0 ${isDocReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-semibold truncate">{area.resources?.docTitle || 'Curated Documentation'}</p>
-                          <ExternalLink className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <p className="text-xs font-heading font-bold truncate">{area.resources?.docTitle || 'Curated Documentation'}</p>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5 line-clamp-1">{area.resources?.criticalTakeaway || 'Key conceptual breakdown'}</p>
                         <span className="text-[10px] font-bold text-emerald-600 mt-1 inline-block">
@@ -379,18 +518,19 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
                     {/* Video Card */}
                     <button
+                      type="button"
                       onClick={() => markResourceReviewed(videoKey, area.resources?.videoUrl || '#')}
-                      className={`flex items-start gap-3 p-3.5 rounded-xl border text-left transition-all ${
+                      className={`flex items-start gap-3 p-3.5 rounded-2xl border text-left transition-all cursor-pointer ${
                         isVideoReviewed
-                          ? 'border-emerald-300 bg-emerald-50/40 text-slate-800'
-                          : 'border-slate-200 hover:border-emerald-400 bg-slate-50/60 text-slate-700'
+                          ? 'border-emerald-300 bg-emerald-50/50 text-slate-900'
+                          : 'border-slate-200/90 hover:border-emerald-400 bg-slate-50/70 text-slate-800'
                       }`}
                     >
-                      <Video className={`w-5 h-5 mt-0.5 ${isVideoReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
+                      <Video className={`w-5 h-5 mt-0.5 shrink-0 ${isVideoReviewed ? 'text-emerald-600' : 'text-slate-400'}`} />
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between gap-1">
-                          <p className="text-xs font-semibold truncate">{area.resources?.videoTitle || 'Targeted Tutorial Video'}</p>
-                          <ExternalLink className="w-3 h-3 text-slate-400 flex-shrink-0" />
+                          <p className="text-xs font-heading font-bold truncate">{area.resources?.videoTitle || 'Targeted Tutorial Video'}</p>
+                          <ExternalLink className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         </div>
                         <p className="text-[11px] text-slate-500 mt-0.5">Canonical Video Segment</p>
                         <span className="text-[10px] font-bold text-emerald-600 mt-1 inline-block">
@@ -405,23 +545,30 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
           </div>
 
           {/* Gated Retest Bar */}
-          <div className="p-5 bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200 flex flex-col sm:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2 text-xs text-slate-500">
-              <CheckCircle2 className={`w-4 h-4 ${allPrescribedResourcesReviewed() ? 'text-emerald-500' : 'text-slate-300'}`} />
+          <div className="p-5 bg-white/95 backdrop-blur-md rounded-2xl border border-slate-200/90 flex flex-col sm:flex-row items-center justify-between gap-4 shadow-md">
+            <div className="flex items-center gap-2 text-xs text-slate-600">
+              <CheckCircle2 className={`w-4 h-4 shrink-0 ${allPrescribedResourcesReviewed() ? 'text-emerald-500' : 'text-slate-300'}`} />
               <span>
                 {allPrescribedResourcesReviewed()
                   ? 'Remedial review complete. You can now take the adaptive retest.'
                   : 'Open each prescribed doc and video above to unlock your retest.'}
               </span>
             </div>
-            <button
-              onClick={() => handleGenerateEvaluation(true)}
-              disabled={!allPrescribedResourcesReviewed()}
-              className="btn-gold w-full sm:w-auto"
-            >
-              <RotateCcw className="w-4 h-4 mr-2" />
-              Take Targeted Retest
-            </button>
+            <div className={`relative p-[1.5px] rounded-xl w-full sm:w-auto ${allPrescribedResourcesReviewed() ? 'conic-beam-amber shadow-md shadow-amber-500/20' : ''}`}>
+              <button
+                type="button"
+                onClick={() => handleGenerateEvaluation(true)}
+                disabled={!allPrescribedResourcesReviewed()}
+                className={`w-full sm:w-auto px-6 py-3 rounded-[10px] font-heading font-bold text-xs tracking-wide transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                  allPrescribedResourcesReviewed()
+                    ? 'bg-amber-500 hover:bg-amber-600 text-white btn-shimmer active:scale-95'
+                    : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                }`}
+              >
+                <RotateCcw className="w-4 h-4" />
+                <span>⚡ Take Targeted Retest</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
