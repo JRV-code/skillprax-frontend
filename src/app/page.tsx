@@ -17,6 +17,7 @@ import {
 import { TelemetryModal } from '@/components/TelemetryModal';
 import { InitiateTrackModal } from '@/components/InitiateTrackModal';
 import { FloatingSchematicsCanvas } from '@/components/SkillBlueprintBackground';
+import { SkillpraxLogo } from '@/components/SkillpraxLogo';
 
 export default function HomePage() {
   const [profileData, setProfileData] = useState<any>(null);
@@ -97,13 +98,8 @@ export default function HomePage() {
       {/* TOP NAVIGATION BAR */}
       <header className="relative z-20 border-b border-border bg-background/80 backdrop-blur-xl/80 backdrop-blur-md px-6 py-4">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
-          <Link className="flex items-center gap-3 group select-none" href="/">
-            <div className="relative w-9 h-9 rounded-xl overflow-hidden shrink-0 flex items-center justify-center bg-muted border border-border group-hover:border-amber-400/60 transition-all p-1 shadow-[0_0_15px_rgba(37,99,235,0.25)]">
-              <img src="/logo.png" alt="Skillprax Logo" className="w-full h-full object-contain"/>
-            </div>
-            <span className="font-black text-lg tracking-tight text-foreground group-hover:text-accent transition-colors">
-              Skillprax
-            </span>
+          <Link className="flex items-center gap-3 group select-none hover:brightness-110 active:scale-95 transition-all" href="/">
+            <SkillpraxLogo size="sm" showWordmark={true} />
           </Link>
 
           <div className="flex items-center gap-3">
@@ -141,8 +137,8 @@ export default function HomePage() {
         {/* CENTERPIECE LOGO WITH AMBER & ROYAL BLUE GLOW */}
         <div className="relative group mt-8">
           <div className="absolute inset-0 rounded-3xl bg-gradient-to-tr from-blue-600 to-amber-400 blur-3xl opacity-50 group-hover:opacity-80 transition-opacity duration-500 animate-pulse"/>
-          <div className="relative w-32 h-32 sm:w-40 sm:h-40 rounded-3xl bg-background/80 backdrop-blur-xl border-2 border-border group-hover:border-amber-400 p-4 shadow-[0_0_40px_rgba(37,99,235,0.6)] flex items-center justify-center transition-all duration-300">
-            <img src="/logo.png" alt="Skillprax" className="w-full h-full object-contain drop-shadow-2xl"/>
+          <div className="relative p-6 rounded-3xl bg-background/80 backdrop-blur-xl border-2 border-border group-hover:border-amber-400 shadow-[0_0_40px_rgba(37,99,235,0.6)] flex items-center justify-center transition-all duration-300 hover:brightness-110 active:scale-95 cursor-pointer">
+            <SkillpraxLogo size="lg" showWordmark={true} />
           </div>
         </div>
 

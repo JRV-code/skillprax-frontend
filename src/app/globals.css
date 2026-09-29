@@ -13,6 +13,96 @@
   --accent-foreground: 222.2 47.4% 11.2%;
   --border: 217.2 32.6% 17.5%;
   --ring: 212.7 26.8% 83.9%;
+  --color-primary: #0284c7;
+  --color-gold: #f59e0b;
+  --color-mint: #10b981;
+}
+
+/* --- HARDWARE-ACCELERATED PAGE & STATE TRANSITIONS --- */
+@keyframes viewFadeInScale {
+  0% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.99);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes slideDrawerRight {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.view-transition-enter {
+  animation: viewFadeInScale 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  will-change: transform, opacity;
+}
+
+/* --- TELEMETRY BADGE ANIMATIONS --- */
+@keyframes flamePulsing {
+  0%, 100% {
+    transform: scale(1) rotate(-1deg);
+    filter: drop-shadow(0 0 6px rgba(249, 115, 22, 0.4));
+  }
+  50% {
+    transform: scale(1.08) rotate(1.5deg);
+    filter: drop-shadow(0 0 12px rgba(249, 115, 22, 0.7));
+  }
+}
+
+@keyframes emberDrift {
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 0.9;
+  }
+  100% {
+    transform: translateY(-24px) scale(0.2) translateX(6px);
+    opacity: 0;
+  }
+}
+
+.flame-active {
+  animation: flamePulsing 2s ease-in-out infinite;
+}
+
+.ember-particle {
+  animation: emberDrift 1.4s ease-out infinite;
+}
+
+@keyframes shieldSweep {
+  0% {
+    transform: translateX(-150%) skewX(-25deg);
+  }
+  60%, 100% {
+    transform: translateX(180%) skewX(-25deg);
+  }
+}
+
+.freeze-shield-glint {
+  position: relative;
+  overflow: hidden;
+}
+
+.freeze-shield-glint::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.5) 50%,
+    transparent
+  );
+  animation: shieldSweep 3.5s ease-in-out infinite;
 }
 
 /* Custom Scrollbar */
@@ -32,4 +122,17 @@
 
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
+}
+
+/* --- STANDARDIZED BUTTONS --- */
+.btn-pro-max {
+  @apply relative inline-flex items-center justify-center font-semibold rounded-xl px-5 py-3 transition-all duration-200 shadow-sm active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply btn-pro-max bg-emerald-600 hover:bg-emerald-700 text-white shadow-emerald-600/20 hover:shadow-emerald-600/30;
+}
+
+.btn-gold {
+  @apply btn-pro-max bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20 hover:shadow-amber-500/30;
 }

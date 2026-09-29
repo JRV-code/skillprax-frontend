@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { AdminGateModal } from '@/components/AdminGateModal';
 import { SkillBlueprintBackground } from '@/components/SkillBlueprintBackground';
+import { SkillpraxLogo } from '@/components/SkillpraxLogo';
 
 interface ProfileResponse {
   profile: {
@@ -204,9 +205,14 @@ export default function ProfilePage() {
         
         {/* Navigation Bar */}
         <div className="flex items-center justify-between">
-          <Link className="inline-flex items-center gap-2 text-xs font-mono text-primary hover:text-accent transition-colors" href="/">
-            <ArrowLeft className="w-4 h-4"/> Back to Studio
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link className="inline-flex items-center gap-2 text-xs font-mono text-primary hover:text-accent transition-colors" href="/">
+              <ArrowLeft className="w-4 h-4"/> Back to Studio
+            </Link>
+            <Link href="/" className="hover:brightness-110 active:scale-95 transition-all">
+              <SkillpraxLogo size="sm" showWordmark={true} />
+            </Link>
+          </div>
           <button
             onClick={() => setIsEditOpen(true)}
             className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border text-xs text-blue-200 hover:text-foreground hover:border-amber-500/50 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)]"
