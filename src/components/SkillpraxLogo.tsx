@@ -1,3 +1,5 @@
+'use client';
+
 import React from 'react';
 
 interface SkillpraxLogoProps {
@@ -48,6 +50,7 @@ export const SkillpraxLogo: React.FC<SkillpraxLogoProps> = ({
                 transform: 'scale(1.45)',
               }}
             />
+            {/* Subtle revolving auroral aura */}
             <div
               className="absolute -inset-4 rounded-full blur-xl opacity-20 pointer-events-none animate-spin"
               style={{
@@ -75,49 +78,54 @@ export const SkillpraxLogo: React.FC<SkillpraxLogoProps> = ({
           }}
         >
           <defs>
+            {/* Sky Blue to Electric Blue for Main Arrow left facet */}
             <linearGradient id="arrowFacetLeft" x1="180" y1="90" x2="330" y2="210" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#38BDF8" />
               <stop offset="100%" stopColor="#0091FF" />
             </linearGradient>
 
+            {/* Deep Royal Blue for Main Arrow right facet */}
             <linearGradient id="arrowFacetRight" x1="280" y1="70" x2="350" y2="230" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#0091FF" />
               <stop offset="100%" stopColor="#0062D6" />
             </linearGradient>
 
+            {/* Primary Blue River Ribbon Gradient */}
             <linearGradient id="blueRiverGrad" x1="120" y1="210" x2="310" y2="420" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#0091FF" />
               <stop offset="50%" stopColor="#0080FF" />
               <stop offset="100%" stopColor="#0099FF" />
             </linearGradient>
 
+            {/* Vibrant Golden Amber Ribbon Gradient */}
             <linearGradient id="goldRibbonGrad" x1="220" y1="160" x2="370" y2="400" gradientUnits="userSpaceOnUse">
               <stop offset="0%" stopColor="#FBBF24" />
               <stop offset="50%" stopColor="#F59E0B" />
               <stop offset="100%" stopColor="#D97706" />
             </linearGradient>
 
+            {/* Gold Compass Accents */}
             <linearGradient id="goldCompass" x1="0" y1="0" x2="1" y2="1">
               <stop offset="0%" stopColor="#FBBF24" />
               <stop offset="100%" stopColor="#F59E0B" />
             </linearGradient>
           </defs>
 
-          {/* 1. TOP COMPASS POINT */}
+          {/* 1. TOP COMPASS POINT: Vertical 4-point Diamond in Amber/Gold */}
           <polygon
             points="253,24 269,63 253,109 237,63"
             fill="url(#goldCompass)"
             className="transition-transform duration-300 origin-[253px_66px] group-hover:scale-115"
           />
 
-          {/* 2. WEST COMPASS POINT */}
+          {/* 2. WEST COMPASS POINT: Golden Arrowhead pointing West */}
           <polygon
             points="99,207 160,188 160,225"
             fill="url(#goldCompass)"
             className="transition-transform duration-300 origin-[130px_207px] group-hover:-translate-x-1"
           />
 
-          {/* 3. EAST COMPASS POINT */}
+          {/* 3. EAST COMPASS POINT: Golden Arrowhead pointing East */}
           <polygon
             points="401,207 339,188 339,225"
             fill="url(#goldCompass)"
@@ -139,7 +147,7 @@ export const SkillpraxLogo: React.FC<SkillpraxLogoProps> = ({
 
           {/* 6. DYNAMIC GOLDEN ACCENT RIBBON */}
           <path
-            d="M 275,163 C 228,198 200,224 200,230 C 200,234 235,220 275,235 C 335,260 365,305 358,350 C 350,495 305,418 220,390 C 280,410 335,398 348,365 C 362,328 342,280 288,255 C 255,240 228,245 220,242 C 232,228 260,200 275,163 Z"
+            d="M 275,163 C 228,198 200,224 200,230 C 200,234 235,220 275,235 C 335,260 365,305 358,350 C 350,395 305,418 220,390 C 280,410 335,398 348,365 C 362,328 342,280 288,255 C 255,240 228,245 220,242 C 232,228 260,200 275,163 Z"
             fill="url(#goldRibbonGrad)"
             className="transition-all duration-300 group-hover:brightness-115"
           />

@@ -272,3 +272,120 @@
 ::-webkit-scrollbar-thumb:hover {
   background: #94a3b8;
 }
+
+/* --- QUIZ OPTION CARDS (HEAVILY ANIMATED) --- */
+.quiz-option-card {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  cursor: pointer;
+  position: relative;
+}
+.quiz-option-card:hover {
+  transform: translateX(8px) scale(1.015);
+  border-color: #10b981 !important;
+  background: rgba(240, 253, 244, 0.7) !important;
+  box-shadow: 0 4px 20px rgba(16, 185, 129, 0.18) !important;
+}
+.quiz-option-card.selected {
+  transform: translateX(10px) scale(1.02);
+  border-color: #10b981 !important;
+  background: #ecfdf5 !important;
+  box-shadow: 0 0 0 2px #10b981, 0 8px 25px rgba(16, 185, 129, 0.25) !important;
+}
+.quiz-radio-pulse {
+  transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.quiz-option-card.selected .quiz-radio-pulse {
+  transform: scale(1.25);
+  background-color: #10b981 !important;
+  box-shadow: 0 0 12px #10b981 !important;
+}
+
+/* --- IN-PLACE EVALUATION DIAGNOSTIC REVEAL --- */
+@keyframes popScaleIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.9) translateY(15px);
+    filter: blur(6px);
+  }
+  70% {
+    transform: scale(1.02) translateY(-2px);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0px);
+  }
+}
+.evaluation-reveal-pop {
+  animation: popScaleIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Score counter pulse ring */
+@keyframes ringPulse {
+  0% { transform: scale(0.95); opacity: 0.6; }
+  50% { transform: scale(1.05); opacity: 1; filter: drop-shadow(0 0 15px rgba(16, 185, 129, 0.6)); }
+  100% { transform: scale(0.95); opacity: 0.6; }
+}
+.score-radial-pulse {
+  animation: ringPulse 2.5s infinite ease-in-out;
+}
+
+/* Misconception cards slide in */
+@keyframes slideRightCard {
+  from {
+    opacity: 0;
+    transform: translateX(-25px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+.misconception-card-enter {
+  animation: slideRightCard 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* --- LIVING NODE FLOW ENERGY BEAM --- */
+@keyframes flowingEnergy {
+  0% { stroke-dashoffset: 48; }
+  100% { stroke-dashoffset: 0; }
+}
+.energy-beam-pulse {
+  stroke-dasharray: 8 16;
+  animation: flowingEnergy 1.2s linear infinite;
+  filter: drop-shadow(0 0 6px #10b981);
+}
+
+/* Bell Swing Animation on Hover */
+@keyframes bellSwingKey {
+  0%, 100% {
+    transform: rotate(0deg);
+  }
+  20% {
+    transform: rotate(14deg);
+  }
+  40% {
+    transform: rotate(-12deg);
+  }
+  60% {
+    transform: rotate(8deg);
+  }
+  80% {
+    transform: rotate(-6deg);
+  }
+}
+
+.hover-bell-swing:hover {
+  animation: bellSwingKey 0.8s ease-in-out;
+  transform-origin: top center;
+}
+
+/* Icon Hover Elastic Bounce */
+.icon-bounce {
+  transition: transform 250ms cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.icon-bounce:hover {
+  transform: scale(1.22) rotate(6deg);
+}
+

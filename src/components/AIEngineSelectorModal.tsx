@@ -1,3 +1,5 @@
+'use client';
+
 import React, { useState } from 'react';
 import { Cpu, X, Zap, Check, Sparkles, Server, Gauge } from 'lucide-react';
 

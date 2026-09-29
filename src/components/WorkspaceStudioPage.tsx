@@ -1,0 +1,1933 @@
+'use client';
+
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { SkillTrack, FlowchartNode, AIEngine, StudyResource, QuizQuestion } from '@/types';
+import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
+import {
+  GitBranch,
+  BookOpen,
+  Zap,
+  Cpu,
+  ArrowRight,
+  ExternalLink,
+  Youtube,
+  CheckCircle2,
+  Sparkles,
+  ChevronRight,
+  ShieldCheck,
+  Video,
+  FileText,
+  Clock,
+  Eye,
+  AlertCircle,
+  AlertTriangle,
+  Lock,
+  Plus,
+  Target,
+  FileCheck,
+  RotateCcw,
+  Check,
+  XCircle,
+  HelpCircle,
+  TrendingUp,
+  Award,
+  ChevronLeft,
+  Compass,
+} from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface WorkspaceStudioPageProps {
+  currentTrack: SkillTrack;
+  onNavigate: (page: 'landing' | 'profile' | 'studio') => void;
+  selectedEngine: AIEngine;
+  onSelectEngine: (engine: AIEngine) => void;
+  onPassEvaluation: () => void;
+}
+
+// Socratic Question Bank for organic and default domains
+const QUESTION_BANK: Record<string, QuizQuestion[]> = {
+  chemistry: [
+    {
+      id: 'chem-q1',
+      question:
+        'Why does chlorobenzene exhibit drastically lower reactivity toward nucleophilic substitution compared to chloroethane?',
+      socraticContext: 'Axiomatic sp² vs sp³ hybridization and conjugated lone-pair resonance mechanics.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'The C–Cl bond acquires partial double-bond character through delocalization of the chlorine lone pair into the aromatic ring.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'This is the verified physical cause. The C-Cl bond length contracts to 169 pm.',
+        },
+        {
+          id: 'opt-b',
+          text: 'The benzene ring acts as a powerful Lewis acid that neutralizes the incoming nucleophile instantly.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Benzene is electron-rich (π-electron cloud) and acts as a nucleophile or base, never a Lewis acid.',
+        },
+        {
+          id: 'opt-c',
+          text: 'Chlorine exerts an overwhelming +I inductive electron-donating effect on the phenyl ring.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Halogens are strongly electronegative and exert a -I inductive electron-withdrawing effect, not +I.',
+        },
+        {
+          id: 'opt-d',
+          text: 'Phenyl carbocation intermediate formed in SN1 substitution is stabilized by hyperconjugation.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Phenyl cation is sp-hybridized, perpendicular to the aromatic π-system, and extremely unstable.',
+        },
+      ],
+      correctExplanation:
+        'Resonance delocalization of chlorine’s unshared electron pairs with the benzene ring yields a shorter, stronger C=Cl bond with partial double bond character. In addition, the phenyl carbon is sp² hybridized (33% s-character), holding electrons tighter than sp³ carbon.',
+    },
+    {
+      id: 'chem-q2',
+      question:
+        'When 2-bromopentane is treated with alcoholic KOH under thermal reflux, why is pent-2-ene the predominant product rather than pent-1-ene?',
+      socraticContext: 'Thermodynamics of β-elimination dehydrohalogenation under Zaitsev criteria.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'Saytzeff (Zaitsev) rule dictates that the more highly substituted, hyperconjugation-stabilized alkene predominates with unhindered bases.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Pent-2-ene has 5 hyperconjugative α-hydrogens compared to only 2 for pent-1-ene.',
+        },
+        {
+          id: 'opt-b',
+          text: 'Steric congestion prevents the base from approaching the primary β-hydrogen on carbon-1.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Primary β-hydrogens are actually the least sterically hindered; they yield Hofmann product only with bulky bases like t-BuOK.',
+        },
+        {
+          id: 'opt-c',
+          text: 'Bromine departs first through a unimolecular E1 path generating a stabilized allylic carbocation.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: High concentration of strong base (alcoholic KOH) enforces concerted bimolecular E2 anti-periplanar elimination.',
+        },
+        {
+          id: 'opt-d',
+          text: 'Pent-1-ene undergoes instantaneous thermodynamic rearrangement into pent-2-ene upon formation.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Alkenes do not spontaneously isomerize without strong protic superacids or transition metal catalysts.',
+        },
+      ],
+      correctExplanation:
+        'According to Saytzeff’s rule, in dehydrohalogenation reactions, the alkene with greater number of alkyl substituents attached to doubly bonded carbons is more stable due to hyperconjugation and forms preferentially.',
+    },
+    {
+      id: 'chem-q3',
+      question:
+        'Why does reaction of an alkyl halide with KCN yield predominantly alkyl cyanide (R-CN), whereas with AgCN it produces alkyl isocyanide (R-NC)?',
+      socraticContext: 'Ambident nucleophile duality: ionic lattice dissociation vs covalent coordinate bonding.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'KCN is ionic, allowing nucleophilic attack via carbon (stronger C–C bond formed); AgCN is largely covalent, leaving only nitrogen lone pairs free to attack.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: C-C bond enthalpy (~347 kJ/mol) exceeds C-N (~305 kJ/mol), favoring carbon attack when free cyanide ion is liberated.',
+        },
+        {
+          id: 'opt-b',
+          text: 'Potassium forms a chelate complex with nitrogen, while silver binds irreversibly to carbon lone pairs.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Potassium is an alkali metal that completely dissociates in polar solvent without covalent chelation.',
+        },
+        {
+          id: 'opt-c',
+          text: 'Silver cyanide undergoes radical oxidation which forces thermal inversion of the nitrile group.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: The reaction is polar nucleophilic substitution (SN2/SN1), not free radical rearrangement.',
+        },
+        {
+          id: 'opt-d',
+          text: 'AgCN acts as a reducing agent converting nascent alkyl halides into volatile carbylamines.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: AgCN acts as an ambident nucleophile donor, not a redox reducing agent.',
+        },
+      ],
+      correctExplanation:
+        'Cyanide ion is ambident. KCN is predominantly ionic: K+ [:C≡N:]-, so both C and N can attack, but C-C bond is more stable than C-N. In AgCN, Ag-C bond is covalent; thus nitrogen lone pair attacks R, forming isocyanide.',
+    },
+    {
+      id: 'chem-q4',
+      question:
+        'In the reaction of chiral (R)-2-bromooctane with sodium hydroxide in acetone, what stereochemical outcome is observed in the resulting 2-octanol?',
+      socraticContext: 'Walden inversion kinematics during bimolecular nucleophilic substitution (SN2).',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'Complete (100%) inversion of configuration to (S)-2-octanol via backside nucleophilic attack.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Secondary alkyl halide in polar aprotic acetone with strong nucleophile undergoes classic concerted SN2 backside attack.',
+        },
+        {
+          id: 'opt-b',
+          text: 'Total racemization resulting in an optically inactive (±)-2-octanol 50:50 mixture.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Racemization occurs in unimolecular SN1 via planar carbocation in polar protic solvents, not SN2 in acetone.',
+        },
+        {
+          id: 'opt-c',
+          text: 'Full retention of configuration yielding (R)-2-octanol via frontside internal collapse (SNi).',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: SNi with retention occurs with reagents like SOCl2 in nonpolar solvents (dioxane/ether), not NaOH in acetone.',
+        },
+        {
+          id: 'opt-d',
+          text: 'Elimination exclusively yields oct-1-ene with zero alcohol formation.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: OH- is a good nucleophile on 2° substrate; substitution competes favorably in polar aprotic solvent without high heat.',
+        },
+      ],
+      correctExplanation:
+        'SN2 reactions proceed with stereochemical Walden inversion because the nucleophile attacks from the side directly opposite to the leaving group (180° trajectory), flipping the carbon tetrahedral umbrella.',
+    },
+  ],
+  default: [
+    {
+      id: 'def-q1',
+      question:
+        'How does an authoritative mastery engine ensure concept durability compared to rote memorization?',
+      socraticContext: 'Cognitive load theory and retrieval practice under deliberate spaced repetition.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'By forcing diagnostic misconception interrogation and requiring 80%+ active threshold before unlocking dependent concepts.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Gating progression on conceptual clarity prevents compounding gaps downstream.',
+        },
+        {
+          id: 'opt-b',
+          text: 'By presenting passive summary cards with indefinite repeat clicks without test gates.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Passive consumption creates an illusion of competence without enduring mental schemas.',
+        },
+        {
+          id: 'opt-c',
+          text: 'By prioritizing high question velocity over deep diagnostic analysis of distractor traps.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Speed without reflection reinforces flawed intuition and erroneous heuristics.',
+        },
+        {
+          id: 'opt-d',
+          text: 'By keeping question options in fixed order A to D so learners memorize spatial positions.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Fixed option patterns induce spatial bias and eliminate genuine conceptual discrimination.',
+        },
+      ],
+      correctExplanation:
+        'Deliberate practice with diagnostic feedback and competency gating ensures deep mental schema integration.',
+    },
+    {
+      id: 'def-q2',
+      question:
+        'When diagnosing learner errors on a multiple-choice item, what delivers the highest pedagogical value?',
+      socraticContext: 'Formative assessment and cognitive error taxonomy.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'Exposing the exact false mental model (misconception) that made the chosen incorrect option enticing.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Deconstructing the misconception directly neutralizes intuitive fallacies.',
+        },
+        {
+          id: 'opt-b',
+          text: 'Merely displaying a red crossmark and stating the correct letter without explanation.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Binary right/wrong signaling leaves the underlying cognitive misunderstanding unresolved.',
+        },
+        {
+          id: 'opt-c',
+          text: 'Penalizing user score with zero opportunity to review authoritative study references.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Punitive scoring without remedial guidance induces test anxiety and halts progression.',
+        },
+        {
+          id: 'opt-d',
+          text: 'Replacing the entire curriculum with lower-tier introductory flashcards.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Regressing the curriculum rather than targeted error correction wastes learner tenure.',
+        },
+      ],
+      correctExplanation:
+        'Targeted misconception feedback explains precisely why a distractor felt plausible, breaking invalid cognitive shortcuts.',
+    },
+    {
+      id: 'def-q3',
+      question:
+        'In deliberate skill acquisition, what role does the Socratic Evaluation Gate serve in the learning loop?',
+      socraticContext: 'Mastery learning model (Bloom) and formative boundary verification.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'It operates as an immutable validation checkpoint ensuring prerequisite competency before graph expansion.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Prerequisites must be locked in before advanced nodes can be syntactically comprehended.',
+        },
+        {
+          id: 'opt-b',
+          text: 'It serves as a competitive leaderboard metric to encourage high-stakes peer comparisons.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Socratic gates are mastery-oriented and individualized, not competitive vanity boards.',
+        },
+        {
+          id: 'opt-c',
+          text: 'It is an optional decorative widget that learners should skip during accelerated study tracks.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Bypassing gates leads to catastrophic failure at higher-tier synthesis nodes.',
+        },
+        {
+          id: 'opt-d',
+          text: 'It locks the curriculum permanently if the learner scores below 100% on the initial attempt.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: The Socratic method encourages iterative retakes with novel shuffled questions until mastery is attained.',
+        },
+      ],
+      correctExplanation:
+        'Evaluation gates enforce mastery-based progression: only validated comprehension unlocks subsequent conceptual tiers.',
+    },
+    {
+      id: 'def-q4',
+      question:
+        'Why does Fisher-Yates algorithmic option shuffling represent a strict standard for online assessment engines?',
+      socraticContext: 'Psychometric validity and mitigation of position bias in multiple choice instruments.',
+      options: [
+        {
+          id: 'opt-a',
+          text: 'It guarantees every permutation of choices is equally probable, completely eliminating option location bias.',
+          isCorrect: true,
+          misconceptionExplanation:
+            'Correct: Fisher-Yates produces an unbiased random permutation in O(n) runtime.',
+        },
+        {
+          id: 'opt-b',
+          text: 'It ensures option A is always the easiest distractor and option D is the correct answer.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Fisher-Yates achieves the exact opposite: non-deterministic, uniformly distributed option positions.',
+        },
+        {
+          id: 'opt-c',
+          text: 'It slows down question rendering to simulate examination server latency.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Shuffling is executed client-side in sub-millisecond time and enhances test integrity.',
+        },
+        {
+          id: 'opt-d',
+          text: 'It automatically penalizes students who change their selections multiple times.',
+          isCorrect: false,
+          misconceptionExplanation:
+            'Misconception: Shuffling affects option ordering before display; it does not track or penalize deliberation.',
+        },
+      ],
+      correctExplanation:
+        'Unbiased shuffling forces the student to evaluate conceptual substance rather than inferring patterns from option position.',
+    },
+  ],
+};
+
+function shuffleArray<T>(array: T[]): T[] {
+  const arr = [...array];
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
+  currentTrack,
+  onNavigate,
+  selectedEngine,
+  onSelectEngine,
+  onPassEvaluation,
+}) => {
+  const [activeTab, setActiveTab] = useState<'roadmap' | 'resources' | 'evaluation'>('roadmap');
+  const [showEngineModal, setShowEngineModal] = useState<boolean>(false);
+
+  const [nodes, setNodes] = useState<FlowchartNode[]>([
+    {
+      id: 'node-1',
+      label: 'Step 1: Axiomatic Foundations',
+      subLabel: 'Core Physical & Syntactic Axioms',
+      status: 'completed',
+      x: 80,
+      y: 110,
+      width: 195,
+      height: 80,
+      tier: 1,
+      objectives: [
+        'Master base kinematic/structural formulas and initial boundary conditions',
+        'Verify prerequisite conservation and nomenclature principles',
+        'Eliminate introductory misconceptions and formula oversights',
+      ],
+      acus: ['ACU-101: Axiomatic boundary verification', 'ACU-102: Formula consistency audit'],
+      aiSummary: 'Axiomatic baseline established with 100% verified prerequisite checks.',
+    },
+    {
+      id: 'node-2',
+      label: 'Step 2: Core Dynamics & Execution',
+      subLabel: 'Active Socratic Learning Node',
+      status: 'active',
+      x: 360,
+      y: 110,
+      width: 200,
+      height: 80,
+      tier: 2,
+      objectives: [
+        'Execute primary operational steps under steady-state conditions',
+        'Discriminate between direct primary actions and distractor shortcuts',
+        'Measure latency and ensure correct kinetic sequence',
+      ],
+      acus: ['ACU-201: Procedural synthesis execution', 'ACU-202: Kinetic trajectory verification'],
+      aiSummary: 'Active study node currently loaded in Workspace Studio.',
+    },
+    {
+      id: 'node-3',
+      label: 'Step 3: Socratic Diagnostic Synthesis',
+      subLabel: 'Formative Gate & Misconceptions',
+      status: 'locked',
+      x: 640,
+      y: 110,
+      width: 200,
+      height: 80,
+      tier: 3,
+      objectives: [
+        'Isolate false intuitive assumptions under high-pressure scenarios',
+        'Reconstruct knowledge graphs from first principles',
+        'Demonstrate mastery above the 80% threshold',
+      ],
+      acus: ['ACU-301: Misconception diagnostic analysis', 'ACU-302: Edge-case fault recovery'],
+      aiSummary: 'Diagnostic synthesis gate locked. Complete Step 2 evaluation to unlock.',
+    },
+    {
+      id: 'node-4',
+      label: 'Step 4: Applied Domain Architecture',
+      subLabel: 'Multi-variable Scenario Testing',
+      status: 'locked',
+      x: 920,
+      y: 110,
+      width: 200,
+      height: 80,
+      tier: 4,
+      objectives: [
+        'Synthesize interconnected domain frameworks',
+        'Resolve multi-step optimization and parameter tuning',
+      ],
+      acus: ['ACU-401: Framework integration', 'ACU-402: Optimization parameters'],
+      aiSummary: 'Autonomous expansion node.',
+    },
+  ]);
+
+  const [activeNodeId, setActiveNodeId] = useState<string>('node-2');
+  const [lockedShakeId, setLockedShakeId] = useState<string | null>(null);
+
+  const [checkedACUs, setCheckedACUs] = useState<Record<string, boolean>>({});
+
+  const [resourcesSynthesized, setResourcesSynthesized] = useState<boolean>(false);
+  const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
+  const [activeVideoModal, setActiveVideoModal] = useState<StudyResource | null>(null);
+
+  const [quizState, setQuizState] = useState<'ready' | 'evaluating' | 'completed'>('ready');
+  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
+  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState<boolean>(false);
+  const [evaluationFeedback, setEvaluationFeedback] = useState<{
+    correctCount: number;
+    totalCount: number;
+    scorePercent: number;
+    passed: boolean;
+  } | null>(null);
+
+  const [energyBeamFired, setEnergyBeamFired] = useState<boolean>(false);
+
+  const selectedNode = useMemo(() => {
+    return nodes.find((n) => n.id === activeNodeId) || nodes[1];
+  }, [nodes, activeNodeId]);
+
+  const generateQuestions = useCallback(() => {
+    const isChemistry =
+      currentTrack.category === 'Chemistry' ||
+      currentTrack.title.toLowerCase().includes('chem') ||
+      currentTrack.title.toLowerCase().includes('halo');
+
+    const source = isChemistry ? QUESTION_BANK.chemistry : QUESTION_BANK.default;
+    const shuffledItems = shuffleArray(source).slice(0, 4);
+
+    const questionsWithShuffledOptions: QuizQuestion[] = shuffledItems.map((q) => ({
+      ...q,
+      options: shuffleArray(q.options),
+    }));
+
+    setQuizQuestions(questionsWithShuffledOptions);
+    setSelectedAnswers({});
+    setEvaluationFeedback(null);
+  }, [currentTrack.category, currentTrack.title]);
+
+  useEffect(() => {
+    generateQuestions();
+  }, [generateQuestions]);
+
+  const handleNodeClick = (node: FlowchartNode) => {
+    if (node.status === 'locked') {
+      setLockedShakeId(node.id);
+      setTimeout(() => setLockedShakeId(null), 500);
+      return;
+    }
+    setActiveNodeId(node.id);
+  };
+
+  const handleSpawnNextStep = () => {
+    const nextIdx = nodes.length + 1;
+    const lastNode = nodes[nodes.length - 1];
+    const newX = lastNode ? lastNode.x + 280 : 1200;
+
+    const newNode: FlowchartNode = {
+      id: `node-${Date.now()}`,
+      label: `Step ${nextIdx}: Autonomous Extension`,
+      subLabel: 'AI Synthesized Competency Tier',
+      status: 'locked',
+      x: newX,
+      y: 110,
+      width: 200,
+      height: 80,
+      tier: nextIdx,
+      objectives: [
+        'Analyze non-linear edge cases generated from past evaluations',
+        'Verify cross-domain synthesis and performance buffers',
+      ],
+      acus: [`ACU-${nextIdx}01: Autonomous stress-test`, `ACU-${nextIdx}02: Invariance verification`],
+      aiSummary: 'Dynamically spawned node via autonomous curriculum engine.',
+    };
+
+    setNodes((prev) => [...prev, newNode]);
+  };
+
+  const handleSynthesizeMaterials = () => {
+    setIsSynthesizing(true);
+    setTimeout(() => {
+      setIsSynthesizing(false);
+      setResourcesSynthesized(true);
+    }, 1500);
+  };
+
+  const allAnswered = useMemo(() => {
+    if (quizQuestions.length === 0) return false;
+    return quizQuestions.every((q) => selectedAnswers[q.id] !== undefined);
+  }, [quizQuestions, selectedAnswers]);
+
+  const handleSubmitEvaluation = () => {
+    if (!allAnswered) return;
+    setIsSubmittingQuiz(true);
+
+    setTimeout(() => {
+      let correct = 0;
+      quizQuestions.forEach((q) => {
+        const chosenId = selectedAnswers[q.id];
+        const chosenOpt = q.options.find((o) => o.id === chosenId);
+        if (chosenOpt && chosenOpt.isCorrect) {
+          correct += 1;
+        }
+      });
+
+      const total = quizQuestions.length;
+      const scorePct = Math.round((correct / total) * 100);
+      const passed = scorePct >= 80;
+
+      setEvaluationFeedback({
+        correctCount: correct,
+        totalCount: total,
+        scorePercent: scorePct,
+        passed,
+      });
+
+      setIsSubmittingQuiz(false);
+      setQuizState('completed');
+
+      if (passed) {
+        setEnergyBeamFired(true);
+        setTimeout(() => setEnergyBeamFired(false), 2500);
+
+        setNodes((prev) => {
+          let foundActive = false;
+          return prev.map((n) => {
+            if (n.status === 'active') {
+              foundActive = true;
+              return { ...n, status: 'completed' as const };
+            }
+            if (foundActive && n.status === 'locked') {
+              foundActive = false;
+              return { ...n, status: 'active' as const };
+            }
+            return n;
+          });
+        });
+
+        onPassEvaluation();
+      }
+    }, 700);
+  };
+
+  const isChemistry =
+    currentTrack.category === 'Chemistry' ||
+    currentTrack.title.toLowerCase().includes('chem') ||
+    currentTrack.title.toLowerCase().includes('halo');
+
+  const studyResources: StudyResource[] = isChemistry
+    ? [
+        {
+          id: 'yt-1',
+          type: 'youtube',
+          title: 'Haloalkanes and Haloarenes: Complete NCERT & JEE Mechanics',
+          subtitle: 'Reaction mechanisms, SN1 vs SN2 kinetics, and Walden inversion stereochemistry',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          durationOrPages: '42 mins',
+          viewsOrCitation: '1.2M views • 98.4% Helpful',
+          thumbnailUrl:
+            'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
+          videoId: 'dQw4w9WgXcQ',
+          verified: true,
+          organization: 'Khan Academy / NCERT Chemistry',
+        },
+        {
+          id: 'yt-2',
+          type: 'youtube',
+          title: 'Ambident Nucleophiles & Saytzeff vs Hofmann β-Elimination',
+          subtitle: 'KCN vs AgCN ambident reactivity and anti-periplanar E2 stereochemistry',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          durationOrPages: '35 mins',
+          viewsOrCitation: '840K views • 99.1% Helpful',
+          thumbnailUrl:
+            'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&w=600&q=80',
+          videoId: 'dQw4w9WgXcQ',
+          verified: true,
+          organization: 'Professor Dave Explains / Organic Chem',
+        },
+        {
+          id: 'doc-1',
+          type: 'doc',
+          title: 'NCERT Class 12 Chemistry: Chapter 6 Official Canonical Textbook',
+          subtitle: 'Ministry of Education, Government of India (Table 6.4 Nucleophilic Substitutions)',
+          url: 'https://ncert.nic.in/textbook.php',
+          durationOrPages: '28 Pages',
+          viewsOrCitation: 'CBSE Official Reference',
+          verified: true,
+          organization: 'NCERT / National Council of Educational Research',
+        },
+        {
+          id: 'doc-2',
+          type: 'doc',
+          title: 'IUPAC Compendium of Chemical Terminology (Gold Book)',
+          subtitle: 'Definitive nomenclature, reaction path conventions, and Walden Inversion rules',
+          url: 'https://goldbook.iupac.org/',
+          durationOrPages: 'Standards Publication',
+          viewsOrCitation: 'IUPAC Standard 2024',
+          verified: true,
+          organization: 'International Union of Pure and Applied Chemistry',
+        },
+        {
+          id: 'doc-3',
+          type: 'doc',
+          title: 'Wikipedia: Nucleophilic Substitution (SN1, SN2, and SNi Mechanisms)',
+          subtitle: 'Peer-reviewed physical organic chemistry with orbital symmetry diagrams',
+          url: 'https://en.wikipedia.org/wiki/Nucleophilic_substitution',
+          durationOrPages: 'Canonical Guide',
+          viewsOrCitation: 'Wikimedia Foundation Verified',
+          verified: true,
+          organization: 'Wikimedia Foundation',
+        },
+      ]
+    : [
+        {
+          id: 'yt-def-1',
+          type: 'youtube',
+          title: 'Axiomatic Foundations & Kinematics Mastery',
+          subtitle: 'Deliberate practice and first-principles mental models for complex engineering',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          durationOrPages: '38 mins',
+          viewsOrCitation: '950K views • 99% Helpful',
+          thumbnailUrl:
+            'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
+          videoId: 'dQw4w9WgXcQ',
+          verified: true,
+          organization: 'MIT OpenCourseWare',
+        },
+        {
+          id: 'yt-def-2',
+          type: 'youtube',
+          title: 'Cognitive Schema Architecture & Socratic Diagnostics',
+          subtitle: 'How diagnostic gates prevent compounding misconceptions in skill acquisition',
+          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+          durationOrPages: '29 mins',
+          viewsOrCitation: '420K views • 98% Helpful',
+          thumbnailUrl:
+            'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
+          videoId: 'dQw4w9WgXcQ',
+          verified: true,
+          organization: 'Stanford Online Learning',
+        },
+        {
+          id: 'doc-def-1',
+          type: 'doc',
+          title: 'MDN Web Docs: Web Technologies & Core Architecture',
+          subtitle: 'Canonical reference for foundational web standards, JavaScript, and CSS',
+          url: 'https://developer.mozilla.org',
+          durationOrPages: 'Canonical Reference',
+          viewsOrCitation: 'Mozilla Developer Network',
+          verified: true,
+          organization: 'MDN Web Docs',
+        },
+        {
+          id: 'doc-def-2',
+          type: 'doc',
+          title: 'Wikipedia: Mastery Learning & Bloom Taxonomy',
+          subtitle: 'Instructional strategy predicated on achieving prerequisite mastery',
+          url: 'https://en.wikipedia.org/wiki/Mastery_learning',
+          durationOrPages: 'Verified Encyclopedia',
+          viewsOrCitation: 'Wikimedia Foundation',
+          verified: true,
+          organization: 'Wikimedia Foundation',
+        },
+        {
+          id: 'doc-def-3',
+          type: 'doc',
+          title: 'ACM Digital Library: Deliberate Practice in Cognitive Science',
+          subtitle: 'Empirical foundations of structured feedback and knowledge decomposition',
+          url: 'https://dl.acm.org',
+          durationOrPages: 'Academic Archive',
+          viewsOrCitation: 'ACM Research Standard',
+          verified: true,
+          organization: 'Association for Computing Machinery',
+        },
+      ];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 16, filter: 'blur(6px)' }}
+      animate={{ opacity: 1, y: 0, filter: 'blur(0px)' }}
+      exit={{ opacity: 0, y: -12, filter: 'blur(6px)' }}
+      transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+      className="min-h-screen bg-transparent text-slate-800 pb-20 relative overflow-x-hidden"
+    >
+      <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
+        <div className="flex items-center gap-3">
+          <SkillpraxLogo
+            size="sm"
+            animate={true}
+            glow={true}
+            onClick={() => onNavigate('landing')}
+          />
+          <div className="h-5 w-px bg-slate-200 hidden sm:block" />
+          <div className="flex items-center gap-2">
+            <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">
+              STUDIO
+            </span>
+            <h1 className="text-sm md:text-base font-heading font-extrabold text-slate-900 tracking-tight truncate max-w-xs md:max-w-md">
+              {currentTrack.title}
+            </h1>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2.5 self-end md:self-auto">
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-700">
+            <span>MILESTONE</span>
+            <span className="text-emerald-700">
+              {currentTrack.currentStep} / {currentTrack.totalSteps}
+            </span>
+            <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden ml-1">
+              <div
+                className="h-full bg-emerald-500 rounded-full"
+                style={{ width: `${currentTrack.progressPercent}%` }}
+              />
+            </div>
+          </div>
+
+          <button
+            onClick={() => setShowEngineModal(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200/80 border border-slate-200 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.96]"
+            title="Configure AI Inference Engine"
+          >
+            <Cpu className="w-3.5 h-3.5 text-emerald-600" />
+            <span className="hidden sm:inline">Engine:</span>
+            <span className="font-mono text-emerald-800 font-bold">
+              {selectedEngine === 'groq-llama-3.3-70b'
+                ? '⚡ Groq LLaMA 3.3 70B'
+                : selectedEngine === 'llama-3.1-8b'
+                ? 'LLaMA 3.1 8B'
+                : 'Mixtral 8x7B'}
+            </span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('profile')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-heading font-semibold text-slate-700 hover:text-emerald-700 bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-300 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.96] group"
+          >
+            <span>Profile Hub</span>
+            <ArrowRight className="w-3.5 h-3.5 transform group-hover:translate-x-1 transition-transform" />
+          </button>
+        </div>
+      </header>
+
+      <div className="sticky top-[57px] z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-8 py-2">
+        <div className="max-w-6xl mx-auto flex items-center justify-center sm:justify-start">
+          <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/90 shadow-2xs relative">
+            <button
+              onClick={() => setActiveTab('roadmap')}
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
+                activeTab === 'roadmap'
+                  ? 'text-emerald-950 font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {activeTab === 'roadmap' && (
+                <motion.div
+                  layoutId="activeStudioTab"
+                  className="absolute inset-0 bg-white rounded-xl shadow-xs border border-slate-200/80 -z-10"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <GitBranch className="w-4 h-4 text-emerald-600" />
+              <span>🗺️ Flowchart Roadmap</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('resources')}
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
+                activeTab === 'resources'
+                  ? 'text-emerald-950 font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {activeTab === 'resources' && (
+                <motion.div
+                  layoutId="activeStudioTab"
+                  className="absolute inset-0 bg-white rounded-xl shadow-xs border border-slate-200/80 -z-10"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <BookOpen className="w-4 h-4 text-sky-600" />
+              <span>📚 Study Resources</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('evaluation')}
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
+                activeTab === 'evaluation'
+                  ? 'text-emerald-950 font-bold'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              {activeTab === 'evaluation' && (
+                <motion.div
+                  layoutId="activeStudioTab"
+                  className="absolute inset-0 bg-white rounded-xl shadow-xs border border-slate-200/80 -z-10"
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
+              <Zap className="w-4 h-4 text-amber-500" />
+              <span>⚡ Evaluation Gate</span>
+              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping ml-0.5" />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <main className="max-w-6xl mx-auto px-4 md:px-6 pt-6">
+        <AnimatePresence mode="wait">
+          {activeTab === 'roadmap' && (
+            <motion.div
+              key="tab-roadmap"
+              initial={{ opacity: 0, x: -16, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: 16, filter: 'blur(4px)' }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
+                <div>
+                  <h2 className="text-base font-heading font-bold text-slate-900 flex items-center gap-2">
+                    <GitBranch className="w-4 h-4 text-emerald-600" />
+                    <span>Living Milestone Node Flowchart</span>
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    Click any node to inspect assessable concept units (ACUs) or unlock evaluation.
+                  </p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleSpawnNextStep}
+                    className="px-3.5 py-1.5 rounded-xl text-xs font-semibold text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-300 transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.96]"
+                  >
+                    <Plus className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Spawn Next Step</span>
+                  </button>
+
+                  <button
+                    onClick={() => setActiveTab('evaluation')}
+                    className="px-4 py-2 rounded-xl text-xs font-heading font-semibold bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
+                  >
+                    <span>Proceed to Evaluation</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-4 overflow-x-auto relative min-h-[300px]">
+                {energyBeamFired && (
+                  <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none animate-pulse">
+                    <div className="px-6 py-3 rounded-2xl bg-emerald-600 text-white font-heading font-bold text-sm shadow-xl flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 animate-spin" />
+                      <span>COMPETENCY PASSED! High-Voltage Energy Beam Dispatched</span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="min-w-[1000px] h-[280px] relative select-none">
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
+                    <defs>
+                      <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                        <stop offset="0%" stopColor="#10B981" />
+                        <stop offset="50%" stopColor="#38BDF8" />
+                        <stop offset="100%" stopColor="#6366F1" />
+                      </linearGradient>
+                      <filter id="laserGlow" x="-20%" y="-20%" width="140%" height="140%">
+                        <feGaussianBlur stdDeviation="3" result="blur" />
+                        <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                      </filter>
+                    </defs>
+
+                    {nodes.slice(0, -1).map((node, i) => {
+                      const next = nodes[i + 1];
+                      if (!next) return null;
+                      const startX = node.x + node.width;
+                      const startY = node.y + node.height / 2;
+                      const endX = next.x;
+                      const endY = next.y + next.height / 2;
+                      const cp1X = startX + 40;
+                      const cp2X = endX - 40;
+                      const isLineActive = node.status === 'completed';
+
+                      return (
+                        <g key={node.id}>
+                          <path
+                            d={`M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`}
+                            fill="none"
+                            stroke={isLineActive ? '#10B981' : '#E2E8F0'}
+                            strokeWidth={isLineActive ? '3' : '2'}
+                            strokeDasharray={isLineActive ? '6 4' : 'none'}
+                            className={isLineActive ? 'animate-energy-line' : ''}
+                          />
+
+                          {isLineActive && (
+                            <path
+                              d={`M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`}
+                              fill="none"
+                              stroke="url(#energyGradient)"
+                              strokeWidth="4"
+                              filter="url(#laserGlow)"
+                              strokeDasharray="16 120"
+                              className="animate-flowing-pulse"
+                            />
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+
+                  {nodes.map((node) => {
+                    const isSelected = selectedNode.id === node.id;
+                    const isPassed = node.status === 'completed';
+                    const isActive = node.status === 'active';
+                    const isLocked = node.status === 'locked';
+                    const isShaking = lockedShakeId === node.id;
+
+                    return (
+                      <div
+                        key={node.id}
+                        onClick={() => handleNodeClick(node)}
+                        style={{
+                          left: `${node.x}px`,
+                          top: `${node.y}px`,
+                          width: `${node.width}px`,
+                        }}
+                        className={`absolute rounded-2xl p-4 transition-all duration-200 cursor-pointer z-10 ${
+                          isShaking ? 'animate-shake' : ''
+                        } ${
+                          isPassed
+                            ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 border border-emerald-400'
+                            : isActive
+                            ? 'bg-white text-slate-900 border-2 border-emerald-500 shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-100'
+                            : 'bg-slate-100/90 text-slate-500 border border-slate-200/80 opacity-75 hover:opacity-100'
+                        } ${isSelected ? 'scale-105' : 'hover:scale-[1.02]'}`}
+                      >
+                        <div className="flex items-center justify-between mb-1.5">
+                          <span
+                            className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
+                              isPassed
+                                ? 'bg-white/20 text-white'
+                                : isActive
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : 'bg-slate-200 text-slate-600'
+                            }`}
+                          >
+                            {isPassed ? 'PASSED ✓' : isActive ? 'ACTIVE STEP' : 'LOCKED'}
+                          </span>
+
+                          {isPassed ? (
+                            <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                          ) : isActive ? (
+                            <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+                          ) : (
+                            <Lock className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                        </div>
+
+                        <h4
+                          className={`text-xs font-heading font-bold leading-snug truncate ${
+                            isPassed ? 'text-white' : 'text-slate-900'
+                          }`}
+                        >
+                          {node.label}
+                        </h4>
+
+                        <p
+                          className={`text-[10px] truncate mt-0.5 ${
+                            isPassed ? 'text-emerald-100' : 'text-slate-500'
+                          }`}
+                        >
+                          {node.subLabel}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm relative overflow-hidden space-y-6">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shadow-2xs">
+                      <Target className="w-6 h-6 animate-pulse" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
+                          {selectedNode.status}
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">Tier {selectedNode.tier}</span>
+                      </div>
+                      <h3 className="text-lg font-heading font-bold text-slate-900 mt-0.5">
+                        {selectedNode.label}
+                      </h3>
+                      <p className="text-xs text-slate-500">{selectedNode.subLabel}</p>
+                    </div>
+                  </div>
+
+                  <button
+                    onClick={() => setActiveTab('resources')}
+                    className="px-5 py-2.5 rounded-xl font-heading font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
+                  >
+                    <span>Proceed to Study Resources</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="space-y-2.5">
+                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <Target className="w-4 h-4 text-emerald-600" />
+                      <span>Milestone Objectives</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedNode.objectives.map((obj, i) => (
+                        <div
+                          key={i}
+                          className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 flex items-start gap-2.5"
+                        >
+                          <span className="w-4 h-4 rounded-full bg-emerald-100 text-emerald-700 font-mono font-bold text-[10px] flex items-center justify-center shrink-0 mt-0.5">
+                            {i + 1}
+                          </span>
+                          <span className="leading-relaxed">{obj}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-2.5">
+                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                      <FileCheck className="w-4 h-4 text-sky-600" />
+                      <span>Assessable Concept Units (ACUs)</span>
+                    </h4>
+                    <div className="space-y-2">
+                      {selectedNode.acus.map((acu, i) => {
+                        const isChecked = !!checkedACUs[acu];
+                        return (
+                          <div
+                            key={i}
+                            onClick={() =>
+                              setCheckedACUs((prev) => ({ ...prev, [acu]: !prev[acu] }))
+                            }
+                            className={`p-3 rounded-xl border text-xs font-mono flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
+                              isChecked
+                                ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold'
+                                : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5 truncate">
+                              <div
+                                className={`w-4 h-4 rounded-md flex items-center justify-center border transition-colors ${
+                                  isChecked
+                                    ? 'bg-emerald-600 border-emerald-600 text-white'
+                                    : 'border-slate-300 bg-white'
+                                }`}
+                              >
+                                {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
+                              </div>
+                              <span className="truncate">{acu}</span>
+                            </div>
+                            <span className="text-[10px] text-slate-400 font-sans">
+                              {isChecked ? 'Audited' : 'Verify'}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'resources' && (
+            <motion.div
+              key="tab-resources"
+              initial={{ opacity: 0, x: -16, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: 16, filter: 'blur(4px)' }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-6"
+            >
+              <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                    <h3 className="text-lg font-heading font-extrabold text-slate-900">
+                      Authoritative Curriculum Resources
+                    </h3>
+                  </div>
+                  <p className="text-xs text-slate-600 max-w-xl">
+                    Curated according to strict pedagogical quotas: exactly 2 high-view video tutorials and 3 canonical peer-reviewed documentation links. Zero 404s guaranteed.
+                  </p>
+                </div>
+
+                <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-500/20">
+                  <button
+                    onClick={handleSynthesizeMaterials}
+                    disabled={isSynthesizing}
+                    className="relative z-10 px-6 py-3 rounded-[10px] font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 text-white transition-all duration-200 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
+                  >
+                    {isSynthesizing ? (
+                      <>
+                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <span>Synthesizing Authoritative Sources...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Sparkles className="w-4 h-4 text-emerald-100" />
+                        <span>⚡ Synthesize Authoritative Materials</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              {isSynthesizing ? (
+                <div className="space-y-4">
+                  <div className="h-6 w-48 bg-slate-200 rounded-md animate-pulse" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+                    <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <div className="space-y-3">
+                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                      <Youtube className="w-4 h-4 text-red-500" />
+                      <span>Verified High-Yield Video Seminars (Quota: 2)</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      {studyResources
+                        .filter((r) => r.type === 'youtube')
+                        .slice(0, 2)
+                        .map((res) => (
+                          <div
+                            key={res.id}
+                            onClick={() => setActiveVideoModal(res)}
+                            className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-emerald-300 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer group flex flex-col justify-between"
+                          >
+                            <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                              <img
+                                src={res.thumbnailUrl}
+                                alt={res.title}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                              />
+                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/10 transition-colors">
+                                <div className="w-12 h-12 rounded-full bg-white/95 text-red-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                  <Video className="w-5 h-5 fill-current" />
+                                </div>
+                              </div>
+                              <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/80 text-[10px] font-mono text-white font-semibold">
+                                {res.durationOrPages}
+                              </div>
+                            </div>
+
+                            <div className="p-4 space-y-2">
+                              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                                <span>{res.organization}</span>
+                                <span className="text-emerald-600 font-semibold">
+                                  {res.viewsOrCitation}
+                                </span>
+                              </div>
+                              <h5 className="text-sm font-heading font-semibold text-slate-900 leading-snug group-hover:text-emerald-700 transition-colors">
+                                {res.title}
+                              </h5>
+                              <p className="text-xs text-slate-600 line-clamp-2">{res.subtitle}</p>
+                            </div>
+
+                            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-700">
+                              <span>Launch Seminar Preview</span>
+                              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
+                            </div>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-3 pt-2">
+                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                      <FileText className="w-4 h-4 text-sky-500" />
+                      <span>Canonical Documentation Link Cards (Quota: 3)</span>
+                    </h4>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      {studyResources
+                        .filter((r) => r.type === 'doc')
+                        .slice(0, 3)
+                        .map((doc) => (
+                          <a
+                            key={doc.id}
+                            href={doc.url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+                          >
+                            <div className="space-y-2.5">
+                              <div className="flex items-center justify-between">
+                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                  VERIFIED
+                                </span>
+                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                              </div>
+
+                              <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
+                                {doc.title}
+                              </h5>
+
+                              <p className="text-xs text-slate-600 leading-relaxed">{doc.subtitle}</p>
+                            </div>
+
+                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-sky-700">
+                              <span>{doc.viewsOrCitation}</span>
+                              <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                            </div>
+                          </a>
+                        ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Ready for Quiz Button */}
+              <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
+                    <Zap className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-heading font-bold text-emerald-950">
+                      Materials Mastered? Take the Competency Check
+                    </h4>
+                    <p className="text-xs text-emerald-800">
+                      Proceed directly to the in-place Evaluation Gate to unlock the next milestone.
+                    </p>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => {
+                    generateQuestions();
+                    setQuizState('evaluating');
+                    setActiveTab('evaluation');
+                  }}
+                  className="px-5 py-2.5 rounded-xl font-heading font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
+                >
+                  <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
+                  <span>⚡ Ready for Quiz — Start Socratic Evaluation ➔</span>
+                </button>
+              </div>
+            </motion.div>
+          )}
+
+          {activeTab === 'evaluation' && (
+            <motion.div
+              key="tab-evaluation"
+              initial={{ opacity: 0, x: -16, filter: 'blur(4px)' }}
+              animate={{ opacity: 1, x: 0, filter: 'blur(0px)' }}
+              exit={{ opacity: 0, x: 16, filter: 'blur(4px)' }}
+              transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+              className="space-y-6"
+            >
+              {quizState === 'ready' && (
+                <motion.div
+                  key="gateway-launchpad"
+                  initial={{ opacity: 0, scale: 0.94, y: 24, filter: 'blur(8px)' }}
+                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: 0.94, y: -20, filter: 'blur(8px)' }}
+                  transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                  className="p-8 md:p-12 rounded-3xl bg-white border border-emerald-200/90 shadow-xl text-center relative overflow-hidden card-pro-max"
+                >
+                  <div className="absolute -top-24 left-1/2 -translate-x-1/2 w-96 h-96 bg-gradient-to-br from-emerald-400/15 via-sky-400/10 to-transparent rounded-full blur-3xl pointer-events-none" />
+
+                  <div className="max-w-2xl mx-auto space-y-6 relative z-10">
+                    <div className="relative inline-flex items-center justify-center">
+                      <div className="absolute -inset-4 rounded-full bg-emerald-500/15 animate-radar-ring pointer-events-none" />
+                      <div className="absolute -inset-8 rounded-full bg-emerald-500/10 animate-radar-ring-delayed pointer-events-none" />
+                      
+                      <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 p-0.5 shadow-xl shadow-emerald-500/30 relative z-10">
+                        <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center text-emerald-600">
+                          <Target className="w-10 h-10 animate-pulse" />
+                        </div>
+                      </div>
+                      <span className="absolute -top-1 -right-1 flex h-4 w-4 z-20">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                        <span className="relative inline-flex rounded-full h-4 w-4 bg-emerald-500" />
+                      </span>
+                    </div>
+
+                    <div className="space-y-2">
+                      <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider bg-emerald-50 text-emerald-800 border border-emerald-200">
+                        <Sparkles className="w-3.5 h-3.5 text-emerald-600 animate-spin" />
+                        <span>Socratic Competency Gate</span>
+                      </div>
+                      <h3 className="text-2xl md:text-3xl font-heading font-extrabold text-slate-900 tracking-tight">
+                        Ready for In-Place Evaluation?
+                      </h3>
+                      <p className="text-sm md:text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
+                        Verify conceptual clarity for{' '}
+                        <strong className="text-slate-900 font-semibold">{selectedNode.label}</strong>.
+                        Achieving ≥ 80% marks the node as PASSED and triggers the high-voltage energy beam!
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5 pt-2 text-left">
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
+                        <div className="w-8 h-8 rounded-lg bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs font-mono">
+                          04
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">Dynamic Items</div>
+                          <div className="text-[11px] text-slate-500">Fisher-Yates shuffled</div>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
+                        <div className="w-8 h-8 rounded-lg bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs font-mono">
+                          80%
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">Passing Mastery</div>
+                          <div className="text-[11px] text-slate-500">Unlocks next node</div>
+                        </div>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200/80 flex items-center gap-3 transition-transform hover:-translate-y-1">
+                        <div className="w-8 h-8 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                          ⚡
+                        </div>
+                        <div>
+                          <div className="text-xs font-bold text-slate-900">Misconceptions</div>
+                          <div className="text-[11px] text-slate-500">In-place debunks</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="pt-4 flex flex-col items-center justify-center gap-3">
+                      <div className="relative p-[3px] rounded-2xl conic-beam shadow-2xl shadow-emerald-500/30 group animate-pulse-glow">
+                        <button
+                          onClick={() => setQuizState('evaluating')}
+                          className="relative z-10 px-9 py-4.5 rounded-[14px] bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-500 text-white font-heading font-extrabold text-sm md:text-base tracking-wide flex items-center gap-3 cursor-pointer btn-pro-max btn-shimmer"
+                        >
+                          <Zap className="w-5 h-5 text-amber-300 animate-pulse" />
+                          <span>⚡ Ready for Quiz — Start Socratic Evaluation</span>
+                          <ArrowRight className="w-5 h-5 transition-transform duration-200 group-hover:translate-x-1.5" />
+                        </button>
+                      </div>
+
+                      <span className="text-xs text-slate-500 flex items-center gap-1.5">
+                        <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+                        Instant diagnostic breakdown • Zero route changes • Full React landing motion
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {quizState === 'evaluating' && (
+                <motion.div
+                  key="active-evaluation-window"
+                  initial={{ opacity: 0, scale: 0.95, y: 28, filter: 'blur(10px)' }}
+                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
+                  transition={{ duration: 0.45, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-6"
+                >
+                  <div className="p-4 rounded-2xl bg-white border border-slate-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <div className="w-9 h-9 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center font-bold text-xs font-mono shadow-xs">
+                        {Object.keys(selectedAnswers).length}/{quizQuestions.length}
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-900">
+                          {Object.keys(selectedAnswers).length} of {quizQuestions.length} Questions Answered
+                        </div>
+                        <div className="text-[11px] text-slate-500">
+                          Select first-principles mechanics for each question
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-1.5">
+                      {quizQuestions.map((q) => (
+                        <div
+                          key={q.id}
+                          className={`w-7 h-2 rounded-full transition-all duration-300 ${
+                            selectedAnswers[q.id] ? 'bg-emerald-500 shadow-xs' : 'bg-slate-200'
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="space-y-5">
+                    {quizQuestions.map((q, qIndex) => {
+                      const isAnswered = selectedAnswers[q.id] !== undefined;
+                      return (
+                        <motion.div
+                          key={q.id}
+                          initial={{ opacity: 0, y: 16 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: qIndex * 0.08, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                          className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm transition-all hover:border-slate-300 hover:shadow-md card-pro-max"
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="flex items-center gap-2">
+                              <span className="w-7 h-7 rounded-lg bg-slate-900 text-white text-xs font-bold font-mono flex items-center justify-center">
+                                0{qIndex + 1}
+                              </span>
+                              <span className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+                                Question {qIndex + 1} of {quizQuestions.length}
+                              </span>
+                            </div>
+                            {isAnswered ? (
+                              <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-emerald-200">
+                                <CheckCircle2 className="w-3.5 h-3.5" /> Response Selected
+                              </span>
+                            ) : (
+                              <span className="text-xs text-amber-600 bg-amber-50 px-2 py-0.5 rounded-md flex items-center gap-1 border border-amber-200">
+                                <AlertTriangle className="w-3.5 h-3.5" /> Pending Response
+                              </span>
+                            )}
+                          </div>
+
+                          <h3 className="text-base md:text-lg font-heading font-semibold text-slate-900 leading-snug mb-2">
+                            {q.question}
+                          </h3>
+
+                          <p className="text-xs text-slate-500 italic mb-5 flex items-center gap-1.5">
+                            <HelpCircle className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                            {q.socraticContext}
+                          </p>
+
+                          <div className="grid grid-cols-1 gap-2.5">
+                            {q.options.map((opt, optIndex) => {
+                              const optionLetters = ['A', 'B', 'C', 'D'];
+                              const letter = optionLetters[optIndex] || String.fromCharCode(65 + optIndex);
+                              const isSelected = selectedAnswers[q.id] === opt.id;
+
+                              return (
+                                <div
+                                  key={opt.id}
+                                  onClick={() =>
+                                    setSelectedAnswers((prev) => ({ ...prev, [q.id]: opt.id }))
+                                  }
+                                  className={`p-3.5 rounded-xl border text-sm transition-all duration-150 cursor-pointer flex items-start gap-3.5 relative overflow-hidden select-none quiz-option-card active:scale-[0.98] ${
+                                    isSelected
+                                      ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 font-medium shadow-md ring-2 ring-emerald-400/40 translate-x-1'
+                                      : 'bg-slate-50/60 hover:bg-slate-100/90 border-slate-200 text-slate-700 hover:border-slate-300'
+                                  }`}
+                                >
+                                  <span
+                                    className={`w-6 h-6 rounded-md text-xs font-bold font-mono flex items-center justify-center shrink-0 transition-all ${
+                                      isSelected
+                                        ? 'bg-emerald-600 text-white shadow-xs scale-110'
+                                        : 'bg-white border border-slate-300 text-slate-600'
+                                    }`}
+                                  >
+                                    {letter}
+                                  </span>
+                                  <span className="text-slate-800 leading-relaxed pt-0.5 flex-1">
+                                    {opt.text}
+                                  </span>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+
+                  <div className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 shadow-2xs">
+                        <TrendingUp className="w-5 h-5 text-emerald-600" />
+                      </div>
+                      <div>
+                        <div className="text-sm font-semibold text-slate-900">
+                          {Object.keys(selectedAnswers).length} of {quizQuestions.length} Questions Answered
+                        </div>
+                        <div className="text-xs text-slate-500">
+                          {allAnswered
+                            ? 'All items recorded. Ready to verify mastery.'
+                            : 'Complete all questions to enable diagnostic submission.'}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setQuizState('ready')}
+                        className="px-4 py-3 rounded-xl font-heading font-semibold text-xs text-slate-600 hover:bg-slate-100 border border-slate-200 transition-all cursor-pointer btn-pro-max"
+                      >
+                        Cancel
+                      </button>
+
+                      <div
+                        className={`relative p-[1.5px] rounded-xl ${
+                          allAnswered ? 'conic-beam shadow-lg shadow-emerald-500/25' : ''
+                        }`}
+                      >
+                        <button
+                          disabled={!allAnswered || isSubmittingQuiz}
+                          onClick={handleSubmitEvaluation}
+                          className={`px-7 py-3 rounded-[10px] font-heading font-bold text-sm transition-all duration-200 flex items-center justify-center gap-2 cursor-pointer ${
+                            allAnswered
+                              ? 'bg-emerald-600 hover:bg-emerald-700 text-white btn-pro-max btn-shimmer'
+                              : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                          }`}
+                        >
+                          {isSubmittingQuiz ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                              <span>Diagnosing Mental Models...</span>
+                            </>
+                          ) : (
+                            <>
+                              <span>Submit Evaluation for Competency Check</span>
+                              <ArrowRight className="w-4 h-4" />
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
+
+              {quizState === 'completed' && evaluationFeedback && (
+                <motion.div
+                  key="diagnostic-board"
+                  initial={{ opacity: 0, scale: 0.95, y: 28, filter: 'blur(10px)' }}
+                  animate={{ opacity: 1, scale: 1, y: 0, filter: 'blur(0px)' }}
+                  exit={{ opacity: 0, scale: 0.95, y: -20, filter: 'blur(10px)' }}
+                  transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+                  className="space-y-6"
+                >
+                  <div
+                    className={`p-6 md:p-8 rounded-3xl border shadow-xl relative overflow-hidden card-pro-max ${
+                      evaluationFeedback.passed
+                        ? 'bg-gradient-to-br from-emerald-50 via-white to-emerald-50/50 border-emerald-300'
+                        : 'bg-gradient-to-br from-amber-50 via-white to-rose-50/40 border-amber-300'
+                    }`}
+                  >
+                    <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                      <div className="flex items-center gap-5">
+                        <div className="relative w-24 h-24 shrink-0 flex items-center justify-center">
+                          <svg className="w-24 h-24 transform -rotate-90">
+                            <circle
+                              cx="48"
+                              cy="48"
+                              r="40"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="transparent"
+                              className="text-slate-200"
+                            />
+                            <circle
+                              cx="48"
+                              cy="48"
+                              r="40"
+                              stroke="currentColor"
+                              strokeWidth="8"
+                              fill="transparent"
+                              strokeDasharray={2 * Math.PI * 40}
+                              strokeDashoffset={
+                                2 * Math.PI * 40 * (1 - evaluationFeedback.scorePercent / 100)
+                              }
+                              strokeLinecap="round"
+                              className={`transition-all duration-1000 animate-gauge-spin ${
+                                evaluationFeedback.passed ? 'text-emerald-500' : 'text-amber-500'
+                              }`}
+                            />
+                          </svg>
+                          <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+                            <span className="text-xl font-heading font-extrabold text-slate-900 stat-counter-glow">
+                              {evaluationFeedback.scorePercent}%
+                            </span>
+                            <span className="text-[10px] uppercase font-semibold text-slate-500 tracking-wider">
+                              Mastery
+                            </span>
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span
+                              className={`px-3 py-1 rounded-full text-xs font-extrabold uppercase tracking-wider flex items-center gap-1.5 shadow-xs ${
+                                evaluationFeedback.passed
+                                  ? 'bg-emerald-600 text-white'
+                                  : 'bg-amber-500 text-white'
+                              }`}
+                            >
+                              {evaluationFeedback.passed ? (
+                                <>
+                                  <CheckCircle2 className="w-3.5 h-3.5" /> COMPETENCY PASSED
+                                </>
+                              ) : (
+                                <>
+                                  <AlertTriangle className="w-3.5 h-3.5" /> COMPETENCY DEFICIT DETECTED
+                                </>
+                              )}
+                            </span>
+                            <span className="text-xs font-mono font-bold text-slate-600">
+                              {evaluationFeedback.correctCount}/{evaluationFeedback.totalCount} Correct
+                            </span>
+                          </div>
+                          <h3 className="text-lg md:text-xl font-heading font-bold text-slate-900">
+                            {evaluationFeedback.passed
+                              ? 'Milestone Validated! Node Unlocked in Flowchart'
+                              : 'Remediation Required: Passing Score 80%'}
+                          </h3>
+                          <p className="text-xs text-slate-600 mt-0.5 max-w-xl">
+                            {evaluationFeedback.passed
+                              ? 'Your mental model accurately separated canonical mechanics from distractor traps. The node graph is updated.'
+                              : 'Review the targeted misconception breakdowns below before retrying the gate with novel randomized questions.'}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="w-full md:w-64 bg-white/80 p-3.5 rounded-2xl border border-slate-200/90 shadow-2xs">
+                        <div className="flex justify-between text-xs font-semibold text-slate-600 mb-2">
+                          <span>Accuracy Ratio</span>
+                          <span className="font-mono">
+                            {evaluationFeedback.correctCount} / {evaluationFeedback.totalCount}
+                          </span>
+                        </div>
+                        <div className="grid grid-cols-4 gap-1.5 h-3.5 rounded-full overflow-hidden">
+                          {quizQuestions.map((q, idx) => {
+                            const isCorrect =
+                              q.options.find((o) => o.id === selectedAnswers[q.id])?.isCorrect ?? false;
+                            return (
+                              <div
+                                key={idx}
+                                className={`rounded-sm transition-all ${
+                                  isCorrect ? 'bg-emerald-500 shadow-xs' : 'bg-rose-500'
+                                }`}
+                              />
+                            );
+                          })}
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-slate-500 mt-2">
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-emerald-500" /> Correct
+                          </span>
+                          <span className="flex items-center gap-1">
+                            <span className="w-2 h-2 rounded-full bg-rose-500" /> Distractor Trap
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="mt-6 pt-5 border-t border-slate-200/60 flex flex-wrap items-center justify-between gap-3">
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => {
+                            generateQuestions();
+                            setQuizState('evaluating');
+                          }}
+                          className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer btn-pro-max"
+                        >
+                          <RotateCcw className="w-3.5 h-3.5 text-slate-500" />
+                          <span>Retake Evaluation (Synthesizes New Novel Questions)</span>
+                        </button>
+
+                        <button
+                          onClick={() => setActiveTab('resources')}
+                          className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-700 bg-white hover:bg-slate-50 border border-slate-300 shadow-2xs transition-all flex items-center gap-1.5 cursor-pointer btn-pro-max"
+                        >
+                          <BookOpen className="w-3.5 h-3.5 text-sky-500" />
+                          <span>Review Milestone Study Resources</span>
+                        </button>
+                      </div>
+
+                      {evaluationFeedback.passed && (
+                        <button
+                          onClick={() => setActiveTab('roadmap')}
+                          className="px-5 py-2.5 rounded-xl text-xs font-heading font-semibold text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-500/20 transition-all flex items-center gap-2 cursor-pointer btn-pro-max btn-shimmer"
+                        >
+                          <Award className="w-4 h-4 text-emerald-100" />
+                          <span>Advance to Next Milestone ➔</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h4 className="text-sm font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
+                        <HelpCircle className="w-4 h-4 text-slate-500" />
+                        <span>Item-by-Item Misconception Breakdown</span>
+                      </h4>
+                      <span className="text-xs text-slate-500">
+                        Targeted diagnostics explaining why distractors fail
+                      </span>
+                    </div>
+
+                    {quizQuestions.map((q, idx) => {
+                      const chosenOptionId = selectedAnswers[q.id];
+                      const chosenOption = q.options.find((o) => o.id === chosenOptionId);
+                      const correctOption = q.options.find((o) => o.isCorrect);
+                      const isCorrect = chosenOption?.isCorrect ?? false;
+
+                      return (
+                        <motion.div
+                          key={q.id}
+                          initial={{ opacity: 0, y: 14 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: idx * 0.08, duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+                          className={`p-6 rounded-2xl bg-white border transition-all card-pro-max ${
+                            isCorrect
+                              ? 'border-emerald-200/90 shadow-2xs'
+                              : 'border-rose-200/90 shadow-2xs bg-rose-50/15'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-4 mb-3">
+                            <div className="flex items-center gap-2.5">
+                              <span
+                                className={`w-6 h-6 rounded-md text-xs font-bold font-mono flex items-center justify-center ${
+                                  isCorrect ? 'bg-emerald-600 text-white' : 'bg-rose-600 text-white'
+                                }`}
+                              >
+                                0{idx + 1}
+                              </span>
+                              <span
+                                className={`text-xs font-semibold px-2 py-0.5 rounded-md flex items-center gap-1 ${
+                                  isCorrect
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {isCorrect ? (
+                                  <>
+                                    <CheckCircle2 className="w-3.5 h-3.5" /> Correct
+                                  </>
+                                ) : (
+                                  <>
+                                    <XCircle className="w-3.5 h-3.5" /> Distractor Selected
+                                  </>
+                                )}
+                              </span>
+                            </div>
+                          </div>
+
+                          <h5 className="text-base font-heading font-semibold text-slate-900 mb-3">
+                            {q.question}
+                          </h5>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                            <div
+                              className={`p-3.5 rounded-xl border text-xs ${
+                                isCorrect
+                                  ? 'bg-emerald-50/70 border-emerald-300 text-emerald-950'
+                                  : 'bg-rose-50/70 border-rose-300 text-rose-950'
+                              }`}
+                            >
+                              <div className="font-semibold uppercase tracking-wider text-[10px] mb-1 opacity-75">
+                                Your Selected Answer
+                              </div>
+                              <div className="font-medium text-slate-900">{chosenOption?.text}</div>
+                            </div>
+
+                            <div className="p-3.5 rounded-xl border bg-emerald-50/70 border-emerald-300 text-xs text-emerald-950">
+                              <div className="font-semibold uppercase tracking-wider text-[10px] mb-1 text-emerald-700">
+                                Authoritative Scientific Answer
+                              </div>
+                              <div className="font-medium text-slate-900">{correctOption?.text}</div>
+                            </div>
+                          </div>
+
+                          <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/90 text-xs space-y-2">
+                            <div className="flex items-center gap-1.5 font-bold text-slate-800 uppercase tracking-wider text-[10px]">
+                              <AlertTriangle className="w-3.5 h-3.5 text-amber-500" />
+                              <span>Socratic Misconception Rationale</span>
+                            </div>
+
+                            {!isCorrect && chosenOption?.misconceptionExplanation && (
+                              <p className="text-rose-700 font-medium">
+                                <strong>Why your choice was a distractor trap:</strong>{' '}
+                                {chosenOption.misconceptionExplanation}
+                              </p>
+                            )}
+
+                            <p className="text-slate-600 leading-relaxed">
+                              <strong className="text-slate-800">First-Principles Core Truth:</strong>{' '}
+                              {q.correctExplanation}
+                            </p>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              )}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </main>
+
+      <AnimatePresence>
+        {activeVideoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200"
+            >
+              <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Video className="w-4 h-4 text-red-500" />
+                  <span className="text-xs font-semibold">{activeVideoModal.organization}</span>
+                </div>
+                <button
+                  onClick={() => setActiveVideoModal(null)}
+                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                <h3 className="text-lg font-heading font-bold text-slate-900">
+                  {activeVideoModal.title}
+                </h3>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  {activeVideoModal.subtitle}
+                </p>
+
+                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between text-slate-600">
+                  <span>Runtime: {activeVideoModal.durationOrPages}</span>
+                  <span className="font-semibold text-emerald-600">
+                    {activeVideoModal.viewsOrCitation}
+                  </span>
+                </div>
+
+                <div className="pt-2 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => setActiveVideoModal(null)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
+                  >
+                    Close
+                  </button>
+                  <a
+                    href={activeVideoModal.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-xs flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <span>Watch Full Lecture on YouTube</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      <AIEngineSelectorModal
+        isOpen={showEngineModal}
+        onClose={() => setShowEngineModal(false)}
+        selectedEngine={selectedEngine}
+        onSelectEngine={onSelectEngine}
+      />
+    </motion.div>
+  );
+};
+
+export default WorkspaceStudioPage;
