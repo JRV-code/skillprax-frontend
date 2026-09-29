@@ -174,7 +174,7 @@ export function NewSkillModal({ isOpen, onClose, onCreate, onSubmit }: NewSkillM
             <button
               type="submit"
               disabled={!canSubmit}
-              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 transition-all shadow-lg shadow-emerald-950"
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-foreground hover:bg-emerald-500 disabled:cursor-not-allowed disabled:opacity-40 transition-all shadow-lg shadow-emerald-950"
             >
               {isSubmitting ? (
                 <>

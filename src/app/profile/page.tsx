@@ -75,13 +75,28 @@ export default function ProfilePage() {
       const res = await fetch(`${API_BASE}/api/profile`);
       if (res.ok) {
         const json = await res.json();
-        setData(json);
-        setFormName(json.profile.name);
-        setFormAge(json.profile.age);
-        setFormProfession(json.profile.profession);
-        setFormTargetHours((json.profile.targetDailyHours || 1).toString());
-        setFormTargetMinutes((json.profile.targetDailyMinutes || 0).toString());
-        setFormReminderTime(json.profile.reminderTime || '20:00');
+        const profileId = json.profile?.id || "global";
+        
+        // Fetch workspaces isolated to this active profile
+        let userWorkspaces: any[] = [];
+        try {
+          const wsRes = await fetch(`${API_BASE}/api/workspaces?profileId=${profileId}`);
+          if (wsRes.ok) {
+            const wsData = await wsRes.json();
+            userWorkspaces = Array.isArray(wsData) ? wsData : (wsData.workspaces || wsData.tracks || []);
+          }
+        } catch (_) {}
+
+        setData({
+          ...json,
+          skillCards: userWorkspaces.length > 0 ? userWorkspaces : (json.skillCards || []),
+        });
+        setFormName(json.profile?.name || 'Explorer');
+        setFormAge(json.profile?.age || 18);
+        setFormProfession(json.profile?.profession || 'Learner');
+        setFormTargetHours((json.profile?.targetDailyHours || 1).toString());
+        setFormTargetMinutes((json.profile?.targetDailyMinutes || 0).toString());
+        setFormReminderTime(json.profile?.reminderTime || '20:00');
       }
     } catch (err) {
       console.error('Failed to load profile:', err);
@@ -162,8 +177,8 @@ export default function ProfilePage() {
 
   if (loading || !data) {
     return (
-      <div className="min-h-screen bg-[#030714] flex items-center justify-center text-slate-400">
-        <Loader2 className="w-8 h-8 animate-spin text-blue-400"/>
+      <div className="min-h-screen bg-background/80 backdrop-blur-xl flex items-center justify-center text-muted-foreground">
+        <Loader2 className="w-8 h-8 animate-spin text-primary"/>
       </div>
     );
   }
@@ -171,7 +186,7 @@ export default function ProfilePage() {
   const { profile, stats, skillCards } = data;
 
   return (
-    <div className="min-h-screen bg-[#030714] text-slate-100 p-6 md:p-12 relative font-sans">
+    <div className="min-h-screen bg-background/80 backdrop-blur-xl text-foreground p-6 md:p-12 relative font-sans">
       <SkillBlueprintBackground/>
 
       {/* Wobble Cloud CSS Definition */}
@@ -189,103 +204,103 @@ export default function ProfilePage() {
         
         {/* Navigation Bar */}
         <div className="flex items-center justify-between">
-          <Link className="inline-flex items-center gap-2 text-xs font-mono text-blue-300 hover:text-amber-400 transition-colors" href="/">
+          <Link className="inline-flex items-center gap-2 text-xs font-mono text-primary hover:text-accent transition-colors" href="/">
             <ArrowLeft className="w-4 h-4"/> Back to Studio
           </Link>
           <button
             onClick={() => setIsEditOpen(true)}
-            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#071026] border border-blue-900/60 text-xs text-blue-200 hover:text-white hover:border-amber-500/50 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)]"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border text-xs text-blue-200 hover:text-foreground hover:border-amber-500/50 transition-all shadow-[0_0_15px_rgba(37,99,235,0.15)]"
           >
-            <Edit3 className="w-3.5 h-3.5 text-amber-400"/> Edit Goals & Credentials
+            <Edit3 className="w-3.5 h-3.5 text-accent"/> Edit Goals & Credentials
           </button>
         </div>
 
         {/* Learner Persona & Credential Banner */}
-        <div className="p-6 md:p-8 rounded-2xl bg-[#071026]/80 border border-blue-900/50 flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-[0_0_40px_rgba(7,16,38,0.6)]">
+        <div className="p-6 md:p-8 rounded-2xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50/80 border border-border flex flex-col md:flex-row items-start md:items-center justify-between gap-6 shadow-[0_0_40px_rgba(7,16,38,0.6)]">
           <div className="flex items-center gap-5">
-            <div className="w-16 h-16 rounded-2xl bg-blue-950 border border-blue-700/60 flex items-center justify-center text-amber-400 shadow-[0_0_20px_rgba(245,158,11,0.2)] shrink-0">
+            <div className="w-16 h-16 rounded-2xl bg-muted border border-border flex items-center justify-center text-accent shadow-[0_0_20px_rgba(245,158,11,0.2)] shrink-0">
               <User className="w-8 h-8"/>
             </div>
             <div>
               <div className="flex items-center gap-3">
-                <h1 className="text-2xl font-bold text-white tracking-tight">{profile.name}</h1>
-                <span className="text-xs px-2.5 py-0.5 rounded-full bg-blue-950 text-blue-300 border border-blue-800/60 font-mono">
+                <h1 className="text-2xl font-bold text-foreground tracking-tight">{profile.name}</h1>
+                <span className="text-xs px-2.5 py-0.5 rounded-full bg-muted text-primary border border-border font-mono">
                   {profile.age} yrs
                 </span>
               </div>
-              <p className="text-xs text-amber-400 font-semibold mt-0.5">{profile.profession}</p>
-              <p className="text-[11px] text-blue-300/70 font-mono mt-1 flex items-center gap-1.5">
-                <Clock className="w-3 h-3 text-blue-400"/> {profile.tenureText}
+              <p className="text-xs text-accent font-semibold mt-0.5">{profile.profession}</p>
+              <p className="text-[11px] text-primary/70 font-mono mt-1 flex items-center gap-1.5">
+                <Clock className="w-3 h-3 text-primary"/> {profile.tenureText}
               </p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-3 w-full md:w-auto">
-            <div className="p-3.5 rounded-xl bg-[#030714]/80 border border-blue-900/50 text-center min-w-[90px]">
-              <span className="text-xl font-bold font-mono text-blue-400">{stats.skillsInProgress}</span>
-              <span className="block text-[10px] text-blue-300/60 uppercase font-mono mt-0.5">Learning</span>
+            <div className="p-3.5 rounded-xl bg-background/80 backdrop-blur-xl/80 border border-border text-center min-w-[90px]">
+              <span className="text-xl font-bold font-mono text-primary">{stats.skillsInProgress}</span>
+              <span className="block text-[10px] text-primary/60 uppercase font-mono mt-0.5">Learning</span>
             </div>
-            <div className="p-3.5 rounded-xl bg-[#030714]/80 border border-blue-900/50 text-center min-w-[90px]">
+            <div className="p-3.5 rounded-xl bg-background/80 backdrop-blur-xl/80 border border-border text-center min-w-[90px]">
               <span className="text-xl font-bold font-mono text-emerald-400">{stats.skillsMastered}</span>
-              <span className="block text-[10px] text-blue-300/60 uppercase font-mono mt-0.5">Mastered</span>
+              <span className="block text-[10px] text-primary/60 uppercase font-mono mt-0.5">Mastered</span>
             </div>
-            <div className="p-3.5 rounded-xl bg-[#030714]/80 border border-blue-900/50 text-center min-w-[90px]">
-              <span className="text-xl font-bold font-mono text-amber-400">{stats.totalMilestonesPassed}</span>
-              <span className="block text-[10px] text-blue-300/60 uppercase font-mono mt-0.5">Milestones</span>
+            <div className="p-3.5 rounded-xl bg-background/80 backdrop-blur-xl/80 border border-border text-center min-w-[90px]">
+              <span className="text-xl font-bold font-mono text-accent">{stats.totalMilestonesPassed}</span>
+              <span className="block text-[10px] text-primary/60 uppercase font-mono mt-0.5">Milestones</span>
             </div>
           </div>
         </div>
 
         {/* LEARNING SCHEDULE & DAILY REMINDER SETTINGS DISPLAY */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="p-6 rounded-2xl bg-[#071026]/70 border border-blue-900/40 space-y-3">
+          <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50/70 border border-border space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-950 border border-blue-800 text-blue-400">
+              <div className="p-2 rounded-xl bg-muted border border-blue-800 text-primary">
                 <Target className="w-5 h-5"/>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Daily Target Study Hours</h3>
-                <p className="text-xs text-blue-300/70">Configured goal for competency development</p>
+                <h3 className="text-sm font-bold text-foreground">Daily Target Study Hours</h3>
+                <p className="text-xs text-primary/70">Configured goal for competency development</p>
               </div>
             </div>
-            <div className="pt-2 border-t border-blue-900/40 flex items-center justify-between">
-              <span className="text-xs text-slate-400">Target Time:</span>
-              <span className="text-lg font-bold font-mono text-amber-400">{data.telemetry.targetDailyHours}h {data.profile.targetDailyMinutes}m / Day</span>
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Target Time:</span>
+              <span className="text-lg font-bold font-mono text-accent">{data.telemetry.targetDailyHours}h {data.profile.targetDailyMinutes}m / Day</span>
             </div>
           </div>
 
-          <div className="p-6 rounded-2xl bg-[#071026]/70 border border-blue-900/40 space-y-3">
+          <div className="p-6 rounded-2xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50/70 border border-border space-y-3">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-blue-950 border border-blue-800 text-amber-400">
+              <div className="p-2 rounded-xl bg-muted border border-blue-800 text-accent">
                 <Bell className="w-5 h-5"/>
               </div>
               <div>
-                <h3 className="text-sm font-bold text-white">Study Reminder Cadence</h3>
-                <p className="text-xs text-blue-300/70">Daily automated browser notification</p>
+                <h3 className="text-sm font-bold text-foreground">Study Reminder Cadence</h3>
+                <p className="text-xs text-primary/70">Daily automated browser notification</p>
               </div>
             </div>
-            <div className="pt-2 border-t border-blue-900/40 flex items-center justify-between">
-              <span className="text-xs text-slate-400">Reminder Time:</span>
-              <span className="text-lg font-bold font-mono text-blue-400">{profile.reminderTime || '20:00'} Hrs (24h)</span>
+            <div className="pt-2 border-t border-border flex items-center justify-between">
+              <span className="text-xs text-muted-foreground">Reminder Time:</span>
+              <span className="text-lg font-bold font-mono text-primary">{profile.reminderTime || '20:00'} Hrs (24h)</span>
             </div>
           </div>
         </div>
 
         {/* ENROLLED SKILL CARDS */}
         <div className="space-y-4">
-          <div className="flex items-center justify-between border-b border-blue-900/40 pb-3">
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-amber-400"/> Enrolled Skill Tracks ({skillCards.length})
+          <div className="flex items-center justify-between border-b border-border pb-3">
+            <h2 className="text-base font-bold text-foreground flex items-center gap-2">
+              <BookOpen className="w-4 h-4 text-accent"/> Enrolled Skill Tracks ({skillCards.length})
             </h2>
-            <span className="text-xs text-blue-400 font-mono">Competency Directives</span>
+            <span className="text-xs text-primary font-mono">Competency Directives</span>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {skillCards.map((track) => (
-              <div key={track.id} className="wobble-cloud relative p-5 rounded-2xl bg-[#071026]/70 border border-blue-900/40 flex flex-col justify-between space-y-4 hover:border-amber-500/50 transition-all shadow-[0_0_20px_rgba(7,16,38,0.4)]">
+              <div key={track.id} className="wobble-cloud relative p-5 rounded-2xl bg-card/80 backdrop-blur-md shadow-lg border border-border/50/70 border border-border flex flex-col justify-between space-y-4 hover:border-amber-500/50 transition-all shadow-[0_0_20px_rgba(7,16,38,0.4)]">
                 <div className="space-y-2 relative z-10">
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-blue-950 border border-blue-800 text-blue-400">
+                    <span className="text-[10px] font-mono uppercase px-2 py-0.5 rounded bg-muted border border-blue-800 text-primary">
                       STEP {track.currentStep} / {track.totalSteps}
                     </span>
                     {track.isMastered && (
@@ -294,19 +309,19 @@ export default function ProfilePage() {
                       </span>
                     )}
                   </div>
-                  <h3 className="text-sm font-bold text-white">{track.title}</h3>
-                  <p className="text-xs text-blue-200/60 line-clamp-2">{track.targetGoal}</p>
+                  <h3 className="text-sm font-bold text-foreground">{track.title}</h3>
+                  <p className="text-xs text-muted-foreground line-clamp-2">{track.targetGoal}</p>
                 </div>
 
-                <div className="space-y-2 pt-2 border-t border-blue-900/40 relative z-10">
-                  <div className="flex justify-between text-xs text-slate-400 font-mono">
+                <div className="space-y-2 pt-2 border-t border-border relative z-10">
+                  <div className="flex justify-between text-xs text-muted-foreground font-mono">
                     <span>Progress</span>
-                    <span className="text-amber-400 font-bold">{track.progress}%</span>
+                    <span className="text-accent font-bold">{track.progress}%</span>
                   </div>
                   <div className="w-full h-1.5 bg-slate-900 rounded-full overflow-hidden">
                     <div className="h-full bg-gradient-to-r from-blue-500 to-amber-400 rounded-full" style={{ width: `${track.progress}%` }}/>
                   </div>
-                  <Link className="mt-2 w-full py-2 rounded-xl bg-blue-950/80 hover:bg-amber-400 hover:text-slate-950 text-slate-200 text-xs font-semibold flex items-center justify-center gap-1 transition-all border border-blue-800/40" href={`/workspace/${track.id}`}>
+                  <Link className="mt-2 w-full py-2 rounded-xl bg-muted hover:bg-amber-400 hover:text-slate-950 text-foreground text-xs font-semibold flex items-center justify-center gap-1 transition-all border border-border" href={`/workspace/${track.id}`}>
                     Launch Studio <ArrowRight className="w-3.5 h-3.5"/>
                   </Link>
                 </div>
@@ -318,54 +333,54 @@ export default function ProfilePage() {
         {/* EDIT PROFILE & REMINDER MODAL */}
         {isEditOpen && (
           <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-[#071026] border border-blue-900/60 rounded-2xl w-full max-w-md p-6 relative shadow-[0_0_50px_rgba(37,99,235,0.25)]">
-              <div className="flex items-center justify-between pb-3 border-b border-blue-900/40">
-                <h3 className="text-sm font-bold text-white flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-400"/> Settings & Credentials
+            <div className="bg-card/80 backdrop-blur-md shadow-lg border border-border/50 border border-border rounded-2xl w-full max-w-md p-6 relative shadow-[0_0_50px_rgba(37,99,235,0.25)]">
+              <div className="flex items-center justify-between pb-3 border-b border-border">
+                <h3 className="text-sm font-bold text-foreground flex items-center gap-2">
+                  <Sparkles className="w-4 h-4 text-accent"/> Settings & Credentials
                 </h3>
-                <button onClick={() => setIsEditOpen(false)} className="text-slate-400 hover:text-white">
+                <button onClick={() => setIsEditOpen(false)} className="text-muted-foreground hover:text-foreground">
                   <X className="w-4 h-4"/>
                 </button>
               </div>
 
               <form onSubmit={handleSaveProfile} className="space-y-4 mt-4 text-xs">
                 <div>
-                  <label className="block text-slate-300 mb-1">Full Name</label>
+                  <label className="block text-muted-foreground mb-1">Full Name</label>
                   <input
                     type="text"
                     required
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
+                    className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 mb-1">Age</label>
+                    <label className="block text-muted-foreground mb-1">Age</label>
                     <input
                       type="number"
                       required
                       value={formAge}
                       onChange={(e) => setFormAge(Number(e.target.value))}
-                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 mb-1">Profession / Focus</label>
+                    <label className="block text-muted-foreground mb-1">Profession / Focus</label>
                     <input
                       type="text"
                       required
                       value={formProfession}
                       onChange={(e) => setFormProfession(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400"
+                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-slate-300 mb-1">Daily Goal (Hours)</label>
+                    <label className="block text-muted-foreground mb-1">Daily Goal (Hours)</label>
                     <input
                       type="number"
                       min="0"
@@ -373,11 +388,11 @@ export default function ProfilePage() {
                       required
                       value={formTargetHours}
                       onChange={(e) => setFormTargetHours(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
                     />
                   </div>
                   <div>
-                    <label className="block text-slate-300 mb-1">Daily Goal (Minutes)</label>
+                    <label className="block text-muted-foreground mb-1">Daily Goal (Minutes)</label>
                     <input
                       type="number"
                       min="0"
@@ -385,24 +400,24 @@ export default function ProfilePage() {
                       required
                       value={formTargetMinutes}
                       onChange={(e) => setFormTargetMinutes(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                      className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-slate-300 mb-1">Daily Study Reminder Time (24h)</label>
+                  <label className="block text-muted-foreground mb-1">Daily Study Reminder Time (24h)</label>
                   <input
                     type="time"
                     required
                     value={formReminderTime}
                     onChange={(e) => setFormReminderTime(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#030714] border border-blue-900/60 text-white focus:outline-none focus:border-amber-400 font-mono"
+                    className="w-full px-3 py-2 rounded-xl bg-background/80 backdrop-blur-xl border border-border text-foreground focus:outline-none focus:border-amber-400 font-mono"
                   />
                 </div>
 
                 <div className="pt-2 flex justify-end gap-2">
-                  <button type="button" onClick={() => setIsEditOpen(false)} className="px-4 py-2 rounded-xl bg-blue-950/60 text-slate-400 hover:text-white">
+                  <button type="button" onClick={() => setIsEditOpen(false)} className="px-4 py-2 rounded-xl bg-muted text-muted-foreground hover:text-foreground">
                     Cancel
                   </button>
                   <button type="submit" disabled={saving} className="px-5 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-amber-500 hover:from-blue-500 hover:to-amber-400 text-slate-950 font-bold flex items-center gap-1.5">

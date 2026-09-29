@@ -97,3 +97,6 @@ export function SkillBlueprintBackground() {
     </div>
   );
 }
+
+export const FloatingSchematicsCanvas = SkillBlueprintBackground;
+

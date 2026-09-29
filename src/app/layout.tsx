@@ -1,6 +1,12 @@
 import type { Metadata } from "next";
+import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import { ClientProviders } from "@/components/ClientProviders";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-sans",
+});
 
 export const metadata: Metadata = {
   title: "Skillprax | Autonomous Competency Learning Platform",
@@ -14,22 +20,9 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className="bg-[#030714] text-slate-100 min-h-screen font-sans antialiased selection:bg-[#00F0FF] selection:text-black">
-        {/* CRT scanlines overlay */}
-        <div className="fixed inset-0 cyber-scanlines z-50 pointer-events-none opacity-40" />
-
-        {/* Subtle Ambient Brand Watermark */}
-        <div className="pointer-events-none fixed inset-0 z-0 flex items-center justify-center overflow-hidden opacity-[0.025] select-none">
-          <img
-            src="/logo.png"
-            alt=""
-            aria-hidden="true"
-            className="w-[650px] max-w-none grayscale brightness-150 rotate-[-12deg]"
-          />
-        </div>
-
-        {/* Main content above watermark */}
+    <html lang="en">
+      <body className={`${plusJakartaSans.variable} bg-background/80 backdrop-blur-xl text-foreground min-h-screen font-sans antialiased selection:bg-primary/20 selection:text-primary`}>
+        {/* Main content */}
         <div className="relative z-10">
           <ClientProviders>{children}</ClientProviders>
         </div>

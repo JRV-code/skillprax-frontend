@@ -129,7 +129,7 @@ export default function AbandonTrackModal({
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-fadeIn">
       <div 
-        className="relative w-full max-w-lg rounded-3xl bg-[#12151F] border border-[#1E2436] p-6 sm:p-8 shadow-2xl text-slate-100 space-y-6"
+        className="relative w-full max-w-lg rounded-3xl bg-[#12151F] border border-[#1E2436] p-6 sm:p-8 shadow-2xl text-foreground space-y-6"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Modal Header */}
@@ -142,7 +142,7 @@ export default function AbandonTrackModal({
           {isLowCommitment && (
             <button
               onClick={onClose}
-              className="p-1 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition"
+              className="p-1 rounded-xl text-muted-foreground hover:text-foreground hover:bg-slate-800 transition"
               aria-label="Close Modal"
             >
               <X className="w-5 h-5" />
@@ -158,9 +158,9 @@ export default function AbandonTrackModal({
               <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block">
                 Track Achievement Snapshot
               </span>
-              <h3 className="text-base font-bold text-white">{trackTitle}</h3>
-              <div className="flex items-center gap-4 text-xs text-slate-400">
-                <span>Domain: <strong className="text-slate-200">{domain}</strong></span>
+              <h3 className="text-base font-bold text-foreground">{trackTitle}</h3>
+              <div className="flex items-center gap-4 text-xs text-muted-foreground">
+                <span>Domain: <strong className="text-foreground">{domain}</strong></span>
                 <span>Milestones Mastered: <strong className="text-emerald-400">{completedStepsCount}</strong></span>
               </div>
             </div>
@@ -176,13 +176,13 @@ export default function AbandonTrackModal({
                       <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-widest block">
                         Before you go — here’s what you’ve built:
                       </span>
-                      <p className="text-xs text-slate-200 leading-relaxed">{reflectionText}</p>
+                      <p className="text-xs text-foreground leading-relaxed">{reflectionText}</p>
                     </>
                   )}
                   {safeMilestones.length > 0 && (
                     <ul className="space-y-1 pt-1">
                       {safeMilestones.map((m, idx) => (
-                        <li key={idx} className="flex items-start gap-2 text-xs text-slate-300">
+                        <li key={idx} className="flex items-start gap-2 text-xs text-muted-foreground">
                           <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
                           <span>{m}</span>
                         </li>
@@ -194,7 +194,7 @@ export default function AbandonTrackModal({
             })()}
 
             <div className="space-y-3">
-              <label className="text-xs font-semibold text-slate-300 block">
+              <label className="text-xs font-semibold text-muted-foreground block">
                 Select your primary reason for pausing or abandoning this track:
               </label>
 
@@ -210,7 +210,7 @@ export default function AbandonTrackModal({
                     className={`flex items-center gap-3 p-3 rounded-xl border text-xs cursor-pointer transition ${
                       reason === opt.id
                         ? "bg-cyan-950/40 border-cyan-500/50 text-cyan-200"
-                        : "bg-[#090A0F] border-[#1E2436] text-slate-400 hover:text-slate-200"
+                        : "bg-[#090A0F] border-[#1E2436] text-muted-foreground hover:text-foreground"
                     }`}
                   >
                     <input
@@ -234,7 +234,7 @@ export default function AbandonTrackModal({
                     placeholder="Please specify why you are pausing this track..."
                     rows={3}
                     maxLength={500}
-                    className="w-full p-3 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs text-slate-200 focus:outline-none focus:border-cyan-500 transition"
+                    className="w-full p-3 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs text-foreground focus:outline-none focus:border-cyan-500 transition"
                   />
                 </div>
               )}
@@ -244,7 +244,7 @@ export default function AbandonTrackModal({
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
+                className="px-4 py-2 rounded-xl text-xs font-semibold text-muted-foreground hover:text-foreground transition"
               >
                 Keep Track Active
               </button>
@@ -264,8 +264,8 @@ export default function AbandonTrackModal({
         {modalState === "confirm-input" && (
           <form onSubmit={handleConfirmInputSubmit} className="space-y-5">
             <div className="space-y-2">
-              <h3 className="text-sm font-bold text-white">Unlock Abandonment Confirmation</h3>
-              <p className="text-xs text-slate-400 leading-relaxed">
+              <h3 className="text-sm font-bold text-foreground">Unlock Abandonment Confirmation</h3>
+              <p className="text-xs text-muted-foreground leading-relaxed">
                 To prevent accidental deletion, type either of the accepted phrases below to unlock:
               </p>
               
@@ -282,7 +282,7 @@ export default function AbandonTrackModal({
                   value={confirmInputText}
                   onChange={(e) => setConfirmInputText(e.target.value)}
                   placeholder={`Type "abandon ${trackTitle}" or "pause track"`}
-                  className="w-full p-3.5 pr-10 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs font-mono text-slate-100 focus:outline-none focus:border-cyan-500 transition"
+                  className="w-full p-3.5 pr-10 rounded-xl bg-[#090A0F] border border-[#1E2436] text-xs font-mono text-foreground focus:outline-none focus:border-cyan-500 transition"
                 />
                 {isPhraseMatched && (
                   <CheckCircle2 className="w-5 h-5 text-emerald-400 absolute right-3 top-3" />
@@ -295,7 +295,7 @@ export default function AbandonTrackModal({
               <button
                 type="button"
                 onClick={() => setModalState("reflect")}
-                className="flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-slate-200 transition"
+                className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition"
               >
                 <ArrowLeft className="w-4 h-4" /> Back to Reason
               </button>
@@ -320,8 +320,8 @@ export default function AbandonTrackModal({
             </div>
 
             <div className="space-y-2">
-              <h3 className="text-base font-bold text-white">Final Safety Lock</h3>
-              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+              <h3 className="text-base font-bold text-foreground">Final Safety Lock</h3>
+              <p className="text-xs text-muted-foreground max-w-sm mx-auto">
                 Hold on! Review your decision before final confirmation. This action will archive your telemetry and delete track state.
               </p>
             </div>
@@ -330,7 +330,7 @@ export default function AbandonTrackModal({
               <button
                 type="button"
                 onClick={() => setModalState("reflect")}
-                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 text-slate-300 hover:bg-slate-700 text-xs font-semibold transition"
+                className="w-full sm:w-auto px-5 py-3 rounded-xl bg-slate-800 text-muted-foreground hover:bg-slate-700 text-xs font-semibold transition"
               >
                 Cancel & Reset
               </button>
@@ -339,7 +339,7 @@ export default function AbandonTrackModal({
                 type="button"
                 onClick={handleFinalAbandon}
                 disabled={countdownSeconds > 0}
-                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-bold text-xs uppercase tracking-wider shadow-lg shadow-red-950/50 disabled:opacity-50 disabled:cursor-not-allowed transition"
+                className="w-full sm:w-auto px-6 py-3 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-foreground font-bold text-xs uppercase tracking-wider shadow-lg shadow-red-950/50 disabled:opacity-50 disabled:cursor-not-allowed transition"
               >
                 {countdownSeconds > 0 ? (
                   `Abandon Track (${countdownSeconds}s)`
@@ -355,7 +355,7 @@ export default function AbandonTrackModal({
         {modalState === "submitting" && (
           <div className="space-y-4 text-center py-8">
             <Loader2 className="w-10 h-10 text-red-400 animate-spin mx-auto" />
-            <p className="text-xs font-mono text-slate-400">Archiving reflection telemetry & purging track...</p>
+            <p className="text-xs font-mono text-muted-foreground">Archiving reflection telemetry & purging track...</p>
           </div>
         )}
 
@@ -364,13 +364,13 @@ export default function AbandonTrackModal({
           <div className="space-y-4 text-center py-4">
             <XCircle className="w-10 h-10 text-red-400 mx-auto" />
             <div className="space-y-1">
-              <h3 className="text-sm font-bold text-white">Abandonment Failed</h3>
+              <h3 className="text-sm font-bold text-foreground">Abandonment Failed</h3>
               <p className="text-xs text-red-300">{errorMessage}</p>
             </div>
             <div className="flex justify-center gap-3 pt-2">
               <button
                 onClick={onClose}
-                className="px-4 py-2 rounded-xl bg-slate-800 text-slate-300 text-xs font-semibold hover:bg-slate-700"
+                className="px-4 py-2 rounded-xl bg-slate-800 text-muted-foreground text-xs font-semibold hover:bg-slate-700"
               >
                 Close
               </button>

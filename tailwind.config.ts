@@ -10,22 +10,38 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        hud: {
-          bg: "#090A0F",
-          card: "#121520",
-          border: "#1E2436",
-          cyan: "#00F0FF",
-          amber: "#FFB800",
-          emerald: "#10B981",
-          crimson: "#FF0055",
-          purple: "#9D4EDD",
-          text: "#E2E8F0",
-          muted: "#64748B"
-        }
+        primary: {
+          DEFAULT: "#2563EB",
+          foreground: "#FFFFFF",
+        },
+        secondary: {
+          DEFAULT: "#3B82F6",
+          foreground: "#000000",
+        },
+        accent: {
+          DEFAULT: "#EA580C",
+          foreground: "#000000",
+        },
+        background: "#F8FAFC",
+        foreground: "#1E293B",
+        card: {
+          DEFAULT: "#FFFFFF",
+          foreground: "#1E293B",
+        },
+        muted: {
+          DEFAULT: "#E9EFF8",
+          foreground: "#475569",
+        },
+        border: "#E2E8F0",
+        destructive: {
+          DEFAULT: "#DC2626",
+          foreground: "#FFFFFF",
+        },
+        ring: "#2563EB",
       },
       fontFamily: {
         mono: ["var(--font-mono)", "JetBrains Mono", "monospace"],
-        sans: ["var(--font-sans)", "Inter", "sans-serif"]
+        sans: ["var(--font-sans)", "Plus Jakarta Sans", "Inter", "sans-serif"]
       },
       animation: {
         'pulse-glow': 'pulseGlow 2s infinite ease-in-out',

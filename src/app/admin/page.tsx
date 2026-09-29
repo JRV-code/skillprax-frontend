@@ -148,20 +148,20 @@ export default function AdminPage() {
 
   if (!authorized) {
     return (
-      <div className="min-h-screen bg-[#090A0F] flex items-center justify-center text-slate-400 text-xs font-mono">
+      <div className="min-h-screen bg-[#090A0F] flex items-center justify-center text-muted-foreground text-xs font-mono">
         Verifying authorization...
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#090A0F] text-slate-100 bg-cyber-grid p-4 sm:p-8">
+    <div className="min-h-screen bg-[#090A0F] text-foreground bg-cyber-grid p-4 sm:p-8">
       {/* Header HUD */}
       <div className="max-w-5xl mx-auto mb-8 flex items-center justify-between border-b border-[#1E2436] pb-6">
         <div className="flex items-center gap-3">
           <Link
             href="/"
-            className="p-2 rounded-lg bg-[#12151F] border border-[#1E2436] text-slate-400 hover:text-cyan-400 hover:border-cyan-500/50 transition"
+            className="p-2 rounded-lg bg-[#12151F] border border-[#1E2436] text-muted-foreground hover:text-cyan-400 hover:border-cyan-500/50 transition"
           >
             <ArrowLeft className="w-5 h-5" />
           </Link>
@@ -172,7 +172,7 @@ export default function AdminPage() {
                 Admin Key Command Center
               </h1>
             </div>
-            <p className="text-xs text-slate-400 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5">
               Configure multi-LLM API keys, test connection latencies, and manage active default engines.
             </p>
           </div>
@@ -203,14 +203,14 @@ export default function AdminPage() {
             <div className="w-12 h-12 rounded-xl bg-purple-500/10 border border-purple-500/20 flex items-center justify-center mb-4 text-purple-400">
               <Lock className="w-6 h-6" />
             </div>
-            <h2 className="text-lg font-semibold text-slate-100">Authentication Required</h2>
-            <p className="text-xs text-slate-400 mt-1 mb-6">
+            <h2 className="text-lg font-semibold text-foreground">Authentication Required</h2>
+            <p className="text-xs text-muted-foreground mt-1 mb-6">
               Enter your system adminSecret password to unlock LLM keys configuration.
             </p>
 
             <form onSubmit={handleAuthenticate} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-400 mb-1">
+                <label className="block text-xs font-medium text-muted-foreground mb-1">
                   x-admin-secret Header Key
                 </label>
                 <input
@@ -218,7 +218,7 @@ export default function AdminPage() {
                   value={adminSecret}
                   onChange={(e) => setAdminSecret(e.target.value)}
                   placeholder="Enter admin secret..."
-                  className="w-full px-4 py-2.5 rounded-lg bg-[#090A0F] border border-[#1E2436] text-slate-100 text-sm focus:outline-none focus:border-purple-500/70"
+                  className="w-full px-4 py-2.5 rounded-lg bg-[#090A0F] border border-[#1E2436] text-foreground text-sm focus:outline-none focus:border-purple-500/70"
                 />
               </div>
 
@@ -232,7 +232,7 @@ export default function AdminPage() {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-medium text-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
+                className="w-full py-2.5 px-4 rounded-lg bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-foreground font-medium text-sm transition flex items-center justify-center gap-2 disabled:opacity-50"
               >
                 {loading ? (
                   <>
@@ -261,7 +261,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={() => setError(null)}
-                  className="text-xs text-slate-400 hover:text-slate-200"
+                  className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   Dismiss
                 </button>
@@ -276,7 +276,7 @@ export default function AdminPage() {
                 </div>
                 <button
                   onClick={() => setSuccessMsg(null)}
-                  className="text-xs text-slate-400 hover:text-slate-200"
+                  className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   Dismiss
                 </button>
@@ -290,7 +290,7 @@ export default function AdminPage() {
                   <h3 className="text-sm font-semibold text-cyan-400 uppercase tracking-wider flex items-center gap-2">
                     <Sparkles className="w-4 h-4" /> Global Default Engine Selection (Groq + Tavily Recommended)
                   </h3>
-                  <p className="text-xs text-slate-400 mt-1">
+                  <p className="text-xs text-muted-foreground mt-1">
                     Select the active default engine used across all SkillPrax curricula and JIT steps.
                   </p>
                 </div>
@@ -316,13 +316,13 @@ export default function AdminPage() {
                       onClick={() => setSelectedDefault(prov.id as AIProvider)}
                       className={`p-3.5 rounded-xl border text-left transition flex flex-col justify-between ${
                         isSelected
-                          ? 'bg-cyan-950/40 border-cyan-500 text-slate-100 cyber-glow-cyan'
-                          : 'bg-[#090A0F] border-[#1E2436] text-slate-400 hover:border-slate-700'
+                          ? 'bg-cyan-950/40 border-cyan-500 text-foreground cyber-glow-cyan'
+                          : 'bg-[#090A0F] border-[#1E2436] text-muted-foreground hover:border-slate-700'
                       }`}
                     >
                       <div>
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold text-slate-200">{prov.name}</span>
+                          <span className="text-xs font-semibold text-foreground">{prov.name}</span>
                           <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-cyan-400 font-mono">
                             {prov.badge}
                           </span>
@@ -331,7 +331,7 @@ export default function AdminPage() {
                       </div>
 
                       <div className="mt-3 flex items-center justify-between text-[11px]">
-                        <span className={`flex items-center gap-1 ${isConfigured ? 'text-emerald-400' : 'text-amber-400'}`}>
+                        <span className={`flex items-center gap-1 ${isConfigured ? 'text-emerald-400' : 'text-accent'}`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isConfigured ? 'bg-emerald-400' : 'bg-amber-400'}`} />
                           {isConfigured ? 'Key Set' : 'No Key'}
                         </span>
@@ -353,7 +353,7 @@ export default function AdminPage() {
                   helperText: 'Ultra-fast curriculum & quiz generation (100% Free). Active Model: GPT-OSS 120B.',
                   masked: keysConfig.keys.groq,
                   configured: keysConfig.configured.groq,
-                  accentColor: 'text-amber-400',
+                  accentColor: 'text-accent',
                 },
                 {
                   id: 'tavily',
@@ -411,7 +411,7 @@ export default function AdminPage() {
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-2">
                           <Key className={`w-4 h-4 ${item.accentColor}`} />
-                          <h4 className="text-sm font-medium text-slate-200">{item.name}</h4>
+                          <h4 className="text-sm font-medium text-foreground">{item.name}</h4>
                         </div>
                         <span
                           className={`px-2.5 py-0.5 rounded-full text-[11px] font-mono border ${
@@ -425,7 +425,7 @@ export default function AdminPage() {
                       </div>
 
                       <div className="mt-3">
-                        <label className="block text-[11px] text-slate-400 mb-1">
+                        <label className="block text-[11px] text-muted-foreground mb-1">
                           {item.configured ? 'Update API Key (Leave blank to preserve current)' : 'Enter New API Key'}
                         </label>
                         <input
@@ -435,7 +435,7 @@ export default function AdminPage() {
                             setInputKeys({ ...inputKeys, [item.id]: e.target.value })
                           }
                           placeholder={item.placeholder}
-                          className="w-full px-3.5 py-2 rounded-lg bg-[#090A0F] border border-[#1E2436] text-slate-100 text-xs font-mono focus:outline-none focus:border-cyan-500/70"
+                          className="w-full px-3.5 py-2 rounded-lg bg-[#090A0F] border border-[#1E2436] text-foreground text-xs font-mono focus:outline-none focus:border-cyan-500/70"
                         />
                         {item.helperText && (
                           <p className="text-[10px] text-cyan-400/90 mt-1.5 leading-normal font-mono">
@@ -452,12 +452,12 @@ export default function AdminPage() {
                           type="button"
                           onClick={() => handleTestConnection(item.id)}
                           disabled={status.loading}
-                          className="px-3 py-1.5 rounded-lg bg-[#1a2030] hover:bg-[#222a3f] border border-[#2a344d] text-xs text-slate-200 transition flex items-center gap-1.5 disabled:opacity-50"
+                          className="px-3 py-1.5 rounded-lg bg-[#1a2030] hover:bg-[#222a3f] border border-[#2a344d] text-xs text-foreground transition flex items-center gap-1.5 disabled:opacity-50"
                         >
                           {status.loading ? (
                             <RefreshCw className="w-3.5 h-3.5 animate-spin text-cyan-400" />
                           ) : (
-                            <Zap className="w-3.5 h-3.5 text-amber-400" />
+                            <Zap className="w-3.5 h-3.5 text-accent" />
                           )}
                           <span>Test Connection</span>
                         </button>
@@ -484,7 +484,7 @@ export default function AdminPage() {
                           <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
                           <div className="min-w-0 flex-1">
                             <p className="font-semibold text-red-200 mb-0.5">Connection Failure Detail:</p>
-                            <p className="text-slate-300 select-all">{status.error}</p>
+                            <p className="text-muted-foreground select-all">{status.error}</p>
                           </div>
                         </div>
                       )}
@@ -496,7 +496,7 @@ export default function AdminPage() {
 
             {/* Bottom Save Action Bar */}
             <div className="p-4 rounded-2xl bg-[#12151F] border border-[#1E2436] flex items-center justify-between">
-              <div className="flex items-center gap-2 text-xs text-slate-400">
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <ShieldCheck className="w-4 h-4 text-emerald-400" />
                 <span>Keys are saved securely in PostgreSQL AdminConfig table with fallback to .env</span>
               </div>
@@ -504,7 +504,7 @@ export default function AdminPage() {
               <button
                 onClick={handleSaveKeys}
                 disabled={saving}
-                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-white font-medium text-sm transition flex items-center gap-2 shadow-lg shadow-cyan-900/30 disabled:opacity-50"
+                className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 via-teal-500 to-emerald-600 hover:from-cyan-500 hover:to-emerald-500 text-foreground font-medium text-sm transition flex items-center gap-2 shadow-lg shadow-cyan-900/30 disabled:opacity-50"
               >
                 {saving ? (
                   <>

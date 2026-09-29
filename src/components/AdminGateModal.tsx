@@ -80,7 +80,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
       <div className="bg-[#12151F] border border-[#1E2436] rounded-2xl w-full max-w-sm p-6 shadow-2xl relative">
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-slate-500 hover:text-slate-300 transition-colors"
+          className="absolute top-4 right-4 text-slate-500 hover:text-muted-foreground transition-colors"
         >
           <X className="w-4 h-4"/>
         </button>
@@ -89,8 +89,8 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
           <div className="w-12 h-12 rounded-xl bg-cyan-950 border border-cyan-800/60 text-cyan-400 mx-auto flex items-center justify-center shadow-[0_0_15px_rgba(6,182,212,0.3)]">
             <Lock className="w-6 h-6"/>
           </div>
-          <h3 className="text-base font-bold text-white">System Engine Gate</h3>
-          <p className="text-xs text-slate-400">
+          <h3 className="text-base font-bold text-foreground">System Engine Gate</h3>
+          <p className="text-xs text-muted-foreground">
             {checking
               ? 'Checking gate security...'
               : isConfigured
@@ -113,7 +113,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
             )}
 
             <div>
-              <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+              <label className="block text-xs font-mono uppercase text-muted-foreground mb-1">
                 {isConfigured ? 'Admin Passcode' : 'Create Passcode'}
               </label>
               <input
@@ -123,13 +123,13 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
                 value={passcode}
                 onChange={(e) => setPasscode(e.target.value)}
                 placeholder="••••••••"
-                className="w-full px-3 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-sm text-white focus:outline-none focus:border-cyan-400 font-mono tracking-widest"
+                className="w-full px-3 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-sm text-foreground focus:outline-none focus:border-cyan-400 font-mono tracking-widest"
               />
             </div>
 
             {!isConfigured && (
               <div>
-                <label className="block text-xs font-mono uppercase text-slate-400 mb-1">
+                <label className="block text-xs font-mono uppercase text-muted-foreground mb-1">
                   Confirm Passcode
                 </label>
                 <input
@@ -138,7 +138,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
                   value={confirmPasscode}
                   onChange={(e) => setConfirmPasscode(e.target.value)}
                   placeholder="••••••••"
-                  className="w-full px-3 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-sm text-white focus:outline-none focus:border-cyan-400 font-mono tracking-widest"
+                  className="w-full px-3 py-2 rounded-xl bg-[#090A0F] border border-[#1E2436] text-sm text-foreground focus:outline-none focus:border-cyan-400 font-mono tracking-widest"
                 />
               </div>
             )}
