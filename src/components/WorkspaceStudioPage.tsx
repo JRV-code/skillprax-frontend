@@ -41,6 +41,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 
 interface WorkspaceStudioPageProps {
   currentTrack: SkillTrack;
+  rawWorkspace?: any;
   onNavigate: (page: 'landing' | 'profile' | 'studio') => void;
   selectedEngine: AIEngine;
   onSelectEngine: (engine: AIEngine) => void;
@@ -48,6 +49,7 @@ interface WorkspaceStudioPageProps {
 }
 
 // Socratic Question Bank for organic and default domains
+
 const QUESTION_BANK: Record<string, QuizQuestion[]> = {
   chemistry: [
     {
@@ -370,6 +372,7 @@ function shuffleArray<T>(array: T[]): T[] {
 
 export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   currentTrack,
+  rawWorkspace,
   onNavigate,
   selectedEngine,
   onSelectEngine,
@@ -537,12 +540,49 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     setNodes((prev) => [...prev, newNode]);
   };
 
-  const handleSynthesizeMaterials = () => {
+  const [fetchedResources, setFetchedResources] = useState<StudyResource[]>([]);
+
+  const handleSynthesizeMaterials = async () => {
     setIsSynthesizing(true);
-    setTimeout(() => {
+    try {
+      const activeStep = rawWorkspace?.steps?.find((s: any) => s.stepIndex === currentTrack.currentStep) || rawWorkspace?.steps?.[0];
+      const stepIdToUse = activeStep?.id || currentTrack.id;
+
+      const res = await fetch(`/api/steps/${stepIdToUse}/level-up-resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stepIndex: currentTrack.currentStep,
+          title: selectedNode?.label || currentTrack.title,
+          workspaceTitle: currentTrack.title,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const returnedRes: any[] = data.resources || [];
+        if (returnedRes.length > 0) {
+          const mapped: StudyResource[] = returnedRes.map((r: any, idx: number) => ({
+            id: `res-${idx}`,
+            type: (r.url && (r.url.includes('youtube.com') || r.url.includes('youtu.be'))) ? 'youtube' : 'doc',
+            title: r.title || 'Curated Resource',
+            subtitle: r.studyGuidance || r.badge || 'Verified Study Resource',
+            url: r.url || '#',
+            durationOrPages: r.badge || 'Canonical',
+            viewsOrCitation: r.badge || 'Verified',
+            thumbnailUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
+            verified: true,
+            organization: 'Skillprax Verified',
+          }));
+          setFetchedResources(mapped);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to synthesize resources:', err);
+    } finally {
       setIsSynthesizing(false);
       setResourcesSynthesized(true);
-    }, 1500);
+    }
   };
 
   const allAnswered = useMemo(() => {
@@ -1333,14 +1373,18 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               className="space-y-6"
             >
               <QuizAndEvaluationEngine
-                stepId={`${currentTrack.id}-step-${currentTrack.currentStep}`}
+                stepId={
+                  rawWorkspace?.steps?.find((s: any) => s.stepIndex === currentTrack.currentStep)?.id ||
+                  rawWorkspace?.steps?.[0]?.id ||
+                  currentTrack.id
+                }
                 stepIndex={currentTrack.currentStep}
                 stepTitle={selectedNode?.label || currentTrack.title}
                 acus={
                   selectedNode?.acus?.map((a, idx) => ({
                     id: `acu-${idx + 1}`,
-                    title: a,
-                    description: `Assessable concept unit ${idx + 1}`,
+                    title: typeof a === 'string' ? a : (a as any).title || 'ACU',
+                    description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a as any).description || 'ACU description',
                   })) || [
                     { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
                     { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },

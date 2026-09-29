@@ -64,7 +64,7 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
   const [reviewedResources, setReviewedResources] = useState<Record<string, boolean>>({});
   const [isRetestLoading, setIsRetestLoading] = useState(false);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
 
   useEffect(() => {
     if (isOpen) {

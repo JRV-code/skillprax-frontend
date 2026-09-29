@@ -18,7 +18,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
 
   useEffect(() => {
     if (isOpen) {

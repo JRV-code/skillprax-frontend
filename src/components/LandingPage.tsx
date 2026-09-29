@@ -29,6 +29,9 @@ interface LandingPageProps {
   onNavigate: (page: 'landing' | 'profile' | 'studio' | 'page01' | 'page02' | 'page03' | 'page04') => void;
   tracks: SkillTrack[];
   onOpenAdmin: () => void;
+  existingProfiles?: any[];
+  onSelectProfile?: (profileId: string) => void;
+  onCreateProfile?: (data: { name: string; educationBoard: string; grade: string }) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -37,17 +40,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onNavigate,
   tracks,
   onOpenAdmin,
+  existingProfiles = [],
+  onSelectProfile,
+  onCreateProfile,
 }) => {
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [gatewayMode, setGatewayMode] = useState<'create' | 'existing'>('create');
 
-  const [name, setName] = useState(userProfile.name);
-  const [age, setAge] = useState(userProfile.age.toString());
-  const [profession, setProfession] = useState(userProfile.profession);
+  const [name, setName] = useState('Explorer');
+  const [educationBoard, setEducationBoard] = useState('GSEB');
+  const [grade, setGrade] = useState('Class 12');
+  const [age, setAge] = useState((userProfile.age ?? 18).toString());
+  const [profession, setProfession] = useState(userProfile.profession ?? 'Class 12 Student');
   const [targetHours, setTargetHours] = useState(userProfile.targetHours);
   const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes);
-  const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime);
-  const [enableAlerts, setEnableAlerts] = useState(userProfile.notificationsEnabled);
+  const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime ?? '20:30');
+  const [enableAlerts, setEnableAlerts] = useState(userProfile.notificationsEnabled ?? true);
 
   const [selectedTrackId, setSelectedTrackId] = useState(tracks[0]?.id || '');
 
@@ -70,10 +78,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       return;
     }
 
+    if (onCreateProfile) {
+      onCreateProfile({
+        name: name.trim() || 'Explorer',
+        educationBoard,
+        grade,
+      });
+      setIsGatewayOpen(false);
+      return;
+    }
+
     onUpdateProfile({
-      name: name.trim() || 'Learner',
+      name: name.trim() || 'Explorer',
       age: parseInt(age, 10) || 18,
-      profession: profession.trim() || 'Class 12 Student',
+      profession: `${educationBoard} • ${grade}`,
       targetHours: Math.max(0, Math.min(24, targetHours)),
       targetMinutes: Math.max(0, Math.min(59, targetMinutes)),
       dailyReminderTime: reminderTime,
@@ -367,155 +385,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               {gatewayMode === 'create' && (
                 <form onSubmit={handleCreateNewProfile} className="space-y-4 animate-fade-in">
-                  <div className="grid grid-cols-3 gap-2">
-                    <div className="col-span-2">
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Full Name
-                      </label>
-                      <input
-                        type="text"
-                        value={name}
-                        onChange={(e) => setName(e.target.value)}
-                        placeholder="e.g. Maya Sharma"
-                        required
-                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Age
-                      </label>
-                      <input
-                        type="number"
-                        value={age}
-                        onChange={(e) => setAge(e.target.value)}
-                        min="10"
-                        max="99"
-                        required
-                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                      />
-                    </div>
-                  </div>
-
-                  <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <label className="block text-[11px] font-semibold text-slate-600">
-                        Profession / Academic Focus
-                      </label>
-                      <span className="text-[10px] text-slate-400 font-mono">Type /admin for console</span>
-                    </div>
-                    <input
-                      type="text"
-                      value={profession}
-                      onChange={(e) => {
-                        setProfession(e.target.value);
-                        if (e.target.value.trim() === '/admin') {
-                          onOpenAdmin();
-                          setIsGatewayOpen(false);
-                        }
-                      }}
-                      placeholder="e.g. Class 12 Student (NEET / JEE)"
-                      required
-                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-3 pt-1">
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Target Hours
-                      </label>
-                      <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max="24"
-                          value={targetHours}
-                          onChange={(e) => setTargetHours(parseInt(e.target.value, 10) || 0)}
-                          className="w-full bg-transparent text-sm font-bold text-slate-800 text-center focus:outline-none"
-                        />
-                        <div className="flex flex-col ml-1">
-                          <button
-                            type="button"
-                            onClick={() => handleHourSpin(1)}
-                            className="text-slate-400 hover:text-slate-700 p-0.5"
-                          >
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleHourSpin(-1)}
-                            className="text-slate-400 hover:text-slate-700 p-0.5"
-                          >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Minutes
-                      </label>
-                      <div className="relative flex items-center bg-slate-50 border border-slate-200 rounded-xl px-2 py-1">
-                        <input
-                          type="number"
-                          min="0"
-                          max="59"
-                          step="5"
-                          value={targetMinutes}
-                          onChange={(e) => setTargetMinutes(parseInt(e.target.value, 10) || 0)}
-                          className="w-full bg-transparent text-sm font-bold text-slate-800 text-center focus:outline-none"
-                        />
-                        <div className="flex flex-col ml-1">
-                          <button
-                            type="button"
-                            onClick={() => handleMinSpin(5)}
-                            className="text-slate-400 hover:text-slate-700 p-0.5"
-                          >
-                            <ChevronUp className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => handleMinSpin(-5)}
-                            className="text-slate-400 hover:text-slate-700 p-0.5"
-                          >
-                            <ChevronDown className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Daily Reminder Time (24h format)
+                      Learner Full Name
                     </label>
-                    <div className="flex items-center justify-between p-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs">
-                      <div className="flex items-center gap-2">
-                        <Bell className="w-4 h-4 text-emerald-600" />
-                        <span className="font-medium text-slate-700">Daily Study Reminder</span>
-                      </div>
-                      <input
-                        type="time"
-                        value={reminderTime}
-                        onChange={(e) => setReminderTime(e.target.value)}
-                        className="px-2 py-0.5 bg-white border border-slate-300 rounded text-slate-800 font-mono text-xs focus:outline-none"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Explorer"
+                      required
+                      className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium"
+                    />
                   </div>
 
-                  <label className="flex items-center gap-2 cursor-pointer pt-1">
-                    <input
-                      type="checkbox"
-                      checked={enableAlerts}
-                      onChange={(e) => setEnableAlerts(e.target.checked)}
-                      className="w-4 h-4 text-emerald-600 rounded border-slate-300 focus:ring-emerald-500 cursor-pointer"
-                    />
-                    <span className="text-xs text-slate-600">
-                      Enable daily autonomous checkpoint reminders
-                    </span>
-                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Education Board
+                      </label>
+                      <select
+                        value={educationBoard}
+                        onChange={(e) => setEducationBoard(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                      >
+                        <option value="GSEB">GSEB (Gujarat Board)</option>
+                        <option value="CBSE">CBSE (Central Board)</option>
+                        <option value="General">General / Competitive</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                        Grade / Class
+                      </label>
+                      <select
+                        value={grade}
+                        onChange={(e) => setGrade(e.target.value)}
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                      >
+                        <option value="Class 12">Class 12 (NCERT / Board)</option>
+                        <option value="Class 11">Class 11</option>
+                        <option value="College / Competitive">College / Competitive</option>
+                      </select>
+                    </div>
+                  </div>
 
                   <div className="pt-2">
                     <button
@@ -530,88 +444,96 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               )}
 
               {gatewayMode === 'existing' && (
-                <div className="space-y-5 animate-fade-in">
-                  <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 space-y-3">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-mono font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
-                        ACTIVE PROFILE FOUND
-                      </span>
-                      <span className="text-xs text-slate-400 font-mono">ID: {userProfile.id}</span>
-                    </div>
-
-                    <div className="flex items-center gap-3 pt-1">
-                      <div className="relative">
-                        <img
-                          src={userProfile.avatarUrl}
-                          alt={userProfile.name}
-                          className="w-14 h-14 rounded-full object-cover border-2 border-emerald-400 shadow-md"
-                          onError={(e) => {
-                            e.currentTarget.src =
-                              'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                <div className="space-y-4 animate-fade-in">
+                  {existingProfiles.length > 0 ? (
+                    <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                      <label className="block text-xs font-semibold text-slate-700 mb-1">
+                        Select Existing Profile from Database:
+                      </label>
+                      {existingProfiles.map((p) => (
+                        <div
+                          key={p.id}
+                          onClick={() => {
+                            if (onSelectProfile) onSelectProfile(p.id);
+                            else {
+                              localStorage.setItem('skillprax_active_profile_id', p.id);
+                              onNavigate('page02');
+                            }
+                            setIsGatewayOpen(false);
                           }}
-                        />
-                        <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                          className="p-3.5 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 hover:border-emerald-400 hover:shadow-md transition-all cursor-pointer flex items-center justify-between group"
+                        >
+                          <div>
+                            <h4 className="text-sm font-heading font-bold text-slate-900 group-hover:text-emerald-800 transition-colors">
+                              {p.name}
+                            </h4>
+                            <p className="text-xs text-emerald-700 font-medium mt-0.5">
+                              {p.educationBoard || 'GSEB'} • {p.grade || 'Class 12'}
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <span className="flex items-center gap-1 text-xs font-mono font-bold text-amber-600 bg-amber-100/80 px-2 py-0.5 rounded-full">
+                              <Flame className="w-3 h-3 text-amber-500 fill-amber-400 animate-flame" />
+                              {p.streakDays ?? 7}d
+                            </span>
+                            <ArrowRight className="w-4 h-4 text-emerald-600 transition-transform group-hover:translate-x-1" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="p-4 rounded-2xl bg-gradient-to-br from-emerald-50/90 to-teal-50/70 border border-emerald-200/90 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-mono font-bold bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded-full">
+                          ACTIVE PROFILE FOUND
+                        </span>
+                        <span className="text-xs text-slate-400 font-mono">ID: {userProfile.id}</span>
                       </div>
 
-                      <div>
-                        <h3 className="text-base font-heading font-bold text-slate-900">
-                          {userProfile.name}
-                        </h3>
-                        <p className="text-xs text-emerald-700 font-medium">
-                          {userProfile.profession} • {userProfile.age} yrs
-                        </p>
-                        <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-600 font-medium">
-                          <span className="flex items-center gap-1 text-amber-600">
-                            <Flame className="w-3.5 h-3.5 animate-flame" />
-                            {userProfile.flameStreak} days streak
-                          </span>
-                          <span>•</span>
-                          <span className="flex items-center gap-1 text-sky-600">
-                            <Shield className="w-3.5 h-3.5" />
-                            {userProfile.activeFreezes} Freeze
-                          </span>
+                      <div className="flex items-center gap-3 pt-1">
+                        <div className="relative">
+                          <img
+                            src={userProfile.avatarUrl}
+                            alt={userProfile.name}
+                            className="w-14 h-14 rounded-full object-cover border-2 border-emerald-400 shadow-md"
+                            onError={(e) => {
+                              e.currentTarget.src =
+                                'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
+                            }}
+                          />
+                          <span className="absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white" />
+                        </div>
+
+                        <div>
+                          <h3 className="text-base font-heading font-bold text-slate-900">
+                            {userProfile.name}
+                          </h3>
+                          <p className="text-xs text-emerald-700 font-medium">
+                            {userProfile.profession}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1 text-[11px] text-slate-600 font-medium">
+                            <span className="flex items-center gap-1 text-amber-600">
+                              <Flame className="w-3.5 h-3.5 animate-flame" />
+                              {userProfile.flameStreak} days streak
+                            </span>
+                            <span>•</span>
+                            <span className="flex items-center gap-1 text-sky-600">
+                              <Shield className="w-3.5 h-3.5" />
+                              {userProfile.activeFreezes} Freeze
+                            </span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </div>
 
-                  <div className="space-y-3">
-                    <label className="block text-xs font-semibold text-slate-700">
-                      Resume Options:
-                    </label>
-
-                    <select
-                      value={selectedTrackId}
-                      onChange={(e) => setSelectedTrackId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-800"
-                    >
-                      {tracks.map((t) => (
-                        <option key={t.id} value={t.id}>
-                          Resume Track: {t.title} ({t.category}) — STEP {t.currentStep}/{t.totalSteps}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="grid grid-cols-2 gap-2 pt-1">
                       <button
                         type="button"
                         onClick={handleResumeExisting}
-                        className="py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md btn-tactile cursor-pointer text-center"
+                        className="w-full mt-2 py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md btn-tactile cursor-pointer text-center"
                       >
-                        Resume Existing Track ➔
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsGatewayOpen(false);
-                          onNavigate('page02');
-                        }}
-                        className="py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl text-xs font-semibold btn-tactile cursor-pointer text-center"
-                      >
-                        + Add New Skill
+                        Resume Active Profile ➔
                       </button>
                     </div>
-                  </div>
+                  )}
                 </div>
               )}
             </motion.div>
@@ -623,3 +545,4 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 };
 
 export default LandingPage;
+

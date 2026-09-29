@@ -69,7 +69,7 @@ export function NewSkillModal({ isOpen, onClose, onCreate, onSubmit }: NewSkillM
         return;
       }
 
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:4000"}/api/workspaces/initiate`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "https://skillprax-backend.onrender.com"}/api/workspaces/initiate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

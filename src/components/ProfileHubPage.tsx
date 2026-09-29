@@ -261,16 +261,17 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
     message: '',
   });
 
-  const totalHours = userProfile.studyCadence.reduce(
-    (acc, d) => acc + d.hours + d.minutes / 60,
+  const cadenceList = userProfile.studyCadence || [];
+  const totalHours = cadenceList.reduce(
+    (acc, d) => acc + (d.hours || 0) + (d.minutes || 0) / 60,
     0
   );
-  const totalNodesVerified = userProfile.studyCadence.reduce(
-    (acc, d) => acc + d.nodesCompleted,
+  const totalNodesVerified = cadenceList.reduce(
+    (acc, d) => acc + (d.nodesCompleted || 0),
     0
   );
   const averageDailyTime = (totalHours / 7).toFixed(1);
-  const maxHours = Math.max(...userProfile.studyCadence.map((d) => d.hours + d.minutes / 60), 6);
+  const maxHours = Math.max(...cadenceList.map((d) => (d.hours || 0) + (d.minutes || 0) / 60), 6);
 
   const userLevel = 14;
   const currentXP = 3420;
@@ -338,14 +339,14 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
 
     setTimeout(() => {
       onUpdateProfile({
-        flameStreak: userProfile.flameStreak + 1,
-        activeDays: userProfile.activeDays + 1,
+        flameStreak: (userProfile.flameStreak ?? 7) + 1,
+        activeDays: (userProfile.activeDays ?? 22) + 1,
       });
       setGraphAnimationKey((prev) => prev + 1);
       setIsSimulatingSession(false);
       setSessionToast({
         show: true,
-        message: `🔥 Momentum Ignited! +1 Day Streak (${userProfile.flameStreak + 1} Days) & +2.5h Volume logged!`,
+        message: `🔥 Momentum Ignited! +1 Day Streak (${(userProfile.flameStreak ?? 7) + 1} Days) & +2.5h Volume logged!`,
       });
 
       setTimeout(() => {
@@ -482,7 +483,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
               <div className="mt-5 pt-4 border-t border-slate-100 grid grid-cols-2 gap-3 text-center">
                 <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200/80 group-hover:border-emerald-200 transition-colors">
                   <div className="text-xl font-bold text-slate-900 font-mono">
-                    <AnimatedNumber value={userProfile.activeDays} />
+                    <AnimatedNumber value={userProfile.activeDays ?? 22} />
                   </div>
                   <div className="text-[10px] text-slate-500 font-semibold uppercase tracking-wider mt-0.5">
                     Active Days
@@ -505,7 +506,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
                 Target: {userProfile.targetHours}h {userProfile.targetMinutes}m/day
               </span>
               <span className="font-mono text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                {userProfile.dailyReminderTime} Alert
+                {userProfile.alertNotification || userProfile.dailyReminderTime || '20:30'} Alert
               </span>
             </div>
           </div>
@@ -530,7 +531,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
                   </div>
                 </div>
                 <div className="text-3xl md:text-4xl font-heading font-extrabold text-slate-900 tracking-tight stat-counter-pop">
-                  <AnimatedNumber value={userProfile.flameStreak} suffix=" DAYS" />
+                  <AnimatedNumber value={userProfile.streakDays ?? userProfile.flameStreak ?? 7} suffix=" DAYS" />
                 </div>
                 <div className="text-xs font-semibold text-slate-700 mt-1">
                   Consecutive Daily Mastery Streak 🔥
@@ -545,7 +546,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
                   <span className="w-2 h-2 rounded-full bg-amber-500 animate-ping" />
                   Today's Milestone: Active
                 </span>
-                <span className="font-mono">Alert: 20:30 PM</span>
+                <span className="font-mono">Alert: {userProfile.alertNotification || '20:30'}</span>
               </div>
             </div>
 
@@ -563,7 +564,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
                   </div>
                 </div>
                 <div className="text-3xl md:text-4xl font-heading font-extrabold text-slate-900 tracking-tight stat-counter-pop">
-                  <AnimatedNumber value={userProfile.activeFreezes} /> / {userProfile.maxFreezes}
+                  <AnimatedNumber value={userProfile.freezeShields ?? userProfile.activeFreezes ?? 1} /> / {userProfile.maxFreezes ?? 3}
                 </div>
                 <div className="text-xs font-semibold text-slate-700 mt-1">
                   Streak Freeze Safeguards 🧊
@@ -697,7 +698,7 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
               <span>1.0 hr</span>
             </div>
 
-            {userProfile.studyCadence.map((day, idx) => {
+            {cadenceList.map((day, idx) => {
               const totalDayHours = day.hours + day.minutes / 60;
               const heightPercent = Math.min((totalDayHours / maxHours) * 100, 100);
               const isToday = idx === 6;

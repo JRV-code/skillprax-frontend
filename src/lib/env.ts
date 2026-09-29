@@ -1,5 +1,5 @@
 export const getApiUrl = (): string => {
-  return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+  return process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
 };
 
 export const getWsUrl = (): string => {

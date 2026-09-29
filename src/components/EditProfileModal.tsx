@@ -13,21 +13,12 @@ import {
   Camera,
 } from 'lucide-react';
 
+import { UserProfile } from '@/types';
+
 interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
-  userProfile: {
-    name: string;
-    age: number;
-    profession: string;
-    avatarUrl?: string;
-    targetHours?: number;
-    targetMinutes?: number;
-    dailyReminderTime?: string;
-    notificationsEnabled?: boolean;
-    flameStreak?: number;
-    activeFreezes?: number;
-  };
+  userProfile: UserProfile;
   onUpdateProfile: (updated: any) => void;
   onOpenAdmin?: () => void;
 }
@@ -69,7 +60,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 }) => {
   const [name, setName] = useState(userProfile.name);
   const [age, setAge] = useState((userProfile.age || 18).toString());
-  const [profession, setProfession] = useState(userProfile.profession);
+  const [profession, setProfession] = useState(userProfile.profession || '');
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || AVATAR_PRESETS[0].url);
   const [targetHours, setTargetHours] = useState(userProfile.targetHours || 1);
   const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes || 0);

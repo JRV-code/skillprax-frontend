@@ -6,13 +6,21 @@ import ProfileHubPage from '@/components/ProfileHubPage';
 import { UserProfile, SkillTrack } from '@/types';
 
 const INITIAL_PROFILE: UserProfile = {
-  id: 'profile-manendra-1',
-  name: 'Manendra Patel',
-  age: 18,
-  profession: 'Class 12 Student',
-  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+  id: 'profile-default',
+  name: 'Learner Explorer',
+  educationBoard: 'GSEB',
+  grade: 'Class 12',
+  activeMonths: 3,
+  streakDays: 7,
+  freezeShields: 1,
   targetHours: 10,
   targetMinutes: 50,
+  alertNotification: '20:30',
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+  age: 18,
+  profession: 'Class 12 Student (GSEB)',
+  avatarUrl: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
   dailyReminderTime: '20:30',
   notificationsEnabled: true,
   activeDays: 22,
@@ -24,7 +32,7 @@ const INITIAL_PROFILE: UserProfile = {
   studyCadence: [
     { day: 'Sun', hours: 2, minutes: 30, focusArea: 'Sprint Clearance', nodesCompleted: 1 },
     { day: 'Mon', hours: 3, minutes: 45, focusArea: 'Graph Traversal', nodesCompleted: 2 },
-    { day: 'Tue', hours: 4, minutes: 15, focusArea: 'Haloalkanes Intro', nodesCompleted: 1 },
+    { day: 'Tue', hours: 4, minutes: 15, focusArea: 'Organic Synthesis', nodesCompleted: 1 },
     { day: 'Wed', hours: 5, minutes: 0, focusArea: 'Walden Inversion', nodesCompleted: 3 },
     { day: 'Thu', hours: 6, minutes: 30, focusArea: 'SN1/SN2 Socratic Gate', nodesCompleted: 2 },
     { day: 'Fri', hours: 3, minutes: 10, focusArea: 'Biomechanical Force', nodesCompleted: 1 },
@@ -32,221 +40,153 @@ const INITIAL_PROFILE: UserProfile = {
   ],
 };
 
-const INITIAL_TRACKS: SkillTrack[] = [
-  {
-    id: 'track-haloalkanes',
-    title: 'NCERT Class 12 Chemistry: Haloalkanes and Haloarenes',
-    category: 'Chemistry',
-    tags: ['Chemistry', 'NCERT', 'JEE Advanced', 'Mechanisms'],
-    currentStep: 2,
-    totalSteps: 6,
-    progressPercent: 33,
-    colorScheme: 'amber',
-    icon: 'FlaskConical',
-    milestones: [
-      {
-        id: 'm-chem-1',
-        stepNumber: 1,
-        title: 'Classification & Nomenclature',
-        description: 'Aliphatic, allylic, benzylic, vinylic, and arylic halide structures.',
-        status: 'completed',
-        acus: ['ACU-1: sp³ vs sp² C-X classification', 'ACU-2: IUPAC haloarene numbering'],
-      },
-      {
-        id: 'm-chem-2',
-        stepNumber: 2,
-        title: 'Methods of Preparation & Halogen Exchange',
-        description: 'Darzens SOCl₂ process, Finkelstein NaI/acetone, and Swarts AgF fluorination.',
-        status: 'active',
-        acus: ['ACU-3: Darzens gaseous byproducts', 'ACU-4: Finkelstein acetone precipitation'],
-      },
-      {
-        id: 'm-chem-3',
-        stepNumber: 3,
-        title: 'Nucleophilic Substitution Mechanics (SN1 vs SN2)',
-        description: 'Walden inversion, pentacoordinate transition state, and planar carbocation stability.',
-        status: 'locked',
-        acus: ['ACU-5: Polar aprotic solvent acceleration', 'ACU-6: Optical inversion criteria'],
-      },
-      {
-        id: 'm-chem-4',
-        stepNumber: 4,
-        title: 'Ambident Nucleophiles & Saytzeff Elimination',
-        description: 'KCN vs AgCN ambident reactivity, and anti-periplanar E2 dehydrohalogenation.',
-        status: 'locked',
-        acus: ['ACU-7: Ionic vs covalent ambident control', 'ACU-8: Zaitsev hyperconjugation rule'],
-      },
-      {
-        id: 'm-chem-5',
-        stepNumber: 5,
-        title: 'Aromatic Wing & Haloarene Low Reactivity',
-        description: 'Resonance delocalization, sp² hybridization, Dow’s process, and EAS orientation.',
-        status: 'locked',
-        acus: ['ACU-9: Phenyl cation instability', 'ACU-10: Ortho/para activating resonance'],
-      },
-      {
-        id: 'm-chem-6',
-        stepNumber: 6,
-        title: 'Organometallics & Polyhalogen Environmental Profile',
-        description: 'Wurtz, Fittig, Grignard reagents, Chloroform oxidation, and p,p\'-DDT bioaccumulation.',
-        status: 'locked',
-        acus: ['ACU-11: Grignard protic quenching', 'ACU-12: DDT synthesis & persistence'],
-      },
-    ],
-  },
-  {
-    id: 'track-athletics',
-    title: 'Athletics & Kinematic Acceleration',
-    category: 'Athletics',
-    tags: ['Athletics', 'Biomechanics', 'Sprint'],
-    currentStep: 1,
-    totalSteps: 5,
-    progressPercent: 20,
-    colorScheme: 'emerald',
-    icon: 'Zap',
-    milestones: [
-      {
-        id: 'm-ath-1',
-        stepNumber: 1,
-        title: 'Sprint Mechanics & Block Clearance',
-        description: 'Biomechanical foot strike angle and initial block projection impulse.',
-        status: 'active',
-        acus: ['ACU-1: Block angle clearance', 'ACU-2: Acute ground vector'],
-      },
-      {
-        id: 'm-ath-2',
-        stepNumber: 2,
-        title: 'Max Velocity Phase & Pelvic Kinematics',
-        description: 'Maintaining elastic recoil without premature vertical posture.',
-        status: 'locked',
-        acus: ['ACU-3: Elastic energy storage', 'ACU-4: Hip extension velocity'],
-      },
-      {
-        id: 'm-ath-3',
-        stepNumber: 3,
-        title: 'Speed Endurance & Deceleration Buffer',
-        description: 'Lactate buffering and stride frequency retention.',
-        status: 'locked',
-        acus: ['ACU-5: Glycolytic pacing'],
-      },
-      {
-        id: 'm-ath-4',
-        stepNumber: 4,
-        title: 'Competition Cadence Optimization',
-        description: 'Environmental wind and neural pre-activation.',
-        status: 'locked',
-        acus: ['ACU-6: CNS potentiating'],
-      },
-      {
-        id: 'm-ath-5',
-        stepNumber: 5,
-        title: 'Championship Mastery Synthesis',
-        description: 'Integrated physiological peak execution.',
-        status: 'locked',
-        acus: ['ACU-7: Race-day tapering protocol'],
-      },
-    ],
-  },
-  {
-    id: 'track-algorithms',
-    title: 'Autonomous Graph Theory & Algorithmic Complexity',
-    category: 'Programming',
-    tags: ['Programming', 'Graph Theory', 'Algorithms', 'Mastery'],
-    currentStep: 5,
-    totalSteps: 5,
-    progressPercent: 100,
-    colorScheme: 'amber',
-    icon: 'Code',
-    milestones: [
-      {
-        id: 'm-algo-1',
-        stepNumber: 1,
-        title: 'Asymptotic Analysis & Big-O Axioms',
-        description: 'Time and space complexity invariants across recursion trees.',
-        status: 'completed',
-        acus: ['ACU-1: Recurrence relations', 'ACU-2: Master theorem bounds'],
-      },
-      {
-        id: 'm-algo-2',
-        stepNumber: 2,
-        title: 'Graph Traversal & Topological DAGs',
-        description: 'Depth-first search, cycle detection, and strongly connected components.',
-        status: 'completed',
-        acus: ['ACU-3: Tarjan articulation points', 'ACU-4: Kahn topological order'],
-      },
-      {
-        id: 'm-algo-3',
-        stepNumber: 3,
-        title: 'Shortest Path & Network Flows',
-        description: 'Dijkstra with indexed priority queues and Ford-Fulkerson max flow.',
-        status: 'completed',
-        acus: ['ACU-5: Potential functions', 'ACU-6: Residual network cuts'],
-      },
-      {
-        id: 'm-algo-4',
-        stepNumber: 4,
-        title: 'Dynamic Programming & Memoized Schemas',
-        description: 'Subproblem optimal substructure and state space reduction.',
-        status: 'completed',
-        acus: ['ACU-7: Bitmask transitions', 'ACU-8: Monotonic queue optimization'],
-      },
-      {
-        id: 'm-algo-5',
-        stepNumber: 5,
-        title: 'Apex Algorithmic Synthesis & Verification',
-        description: 'Comprehensive mastery of competitive algorithmic structures.',
-        status: 'completed',
-        acus: ['ACU-9: Convex hull trick', 'ACU-10: Splay trees & Link-cut'],
-      },
-    ],
-  },
-];
-
 export default function ProfilePage() {
   const router = useRouter();
   const [userProfile, setUserProfile] = useState<UserProfile>(INITIAL_PROFILE);
-  const [tracks, setTracks] = useState<SkillTrack[]>(INITIAL_TRACKS);
+  const [tracks, setTracks] = useState<SkillTrack[]>([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    try {
-      const savedProfile = localStorage.getItem('skillprax_profile');
-      if (savedProfile) {
-        setUserProfile(JSON.parse(savedProfile));
+    const profileId = localStorage.getItem('skillprax_active_profile_id');
+    if (!profileId) {
+      // Create a default profile if none exists
+      async function createDefault() {
+        try {
+          const res = await fetch('/api/profiles', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: 'Explorer', educationBoard: 'GSEB', grade: 'Class 12' }),
+          });
+          const data = await res.json();
+          const pId = data.profile?.id || data.id;
+          localStorage.setItem('skillprax_active_profile_id', pId);
+          loadHydratedData(pId);
+        } catch (err) {
+          console.error('Failed to auto-create profile:', err);
+          setLoading(false);
+        }
       }
-      const savedTracks = localStorage.getItem('skillprax_tracks');
-      if (savedTracks) {
-        setTracks(JSON.parse(savedTracks));
-      }
-    } catch {
-      // Use defaults
+      createDefault();
+      return;
     }
+
+    loadHydratedData(profileId);
   }, []);
 
-  const handleUpdateProfile = (updated: Partial<UserProfile>) => {
-    setUserProfile((prev) => {
-      const next = { ...prev, ...updated };
-      try {
-        localStorage.setItem('skillprax_profile', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+  async function loadHydratedData(profileId: string) {
+    try {
+      setLoading(true);
+      const [profileRes, workspacesRes] = await Promise.all([
+        fetch(`/api/profiles/${profileId}`),
+        fetch(`/api/workspaces?profileId=${profileId}`),
+      ]);
+
+      if (profileRes.ok) {
+        const profileData = await profileRes.json();
+        const p = profileData.profile || profileData;
+        setUserProfile((prev) => ({
+          ...prev,
+          id: p.id,
+          name: p.name || 'Learner Explorer',
+          profession: `${p.educationBoard || 'GSEB'} • ${p.grade || 'Class 12'}`,
+          flameStreak: p.streakDays ?? p.streak ?? 7,
+          activeFreezes: p.freezeShields ?? p.freezes ?? 1,
+          targetHours: p.targetHours ?? 10,
+          targetMinutes: p.targetMinutes ?? 50,
+          dailyReminderTime: p.alertNotification || p.dailyReminderTime || '20:30',
+          activeDays: (p.activeMonths ? p.activeMonths * 30 : 22),
+        }));
+      }
+
+      if (workspacesRes.ok) {
+        const workspacesData = await workspacesRes.json();
+        const wsList = workspacesData.workspaces || [];
+        const mappedTracks: SkillTrack[] = wsList.map((ws: any) => ({
+          id: ws.id,
+          title: ws.title || 'Custom Skill Track',
+          category: ws.domainCategory || ws.domain || 'Science',
+          tags: [ws.domainCategory || 'Science', 'Autonomous', 'Groq AI'],
+          currentStep: ws.currentStep || 1,
+          totalSteps: ws.totalSteps || ws.totalPlannedSteps || 5,
+          progressPercent: ws.progress ?? 20,
+          colorScheme:
+            ws.domainCategory === 'Athletics'
+              ? 'emerald'
+              : ws.domainCategory === 'Science'
+              ? 'amber'
+              : ws.domainCategory === 'Art'
+              ? 'purple'
+              : 'blue',
+          icon:
+            ws.domainCategory === 'Athletics'
+              ? 'Zap'
+              : ws.domainCategory === 'Science'
+              ? 'FlaskConical'
+              : 'Code',
+          milestones: (ws.steps || []).map((s: any, idx: number) => ({
+            id: s.id || `m-${idx}`,
+            stepNumber: s.stepIndex || idx + 1,
+            title: s.title || `Step ${idx + 1}`,
+            description: s.description || 'Milestone unit',
+            status: s.status === 'PASSED' ? 'completed' : s.status === 'LOCKED' ? 'locked' : 'active',
+            acus: (s.assessableUnits || []).map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU')),
+          })),
+        }));
+        setTracks(mappedTracks);
+      }
+    } catch (err) {
+      console.error('Failed to hydrate profile hub:', err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const handleUpdateProfile = async (updated: Partial<UserProfile>) => {
+    setUserProfile((prev) => ({ ...prev, ...updated }));
+    const profileId = localStorage.getItem('skillprax_active_profile_id');
+    if (!profileId) return;
+
+    try {
+      await fetch(`/api/profiles/${profileId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: updated.name,
+          targetHours: updated.targetHours,
+          targetMinutes: updated.targetMinutes,
+          alertNotification: updated.dailyReminderTime,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to patch profile:', err);
+    }
   };
 
   const handleAddTrack = (track: SkillTrack) => {
-    setTracks((prev) => {
-      const next = [...prev, track];
-      try {
-        localStorage.setItem('skillprax_tracks', JSON.stringify(next));
-      } catch {}
-      return next;
-    });
+    setTracks((prev) => [...prev, track]);
   };
 
   const handleNavigate = (page: 'landing' | 'profile' | 'studio') => {
     if (page === 'landing') router.push('/');
     else if (page === 'profile') router.push('/profile');
-    else router.push('/workspace/track-haloalkanes');
+    else {
+      if (tracks.length > 0) router.push(`/workspace/${tracks[0].id}`);
+      else router.push('/profile');
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-transparent">
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-8 h-8 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+          <span className="text-xs font-mono font-bold text-emerald-800 uppercase tracking-wider">
+            Hydrating Telemetry & Workspaces...
+          </span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <ProfileHubPage
@@ -260,3 +200,4 @@ export default function ProfilePage() {
     />
   );
 }
+
