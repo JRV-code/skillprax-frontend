@@ -48,319 +48,6 @@ interface WorkspaceStudioPageProps {
   onPassEvaluation: () => void;
 }
 
-// Socratic Question Bank for organic and default domains
-
-const QUESTION_BANK: Record<string, QuizQuestion[]> = {
-  chemistry: [
-    {
-      id: 'chem-q1',
-      question:
-        'Why does chlorobenzene exhibit drastically lower reactivity toward nucleophilic substitution compared to chloroethane?',
-      socraticContext: 'Axiomatic sp² vs sp³ hybridization and conjugated lone-pair resonance mechanics.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'The C–Cl bond acquires partial double-bond character through delocalization of the chlorine lone pair into the aromatic ring.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'This is the verified physical cause. The C-Cl bond length contracts to 169 pm.',
-        },
-        {
-          id: 'opt-b',
-          text: 'The benzene ring acts as a powerful Lewis acid that neutralizes the incoming nucleophile instantly.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Benzene is electron-rich (π-electron cloud) and acts as a nucleophile or base, never a Lewis acid.',
-        },
-        {
-          id: 'opt-c',
-          text: 'Chlorine exerts an overwhelming +I inductive electron-donating effect on the phenyl ring.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Halogens are strongly electronegative and exert a -I inductive electron-withdrawing effect, not +I.',
-        },
-        {
-          id: 'opt-d',
-          text: 'Phenyl carbocation intermediate formed in SN1 substitution is stabilized by hyperconjugation.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Phenyl cation is sp-hybridized, perpendicular to the aromatic π-system, and extremely unstable.',
-        },
-      ],
-      correctExplanation:
-        'Resonance delocalization of chlorine’s unshared electron pairs with the benzene ring yields a shorter, stronger C=Cl bond with partial double bond character. In addition, the phenyl carbon is sp² hybridized (33% s-character), holding electrons tighter than sp³ carbon.',
-    },
-    {
-      id: 'chem-q2',
-      question:
-        'When 2-bromopentane is treated with alcoholic KOH under thermal reflux, why is pent-2-ene the predominant product rather than pent-1-ene?',
-      socraticContext: 'Thermodynamics of β-elimination dehydrohalogenation under Zaitsev criteria.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'Saytzeff (Zaitsev) rule dictates that the more highly substituted, hyperconjugation-stabilized alkene predominates with unhindered bases.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Pent-2-ene has 5 hyperconjugative α-hydrogens compared to only 2 for pent-1-ene.',
-        },
-        {
-          id: 'opt-b',
-          text: 'Steric congestion prevents the base from approaching the primary β-hydrogen on carbon-1.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Primary β-hydrogens are actually the least sterically hindered; they yield Hofmann product only with bulky bases like t-BuOK.',
-        },
-        {
-          id: 'opt-c',
-          text: 'Bromine departs first through a unimolecular E1 path generating a stabilized allylic carbocation.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: High concentration of strong base (alcoholic KOH) enforces concerted bimolecular E2 anti-periplanar elimination.',
-        },
-        {
-          id: 'opt-d',
-          text: 'Pent-1-ene undergoes instantaneous thermodynamic rearrangement into pent-2-ene upon formation.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Alkenes do not spontaneously isomerize without strong protic superacids or transition metal catalysts.',
-        },
-      ],
-      correctExplanation:
-        'According to Saytzeff’s rule, in dehydrohalogenation reactions, the alkene with greater number of alkyl substituents attached to doubly bonded carbons is more stable due to hyperconjugation and forms preferentially.',
-    },
-    {
-      id: 'chem-q3',
-      question:
-        'Why does reaction of an alkyl halide with KCN yield predominantly alkyl cyanide (R-CN), whereas with AgCN it produces alkyl isocyanide (R-NC)?',
-      socraticContext: 'Ambident nucleophile duality: ionic lattice dissociation vs covalent coordinate bonding.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'KCN is ionic, allowing nucleophilic attack via carbon (stronger C–C bond formed); AgCN is largely covalent, leaving only nitrogen lone pairs free to attack.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: C-C bond enthalpy (~347 kJ/mol) exceeds C-N (~305 kJ/mol), favoring carbon attack when free cyanide ion is liberated.',
-        },
-        {
-          id: 'opt-b',
-          text: 'Potassium forms a chelate complex with nitrogen, while silver binds irreversibly to carbon lone pairs.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Potassium is an alkali metal that completely dissociates in polar solvent without covalent chelation.',
-        },
-        {
-          id: 'opt-c',
-          text: 'Silver cyanide undergoes radical oxidation which forces thermal inversion of the nitrile group.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: The reaction is polar nucleophilic substitution (SN2/SN1), not free radical rearrangement.',
-        },
-        {
-          id: 'opt-d',
-          text: 'AgCN acts as a reducing agent converting nascent alkyl halides into volatile carbylamines.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: AgCN acts as an ambident nucleophile donor, not a redox reducing agent.',
-        },
-      ],
-      correctExplanation:
-        'Cyanide ion is ambident. KCN is predominantly ionic: K+ [:C≡N:]-, so both C and N can attack, but C-C bond is more stable than C-N. In AgCN, Ag-C bond is covalent; thus nitrogen lone pair attacks R, forming isocyanide.',
-    },
-    {
-      id: 'chem-q4',
-      question:
-        'In the reaction of chiral (R)-2-bromooctane with sodium hydroxide in acetone, what stereochemical outcome is observed in the resulting 2-octanol?',
-      socraticContext: 'Walden inversion kinematics during bimolecular nucleophilic substitution (SN2).',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'Complete (100%) inversion of configuration to (S)-2-octanol via backside nucleophilic attack.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Secondary alkyl halide in polar aprotic acetone with strong nucleophile undergoes classic concerted SN2 backside attack.',
-        },
-        {
-          id: 'opt-b',
-          text: 'Total racemization resulting in an optically inactive (±)-2-octanol 50:50 mixture.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Racemization occurs in unimolecular SN1 via planar carbocation in polar protic solvents, not SN2 in acetone.',
-        },
-        {
-          id: 'opt-c',
-          text: 'Full retention of configuration yielding (R)-2-octanol via frontside internal collapse (SNi).',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: SNi with retention occurs with reagents like SOCl2 in nonpolar solvents (dioxane/ether), not NaOH in acetone.',
-        },
-        {
-          id: 'opt-d',
-          text: 'Elimination exclusively yields oct-1-ene with zero alcohol formation.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: OH- is a good nucleophile on 2° substrate; substitution competes favorably in polar aprotic solvent without high heat.',
-        },
-      ],
-      correctExplanation:
-        'SN2 reactions proceed with stereochemical Walden inversion because the nucleophile attacks from the side directly opposite to the leaving group (180° trajectory), flipping the carbon tetrahedral umbrella.',
-    },
-  ],
-  default: [
-    {
-      id: 'def-q1',
-      question:
-        'How does an authoritative mastery engine ensure concept durability compared to rote memorization?',
-      socraticContext: 'Cognitive load theory and retrieval practice under deliberate spaced repetition.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'By forcing diagnostic misconception interrogation and requiring 80%+ active threshold before unlocking dependent concepts.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Gating progression on conceptual clarity prevents compounding gaps downstream.',
-        },
-        {
-          id: 'opt-b',
-          text: 'By presenting passive summary cards with indefinite repeat clicks without test gates.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Passive consumption creates an illusion of competence without enduring mental schemas.',
-        },
-        {
-          id: 'opt-c',
-          text: 'By prioritizing high question velocity over deep diagnostic analysis of distractor traps.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Speed without reflection reinforces flawed intuition and erroneous heuristics.',
-        },
-        {
-          id: 'opt-d',
-          text: 'By keeping question options in fixed order A to D so learners memorize spatial positions.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Fixed option patterns induce spatial bias and eliminate genuine conceptual discrimination.',
-        },
-      ],
-      correctExplanation:
-        'Deliberate practice with diagnostic feedback and competency gating ensures deep mental schema integration.',
-    },
-    {
-      id: 'def-q2',
-      question:
-        'When diagnosing learner errors on a multiple-choice item, what delivers the highest pedagogical value?',
-      socraticContext: 'Formative assessment and cognitive error taxonomy.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'Exposing the exact false mental model (misconception) that made the chosen incorrect option enticing.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Deconstructing the misconception directly neutralizes intuitive fallacies.',
-        },
-        {
-          id: 'opt-b',
-          text: 'Merely displaying a red crossmark and stating the correct letter without explanation.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Binary right/wrong signaling leaves the underlying cognitive misunderstanding unresolved.',
-        },
-        {
-          id: 'opt-c',
-          text: 'Penalizing user score with zero opportunity to review authoritative study references.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Punitive scoring without remedial guidance induces test anxiety and halts progression.',
-        },
-        {
-          id: 'opt-d',
-          text: 'Replacing the entire curriculum with lower-tier introductory flashcards.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Regressing the curriculum rather than targeted error correction wastes learner tenure.',
-        },
-      ],
-      correctExplanation:
-        'Targeted misconception feedback explains precisely why a distractor felt plausible, breaking invalid cognitive shortcuts.',
-    },
-    {
-      id: 'def-q3',
-      question:
-        'In deliberate skill acquisition, what role does the Socratic Evaluation Gate serve in the learning loop?',
-      socraticContext: 'Mastery learning model (Bloom) and formative boundary verification.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'It operates as an immutable validation checkpoint ensuring prerequisite competency before graph expansion.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Prerequisites must be locked in before advanced nodes can be syntactically comprehended.',
-        },
-        {
-          id: 'opt-b',
-          text: 'It serves as a competitive leaderboard metric to encourage high-stakes peer comparisons.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Socratic gates are mastery-oriented and individualized, not competitive vanity boards.',
-        },
-        {
-          id: 'opt-c',
-          text: 'It is an optional decorative widget that learners should skip during accelerated study tracks.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Bypassing gates leads to catastrophic failure at higher-tier synthesis nodes.',
-        },
-        {
-          id: 'opt-d',
-          text: 'It locks the curriculum permanently if the learner scores below 100% on the initial attempt.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: The Socratic method encourages iterative retakes with novel shuffled questions until mastery is attained.',
-        },
-      ],
-      correctExplanation:
-        'Evaluation gates enforce mastery-based progression: only validated comprehension unlocks subsequent conceptual tiers.',
-    },
-    {
-      id: 'def-q4',
-      question:
-        'Why does Fisher-Yates algorithmic option shuffling represent a strict standard for online assessment engines?',
-      socraticContext: 'Psychometric validity and mitigation of position bias in multiple choice instruments.',
-      options: [
-        {
-          id: 'opt-a',
-          text: 'It guarantees every permutation of choices is equally probable, completely eliminating option location bias.',
-          isCorrect: true,
-          misconceptionExplanation:
-            'Correct: Fisher-Yates produces an unbiased random permutation in O(n) runtime.',
-        },
-        {
-          id: 'opt-b',
-          text: 'It ensures option A is always the easiest distractor and option D is the correct answer.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Fisher-Yates achieves the exact opposite: non-deterministic, uniformly distributed option positions.',
-        },
-        {
-          id: 'opt-c',
-          text: 'It slows down question rendering to simulate examination server latency.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Shuffling is executed client-side in sub-millisecond time and enhances test integrity.',
-        },
-        {
-          id: 'opt-d',
-          text: 'It automatically penalizes students who change their selections multiple times.',
-          isCorrect: false,
-          misconceptionExplanation:
-            'Misconception: Shuffling affects option ordering before display; it does not track or penalize deliberation.',
-        },
-      ],
-      correctExplanation:
-        'Unbiased shuffling forces the student to evaluate conceptual substance rather than inferring patterns from option position.',
-    },
-  ],
-};
-
 function shuffleArray<T>(array: T[]): T[] {
   const arr = [...array];
   for (let i = arr.length - 1; i > 0; i--) {
@@ -604,23 +291,9 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   };
 
   const generateQuestions = useCallback(() => {
-    const isChemistry =
-      currentTrack.category === 'Chemistry' ||
-      currentTrack.title.toLowerCase().includes('chem') ||
-      currentTrack.title.toLowerCase().includes('halo');
-
-    const source = isChemistry ? QUESTION_BANK.chemistry : QUESTION_BANK.default;
-    const shuffledItems = shuffleArray(source).slice(0, 4);
-
-    const questionsWithShuffledOptions: QuizQuestion[] = shuffledItems.map((q) => ({
-      ...q,
-      options: shuffleArray(q.options),
-    }));
-
-    setQuizQuestions(questionsWithShuffledOptions);
     setSelectedAnswers({});
     setEvaluationFeedback(null);
-  }, [currentTrack.category, currentTrack.title]);
+  }, []);
 
   useEffect(() => {
     generateQuestions();
@@ -762,138 +435,34 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }, 700);
   };
 
-  const isChemistry =
-    currentTrack.category === 'Chemistry' ||
-    currentTrack.title.toLowerCase().includes('chem') ||
-    currentTrack.title.toLowerCase().includes('halo');
+  const activeStepResources: StudyResource[] = useMemo(() => {
+    if (fetchedResources && fetchedResources.length > 0) {
+      return fetchedResources;
+    }
+    const dbRes = activeStepObj?.resources;
+    let rawArr: any[] = [];
+    if (Array.isArray(dbRes)) {
+      rawArr = dbRes;
+    } else if (typeof dbRes === 'string') {
+      try { rawArr = JSON.parse(dbRes); } catch (_) { rawArr = []; }
+    }
 
-  const studyResources: StudyResource[] = isChemistry
-    ? [
-        {
-          id: 'yt-1',
-          type: 'youtube',
-          title: 'Haloalkanes and Haloarenes: Complete NCERT & JEE Mechanics',
-          subtitle: 'Reaction mechanisms, SN1 vs SN2 kinetics, and Walden inversion stereochemistry',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          durationOrPages: '42 mins',
-          viewsOrCitation: '1.2M views • 98.4% Helpful',
-          thumbnailUrl:
-            'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
-          videoId: 'dQw4w9WgXcQ',
-          verified: true,
-          organization: 'Khan Academy / NCERT Chemistry',
-        },
-        {
-          id: 'yt-2',
-          type: 'youtube',
-          title: 'Ambident Nucleophiles & Saytzeff vs Hofmann β-Elimination',
-          subtitle: 'KCN vs AgCN ambident reactivity and anti-periplanar E2 stereochemistry',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          durationOrPages: '35 mins',
-          viewsOrCitation: '840K views • 99.1% Helpful',
-          thumbnailUrl:
-            'https://images.unsplash.com/photo-1603126857599-f6e157fa2fe6?auto=format&fit=crop&w=600&q=80',
-          videoId: 'dQw4w9WgXcQ',
-          verified: true,
-          organization: 'Professor Dave Explains / Organic Chem',
-        },
-        {
-          id: 'doc-1',
-          type: 'doc',
-          title: 'NCERT Class 12 Chemistry: Chapter 6 Official Canonical Textbook',
-          subtitle: 'Ministry of Education, Government of India (Table 6.4 Nucleophilic Substitutions)',
-          url: 'https://ncert.nic.in/textbook.php',
-          durationOrPages: '28 Pages',
-          viewsOrCitation: 'CBSE Official Reference',
-          verified: true,
-          organization: 'NCERT / National Council of Educational Research',
-        },
-        {
-          id: 'doc-2',
-          type: 'doc',
-          title: 'IUPAC Compendium of Chemical Terminology (Gold Book)',
-          subtitle: 'Definitive nomenclature, reaction path conventions, and Walden Inversion rules',
-          url: 'https://goldbook.iupac.org/',
-          durationOrPages: 'Standards Publication',
-          viewsOrCitation: 'IUPAC Standard 2024',
-          verified: true,
-          organization: 'International Union of Pure and Applied Chemistry',
-        },
-        {
-          id: 'doc-3',
-          type: 'doc',
-          title: 'Wikipedia: Nucleophilic Substitution (SN1, SN2, and SNi Mechanisms)',
-          subtitle: 'Peer-reviewed physical organic chemistry with orbital symmetry diagrams',
-          url: 'https://en.wikipedia.org/wiki/Nucleophilic_substitution',
-          durationOrPages: 'Canonical Guide',
-          viewsOrCitation: 'Wikimedia Foundation Verified',
-          verified: true,
-          organization: 'Wikimedia Foundation',
-        },
-      ]
-    : [
-        {
-          id: 'yt-def-1',
-          type: 'youtube',
-          title: 'Axiomatic Foundations & Kinematics Mastery',
-          subtitle: 'Deliberate practice and first-principles mental models for complex engineering',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          durationOrPages: '38 mins',
-          viewsOrCitation: '950K views • 99% Helpful',
-          thumbnailUrl:
-            'https://images.unsplash.com/photo-1517649763962-0c623266ddc0?auto=format&fit=crop&w=600&q=80',
-          videoId: 'dQw4w9WgXcQ',
-          verified: true,
-          organization: 'MIT OpenCourseWare',
-        },
-        {
-          id: 'yt-def-2',
-          type: 'youtube',
-          title: 'Cognitive Schema Architecture & Socratic Diagnostics',
-          subtitle: 'How diagnostic gates prevent compounding misconceptions in skill acquisition',
-          url: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
-          durationOrPages: '29 mins',
-          viewsOrCitation: '420K views • 98% Helpful',
-          thumbnailUrl:
-            'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=600&q=80',
-          videoId: 'dQw4w9WgXcQ',
-          verified: true,
-          organization: 'Stanford Online Learning',
-        },
-        {
-          id: 'doc-def-1',
-          type: 'doc',
-          title: 'MDN Web Docs: Web Technologies & Core Architecture',
-          subtitle: 'Canonical reference for foundational web standards, JavaScript, and CSS',
-          url: 'https://developer.mozilla.org',
-          durationOrPages: 'Canonical Reference',
-          viewsOrCitation: 'Mozilla Developer Network',
-          verified: true,
-          organization: 'MDN Web Docs',
-        },
-        {
-          id: 'doc-def-2',
-          type: 'doc',
-          title: 'Wikipedia: Mastery Learning & Bloom Taxonomy',
-          subtitle: 'Instructional strategy predicated on achieving prerequisite mastery',
-          url: 'https://en.wikipedia.org/wiki/Mastery_learning',
-          durationOrPages: 'Verified Encyclopedia',
-          viewsOrCitation: 'Wikimedia Foundation',
-          verified: true,
-          organization: 'Wikimedia Foundation',
-        },
-        {
-          id: 'doc-def-3',
-          type: 'doc',
-          title: 'ACM Digital Library: Deliberate Practice in Cognitive Science',
-          subtitle: 'Empirical foundations of structured feedback and knowledge decomposition',
-          url: 'https://dl.acm.org',
-          durationOrPages: 'Academic Archive',
-          viewsOrCitation: 'ACM Research Standard',
-          verified: true,
-          organization: 'Association for Computing Machinery',
-        },
-      ];
+    if (rawArr.length > 0) {
+      return rawArr.map((r: any, idx: number) => ({
+        id: r.id || `res-${idx}`,
+        type: r.type === 'VIDEO' || r.type === 'youtube' || (r.url && (r.url.includes('youtube.com') || r.url.includes('youtu.be'))) ? 'youtube' : 'doc',
+        title: r.title || 'Curated Resource',
+        subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
+        url: r.url || '#',
+        durationOrPages: r.type === 'VIDEO' ? 'Tutorial Video' : 'Documentation',
+        viewsOrCitation: r.platform || 'Verified Resource',
+        thumbnailUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
+        verified: true,
+        organization: 'Skillprax Verified',
+      }));
+    }
+    return [];
+  }, [fetchedResources, activeStepObj]);
 
   return (
     <motion.div
@@ -1310,145 +879,169 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-6"
             >
-              <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                    <h3 className="text-lg font-heading font-extrabold text-slate-900">
-                      Authoritative Curriculum Resources
-                    </h3>
+              {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
+              {(!activeStepResources || activeStepResources.length === 0) && !isSynthesizing && (
+                <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-4">
+                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200 shadow-sm">
+                    <Sparkles className="w-7 h-7 text-emerald-600 animate-pulse"/>
                   </div>
-                  <p className="text-xs text-slate-600 max-w-xl">
-                    Curated according to strict pedagogical quotas: exactly 2 high-view video tutorials and 3 canonical peer-reviewed documentation links. Zero 404s guaranteed.
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-heading font-extrabold text-slate-900">Milestone Curriculum Ready</h3>
+                    <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
+                      Synthesize live web resources curated specifically for "{activeStepTitle}" using Tavily web search and Groq AI intelligence.
+                    </p>
+                  </div>
+                  <div className="pt-2">
+                    <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-500/20 inline-block">
+                      <button
+                        onClick={handleSynthesizeMaterials}
+                        disabled={isSynthesizing}
+                        className="relative z-10 px-6 py-3 rounded-[10px] font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 text-white transition-all flex items-center gap-2 cursor-pointer btn-shimmer"
+                      >
+                        <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
+                        <span>⚡ Build My Milestone Curriculum</span>
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SYNTHESIZING STATE */}
+              {isSynthesizing && (
+                <div className="p-10 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-3">
+                  <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
+                  <h4 className="text-base font-heading font-bold text-slate-900">
+                    Querying Tavily Web Search & Curating via Groq...
+                  </h4>
+                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                    Harvesting technical documentation and video demonstrations tailored to "{activeStepTitle}".
                   </p>
                 </div>
+              )}
 
-                <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-500/20">
-                  <button
-                    onClick={handleSynthesizeMaterials}
-                    disabled={isSynthesizing}
-                    className="relative z-10 px-6 py-3 rounded-[10px] font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 text-white transition-all duration-200 flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
-                  >
-                    {isSynthesizing ? (
-                      <>
-                        <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        <span>Synthesizing Authoritative Sources...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Sparkles className="w-4 h-4 text-emerald-100" />
-                        <span>⚡ Synthesize Authoritative Materials</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              {isSynthesizing ? (
-                <div className="space-y-4">
-                  <div className="h-6 w-48 bg-slate-200 rounded-md animate-pulse" />
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
-                    <div className="h-64 bg-slate-100 rounded-2xl animate-pulse" />
-                  </div>
-                </div>
-              ) : (
+              {/* DYNAMIC RESOURCES DISPLAY */}
+              {activeStepResources && activeStepResources.length > 0 && !isSynthesizing && (
                 <>
-                  <div className="space-y-3">
-                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                      <Youtube className="w-4 h-4 text-red-500" />
-                      <span>Verified High-Yield Video Seminars (Quota: 2)</span>
-                    </h4>
+                  <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <div className="flex items-center gap-2">
+                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                        <h3 className="text-lg font-heading font-extrabold text-slate-900">
+                          Authoritative Curriculum Resources
+                        </h3>
+                      </div>
+                      <p className="text-xs text-slate-600 max-w-xl">
+                        Curated directly from live web search for "{activeStepTitle}".
+                      </p>
+                    </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {studyResources
-                        .filter((r) => r.type === 'youtube')
-                        .slice(0, 2)
-                        .map((res) => (
-                          <div
-                            key={res.id}
-                            onClick={() => setActiveVideoModal(res)}
-                            className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-emerald-300 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer group flex flex-col justify-between"
-                          >
-                            <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
-                              <img
-                                src={res.thumbnailUrl}
-                                alt={res.title}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
-                              />
-                              <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/10 transition-colors">
-                                <div className="w-12 h-12 rounded-full bg-white/95 text-red-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
-                                  <Video className="w-5 h-5 fill-current" />
+                    <button
+                      onClick={handleSynthesizeMaterials}
+                      disabled={isSynthesizing}
+                      className="px-4 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
+                    >
+                      <RotateCcw className={`w-3.5 h-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
+                      <span>Re-sync Resources</span>
+                    </button>
+                  </div>
+
+                  {/* VIDEOS SECTION */}
+                  {activeStepResources.filter((r) => r.type === 'youtube').length > 0 && (
+                    <div className="space-y-3">
+                      <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                        <Video className="w-4 h-4 text-red-500" />
+                        <span>Verified Visual & Video Walkthroughs</span>
+                      </h4>
+
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {activeStepResources
+                          .filter((r) => r.type === 'youtube')
+                          .map((res) => (
+                            <div
+                              key={res.id}
+                              onClick={() => setActiveVideoModal(res)}
+                              className="bg-white rounded-2xl border border-slate-200/90 shadow-2xs hover:border-emerald-300 hover:shadow-md transition-all duration-200 overflow-hidden cursor-pointer group flex flex-col justify-between"
+                            >
+                              <div className="relative aspect-video w-full overflow-hidden bg-slate-900">
+                                <img
+                                  src={res.thumbnailUrl}
+                                  alt={res.title}
+                                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300 opacity-90"
+                                />
+                                <div className="absolute inset-0 bg-black/20 flex items-center justify-center group-hover:bg-black/10 transition-colors">
+                                  <div className="w-12 h-12 rounded-full bg-white/95 text-red-600 flex items-center justify-center shadow-lg group-hover:scale-110 transition-transform">
+                                    <Video className="w-5 h-5 fill-current" />
+                                  </div>
+                                </div>
+                                <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/80 text-[10px] font-mono text-white font-semibold">
+                                  {res.durationOrPages}
                                 </div>
                               </div>
-                              <div className="absolute bottom-2.5 right-2.5 px-2 py-0.5 rounded-md bg-black/80 text-[10px] font-mono text-white font-semibold">
-                                {res.durationOrPages}
+
+                              <div className="p-4 space-y-2">
+                                <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
+                                  <span>{res.organization}</span>
+                                  <span className="text-emerald-600 font-semibold">{res.viewsOrCitation}</span>
+                                </div>
+                                <h5 className="text-sm font-heading font-semibold text-slate-900 leading-snug group-hover:text-emerald-700 transition-colors">
+                                  {res.title}
+                                </h5>
+                                <p className="text-xs text-slate-600 line-clamp-2">{res.subtitle}</p>
+                              </div>
+
+                              <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-700">
+                                <span>Launch Seminar Preview</span>
+                                <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
                               </div>
                             </div>
-
-                            <div className="p-4 space-y-2">
-                              <div className="flex items-center justify-between text-[11px] text-slate-500 font-medium">
-                                <span>{res.organization}</span>
-                                <span className="text-emerald-600 font-semibold">
-                                  {res.viewsOrCitation}
-                                </span>
-                              </div>
-                              <h5 className="text-sm font-heading font-semibold text-slate-900 leading-snug group-hover:text-emerald-700 transition-colors">
-                                {res.title}
-                              </h5>
-                              <p className="text-xs text-slate-600 line-clamp-2">{res.subtitle}</p>
-                            </div>
-
-                            <div className="px-4 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-emerald-700">
-                              <span>Launch Seminar Preview</span>
-                              <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
 
-                  <div className="space-y-3 pt-2">
-                    <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                      <FileText className="w-4 h-4 text-sky-500" />
-                      <span>Canonical Documentation Link Cards (Quota: 3)</span>
-                    </h4>
+                  {/* DOCUMENTATION SECTION */}
+                  {activeStepResources.filter((r) => r.type === 'doc').length > 0 && (
+                    <div className="space-y-3 pt-2">
+                      <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-sky-500" />
+                        <span>Canonical Technical Documentation</span>
+                      </h4>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      {studyResources
-                        .filter((r) => r.type === 'doc')
-                        .slice(0, 3)
-                        .map((doc) => (
-                          <a
-                            key={doc.id}
-                            href={doc.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
-                          >
-                            <div className="space-y-2.5">
-                              <div className="flex items-center justify-between">
-                                <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                                  VERIFIED
-                                </span>
-                                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {activeStepResources
+                          .filter((r) => r.type === 'doc')
+                          .map((doc) => (
+                            <a
+                              key={doc.id}
+                              href={doc.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+                            >
+                              <div className="space-y-2.5">
+                                <div className="flex items-center justify-between">
+                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                                    VERIFIED DOC
+                                  </span>
+                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                </div>
+
+                                <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
+                                  {doc.title}
+                                </h5>
+
+                                <p className="text-xs text-slate-600 leading-relaxed">{doc.subtitle}</p>
                               </div>
 
-                              <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
-                                {doc.title}
-                              </h5>
-
-                              <p className="text-xs text-slate-600 leading-relaxed">{doc.subtitle}</p>
-                            </div>
-
-                            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-sky-700">
-                              <span>{doc.viewsOrCitation}</span>
-                              <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
-                            </div>
-                          </a>
-                        ))}
+                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-sky-700">
+                                <span>{doc.viewsOrCitation}</span>
+                                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                              </div>
+                            </a>
+                          ))}
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </>
               )}
 
