@@ -10,7 +10,7 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Skillprax | Autonomous Competency Learning Platform",
+  title: "SKILL-TRACK | Autonomous Competency Learning Platform",
   description: "Closed-loop pedagogical engine and skill RPG HUD",
   icons: { icon: "/logo.png" },
 };
@@ -24,7 +24,7 @@ export default function RootLayout({
     <html lang="en">
       <body className={`${plusJakartaSans.variable} bg-transparent text-foreground min-h-screen font-sans antialiased selection:bg-primary/20 selection:text-primary`}>
         {/* Zero-Cut Seamless Looping Video Background Engine */}
-        <CinematicVideoBackground src="/background video.mp4" poster="/background-poster.jpg" />
+        <CinematicVideoBackground src="/background-motion.mp4" poster="/background-poster.jpg" />
         
         {/* Main content */}
         <div className="relative z-10">

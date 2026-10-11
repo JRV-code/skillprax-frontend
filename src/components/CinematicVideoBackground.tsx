@@ -5,38 +5,27 @@ import React, { useEffect, useRef, useState, useCallback } from 'react';
 export interface CinematicVideoBackgroundProps {
   src?: string;
   overlayOpacity?: number;
-  crossfadeDuration?: number;
   poster?: string;
   className?: string;
 }
 
 /**
- * CinematicVideoBackground: Zero-Cut Seamless Looping Video Engine
+ * CinematicVideoBackground: Continuous Resilient Looping Video Engine
  *
- * Implements a Dual-Buffer (Layer A & Layer B) crossfade architecture
- * that eliminates the native HTML5 `<video loop>` hardware-decoder gap,
- * ensuring zero blackouts, micro-stutters, frame drops, or visible seams.
+ * Guarantees video playback never freezes, stalls, or reverts to a static image
+ * during page navigation, route transitions, or browser backgrounding.
  */
 export const CinematicVideoBackground: React.FC<CinematicVideoBackgroundProps> = ({
-  src = '/assets/background-motion.mp4',
+  src = '/background-motion.mp4',
   overlayOpacity = 0.28,
-  crossfadeDuration = 1.0,
   poster = '/background-poster.jpg',
   className = '',
 }) => {
-  const videoARef = useRef<HTMLVideoElement>(null);
-  const videoBRef = useRef<HTMLVideoElement>(null);
-
-  const [opacityA, setOpacityA] = useState<number>(1);
-  const [opacityB, setOpacityB] = useState<number>(0);
-
+  const videoRef = useRef<HTMLVideoElement>(null);
   const [isVideoReady, setIsVideoReady] = useState<boolean>(false);
-  const [hasPlaybackError, setHasPlaybackError] = useState<boolean>(false);
   const [prefersReducedMotion, setPrefersReducedMotion] = useState<boolean>(false);
-
-  const activeLayerRef = useRef<'A' | 'B'>('A');
-  const isTransitioningRef = useRef<boolean>(false);
-  const animFrameIdRef = useRef<number | null>(null);
+  const lastTimeRef = useRef<number>(0);
+  const stallCountRef = useRef<number>(0);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -50,184 +39,124 @@ export const CinematicVideoBackground: React.FC<CinematicVideoBackgroundProps> =
     return () => mediaQuery.removeEventListener('change', handleMediaChange);
   }, []);
 
-  const configureVideoNode = useCallback((video: HTMLVideoElement | null) => {
-    if (!video) return;
+  const ensurePlayback = useCallback(() => {
+    const video = videoRef.current;
+    if (!video || prefersReducedMotion) return;
+
     video.muted = true;
     video.defaultMuted = true;
     video.playsInline = true;
-    video.setAttribute('playsinline', '');
-    video.setAttribute('webkit-playsinline', '');
-    video.setAttribute('disablepictureinpicture', '');
-    video.controls = false;
-  }, []);
 
-  const safePlay = useCallback(async (video: HTMLVideoElement | null) => {
-    if (!video) return;
-    try {
-      configureVideoNode(video);
-      await video.play();
-    } catch {
-      // Autoplay blocked or interrupted; will gracefully fall back
+    if (video.paused) {
+      video.play().then(() => {
+        setIsVideoReady(true);
+      }).catch(() => {
+        // Autoplay may be delayed until first user gesture; handled by global listeners
+      });
     }
-  }, [configureVideoNode]);
+  }, [prefersReducedMotion]);
 
   useEffect(() => {
-    if (prefersReducedMotion) return;
+    const video = videoRef.current;
+    if (!video) return;
 
-    const videoA = videoARef.current;
-    const videoB = videoBRef.current;
+    ensurePlayback();
 
-    if (!videoA || !videoB) return;
+    // Watchdog timer: checks every 1000ms that video is actively advancing
+    const watchdog = setInterval(() => {
+      if (!video || prefersReducedMotion) return;
 
-    configureVideoNode(videoA);
-    configureVideoNode(videoB);
-
-    let isMounted = true;
-
-    activeLayerRef.current = 'A';
-    isTransitioningRef.current = false;
-    setOpacityA(1);
-    setOpacityB(0);
-
-    videoA.currentTime = 0;
-    safePlay(videoA)
-      .then(() => {
-        if (isMounted) setIsVideoReady(true);
-      })
-      .catch(() => {
-        if (isMounted) setHasPlaybackError(true);
-      });
-
-    const checkPlaybackLoop = () => {
-      if (!isMounted) return;
-
-      const currentActive = activeLayerRef.current;
-      const currentVideo = currentActive === 'A' ? videoA : videoB;
-      const nextVideo = currentActive === 'A' ? videoB : videoA;
-
-      if (
-        currentVideo &&
-        currentVideo.duration &&
-        !isNaN(currentVideo.duration) &&
-        !isTransitioningRef.current
-      ) {
-        const timeRemaining = currentVideo.duration - currentVideo.currentTime;
-
-        if (timeRemaining <= crossfadeDuration && timeRemaining > 0) {
-          isTransitioningRef.current = true;
-
-          nextVideo.currentTime = 0;
-          safePlay(nextVideo);
-
-          if (currentActive === 'A') {
-            setOpacityA(0);
-            setOpacityB(1);
-          } else {
-            setOpacityA(1);
-            setOpacityB(0);
+      if (video.paused) {
+        ensurePlayback();
+      } else {
+        const currentTime = video.currentTime;
+        if (currentTime === lastTimeRef.current && currentTime > 0) {
+          stallCountRef.current += 1;
+          if (stallCountRef.current >= 2) {
+            // Video stalled; recover by nudging or resetting
+            video.currentTime = 0;
+            ensurePlayback();
+            stallCountRef.current = 0;
           }
-
-          const transitionTimer = setTimeout(() => {
-            if (!isMounted) return;
-            activeLayerRef.current = currentActive === 'A' ? 'B' : 'A';
-            isTransitioningRef.current = false;
-
-            try {
-              currentVideo.pause();
-              currentVideo.currentTime = 0;
-            } catch {
-              // Ignore pause errors
-            }
-          }, crossfadeDuration * 1000);
-
-          return () => clearTimeout(transitionTimer);
+        } else {
+          stallCountRef.current = 0;
+          lastTimeRef.current = currentTime;
+          setIsVideoReady(true);
         }
       }
+    }, 1000);
 
-      animFrameIdRef.current = requestAnimationFrame(checkPlaybackLoop);
+    // Re-trigger playback on route navigation, visibility change, and window focus
+    const handleWakeup = () => {
+      ensurePlayback();
     };
 
-    animFrameIdRef.current = requestAnimationFrame(checkPlaybackLoop);
+    window.addEventListener('focus', handleWakeup);
+    window.addEventListener('pageshow', handleWakeup);
+    document.addEventListener('visibilitychange', handleWakeup);
+    window.addEventListener('click', handleWakeup, { passive: true });
+    window.addEventListener('scroll', handleWakeup, { passive: true });
+    window.addEventListener('pointerdown', handleWakeup, { passive: true });
 
     return () => {
-      isMounted = false;
-      if (animFrameIdRef.current) {
-        cancelAnimationFrame(animFrameIdRef.current);
-      }
-      try {
-        videoA.pause();
-        videoB.pause();
-      } catch {
-        // Ignore pause errors during teardown
-      }
+      clearInterval(watchdog);
+      window.removeEventListener('focus', handleWakeup);
+      window.removeEventListener('pageshow', handleWakeup);
+      document.removeEventListener('visibilitychange', handleWakeup);
+      window.removeEventListener('click', handleWakeup);
+      window.removeEventListener('scroll', handleWakeup);
+      window.removeEventListener('pointerdown', handleWakeup);
     };
-  }, [src, crossfadeDuration, prefersReducedMotion, safePlay, configureVideoNode]);
+  }, [ensurePlayback, prefersReducedMotion]);
 
   return (
     <div
       aria-hidden="true"
-      className={`fixed inset-0 w-full h-full pointer-events-none select-none z-0 overflow-hidden bg-white ${className}`}
+      className={`fixed inset-0 w-full h-full pointer-events-none select-none z-0 overflow-hidden bg-slate-900 ${className}`}
       style={{
-        backgroundColor: '#FFFFFF',
+        backgroundColor: '#0F172A',
       }}
     >
-      {(prefersReducedMotion || hasPlaybackError) ? (
-        <img
-          src={poster}
-          alt="Skillprax Ambient Background"
-          className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-700 opacity-90"
+      {/* Fallback poster until video starts */}
+      <img
+        src={poster}
+        alt=""
+        className={`absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-700 ${
+          isVideoReady ? 'opacity-0' : 'opacity-100'
+        }`}
+      />
+
+      {!prefersReducedMotion && (
+        <video
+          ref={videoRef}
+          src={src}
+          poster={poster}
+          autoPlay
+          muted
+          playsInline
+          loop
+          preload="auto"
+          controls={false}
+          disablePictureInPicture
+          onPlaying={() => setIsVideoReady(true)}
+          onTimeUpdate={() => setIsVideoReady(true)}
+          onEnded={(e) => {
+            e.currentTarget.currentTime = 0;
+            e.currentTarget.play().catch(() => {});
+          }}
+          onPause={() => {
+            // If browser pauses in background, wake it back up
+            if (!prefersReducedMotion) ensurePlayback();
+          }}
+          className={`absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-700 ${
+            isVideoReady ? 'opacity-100' : 'opacity-0'
+          }`}
         />
-      ) : (
-        <>
-          <img
-            src={poster}
-            alt=""
-            className={`absolute inset-0 w-full h-full object-cover pointer-events-none select-none transition-opacity duration-700 ${
-              isVideoReady ? 'opacity-0' : 'opacity-100'
-            }`}
-          />
-
-          <video
-            ref={videoARef}
-            src={src}
-            poster={poster}
-            autoPlay
-            muted
-            playsInline
-            loop={false}
-            preload="auto"
-            controls={false}
-            disablePictureInPicture
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
-            style={{
-              opacity: opacityA,
-              transition: `opacity ${crossfadeDuration}s cubic-bezier(0.4, 0, 0.2, 1)`,
-              willChange: 'opacity',
-            }}
-          />
-
-          <video
-            ref={videoBRef}
-            src={src}
-            poster={poster}
-            muted
-            playsInline
-            loop={false}
-            preload="auto"
-            controls={false}
-            disablePictureInPicture
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none select-none"
-            style={{
-              opacity: opacityB,
-              transition: `opacity ${crossfadeDuration}s cubic-bezier(0.4, 0, 0.2, 1)`,
-              willChange: 'opacity',
-            }}
-          />
-        </>
       )}
 
+      {/* Translucent cinematic overlay for crisp text contrast */}
       <div
-        className="absolute inset-0 w-full h-full pointer-events-none bg-gradient-to-br from-white/80 via-white/60 to-emerald-50/40 backdrop-blur-[0.5px]"
+        className="absolute inset-0 w-full h-full pointer-events-none bg-gradient-to-br from-white/90 via-slate-50/80 to-emerald-50/50 backdrop-blur-[1px]"
         style={{
           opacity: overlayOpacity,
         }}
@@ -237,7 +166,7 @@ export const CinematicVideoBackground: React.FC<CinematicVideoBackgroundProps> =
         className="absolute inset-0 w-full h-full pointer-events-none"
         style={{
           background:
-            'radial-gradient(circle at 10% 10%, rgba(16, 185, 129, 0.04) 0%, transparent 60%), radial-gradient(circle at 90% 90%, rgba(99, 102, 241, 0.03) 0%, transparent 60%)',
+            'radial-gradient(circle at 15% 15%, rgba(2, 132, 199, 0.08) 0%, transparent 65%), radial-gradient(circle at 85% 85%, rgba(16, 185, 129, 0.08) 0%, transparent 65%)',
         }}
       />
     </div>

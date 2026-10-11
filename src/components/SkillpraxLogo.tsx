@@ -154,14 +154,14 @@ export const SkillpraxLogo: React.FC<SkillpraxLogoProps> = ({
         </svg>
       </div>
 
-      {/* WORDMARK: "Skill" (Sky Blue) + "prax" (Warm Amber) */}
+      {/* WORDMARK: "SKILL-" (Tech Blue #0284C7) + "TRACK" (Warm Amber #F59E0B) */}
       {displayWordmark && (
-        <div className={`flex items-baseline font-heading font-extrabold tracking-tight mt-1 transition-transform duration-300 group-hover:scale-105 ${textSize}`}>
-          <span className="text-[#0091FF] transition-colors duration-200 group-hover:text-[#38BDF8]">
-            Skill
+        <div className={`flex items-baseline font-heading font-black tracking-tight mt-1 transition-transform duration-300 group-hover:scale-105 ${textSize}`}>
+          <span className="text-[#0284C7] font-black tracking-tight transition-colors duration-200 group-hover:text-[#38BDF8]">
+            SKILL-
           </span>
-          <span className="text-[#F59E0B] transition-colors duration-200 group-hover:text-[#FBBF24]">
-            prax
+          <span className="text-[#F59E0B] font-black tracking-tight transition-colors duration-200 group-hover:text-[#FBBF24]">
+            TRACK
           </span>
         </div>
       )}
@@ -169,4 +169,6 @@ export const SkillpraxLogo: React.FC<SkillpraxLogoProps> = ({
   );
 };
 
+export const SkillTrackLogo = SkillpraxLogo;
 export default SkillpraxLogo;
+

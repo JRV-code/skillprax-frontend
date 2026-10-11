@@ -31,7 +31,7 @@ interface LandingPageProps {
   onOpenAdmin: () => void;
   existingProfiles?: any[];
   onSelectProfile?: (profileId: string) => void;
-  onCreateProfile?: (data: { name: string; educationBoard: string; grade: string }) => void;
+  onCreateProfile?: (data: { name: string; educationBoard?: string; grade?: string; profession?: string; age?: number }) => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -47,11 +47,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [gatewayMode, setGatewayMode] = useState<'create' | 'existing'>('create');
 
-  const [name, setName] = useState('Explorer');
+  const [name, setName] = useState('');
   const [educationBoard, setEducationBoard] = useState('GSEB');
   const [grade, setGrade] = useState('Class 12');
   const [age, setAge] = useState((userProfile.age ?? 18).toString());
-  const [profession, setProfession] = useState(userProfile.profession ?? 'Class 12 Student');
+  const [profession, setProfession] = useState(userProfile.profession ?? 'Student');
   const [targetHours, setTargetHours] = useState(userProfile.targetHours);
   const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes);
   const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime ?? '20:30');
@@ -80,18 +80,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
     if (onCreateProfile) {
       onCreateProfile({
-        name: name.trim() || 'Explorer',
-        educationBoard,
-        grade,
+        name: name.trim() || 'student_01',
+        educationBoard: profession === 'Student' ? educationBoard : undefined,
+        grade: profession === 'Student' ? grade : undefined,
+        profession,
+        age: parseInt(age, 10) || 18,
       });
       setIsGatewayOpen(false);
       return;
     }
 
     onUpdateProfile({
-      name: name.trim() || 'Explorer',
+      name: name.trim() || 'student_01',
       age: parseInt(age, 10) || 18,
-      profession: `${educationBoard} • ${grade}`,
+      profession: profession === 'Student' ? `${educationBoard} • ${grade}` : profession,
       targetHours: Math.max(0, Math.min(24, targetHours)),
       targetMinutes: Math.max(0, Math.min(59, targetMinutes)),
       dailyReminderTime: reminderTime,
@@ -128,9 +130,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           onClick={() => onNavigate('page01')}
         >
           <SkillpraxLogo size="xs" showText={false} />
-          <span className="font-heading font-extrabold text-xl tracking-tight transition-transform duration-200 group-hover:scale-105">
-            <span className="text-[#0091FF]">Skill</span>
-            <span className="text-[#F59E0B]">prax</span>
+          <span className="font-heading font-black text-xl tracking-tight transition-transform duration-200 group-hover:scale-105">
+            <span className="text-[#0284C7] font-black">SKILL-</span>
+            <span className="text-[#F59E0B] font-black">TRACK</span>
           </span>
         </div>
 
@@ -387,13 +389,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <form onSubmit={handleCreateNewProfile} className="space-y-4 animate-fade-in">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Learner Full Name
+                      Learner Identification / Alias
                     </label>
                     <input
                       type="text"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
-                      placeholder="e.g. Explorer"
+                      placeholder="e.g., xyz (or e.g., student_01)"
                       required
                       className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium"
                     />
@@ -402,34 +404,85 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Education Board
+                        Age
                       </label>
-                      <select
-                        value={educationBoard}
-                        onChange={(e) => setEducationBoard(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
-                      >
-                        <option value="GSEB">GSEB (Gujarat Board)</option>
-                        <option value="CBSE">CBSE (Central Board)</option>
-                        <option value="General">General / Competitive</option>
-                      </select>
+                      <input
+                        type="number"
+                        min="5"
+                        max="100"
+                        value={age}
+                        onChange={(e) => setAge(e.target.value)}
+                        placeholder="18"
+                        required
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                      />
                     </div>
 
                     <div>
                       <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                        Grade / Class
+                        Profession
                       </label>
                       <select
-                        value={grade}
-                        onChange={(e) => setGrade(e.target.value)}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                        value={profession}
+                        onChange={(e) => setProfession(e.target.value)}
+                        className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
                       >
-                        <option value="Class 12">Class 12 (NCERT / Board)</option>
-                        <option value="Class 11">Class 11</option>
-                        <option value="College / Competitive">College / Competitive</option>
+                        <option value="Student">Student</option>
+                        <option value="Software Engineer">Software Engineer</option>
+                        <option value="Athlete">Athlete</option>
+                        <option value="Designer">Designer</option>
+                        <option value="Self-Taught">Self-Taught</option>
+                        <option value="Other">Other</option>
                       </select>
                     </div>
                   </div>
+
+                  {/* Conditional Student Accordion: Revealed ONLY IF profession === 'Student' */}
+                  <AnimatePresence>
+                    {profession === 'Student' && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.25, ease: 'easeInOut' }}
+                        className="space-y-3 pt-1 border-t border-slate-100 overflow-hidden"
+                      >
+                        <div className="grid grid-cols-2 gap-3">
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Education Board
+                            </label>
+                            <select
+                              value={educationBoard}
+                              onChange={(e) => setEducationBoard(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                            >
+                              <option value="GSEB">GSEB (State Board)</option>
+                              <option value="CBSE">CBSE (Central Board)</option>
+                              <option value="ICSE">ICSE / ISC</option>
+                              <option value="College / Competitive">College / Competitive</option>
+                            </select>
+                          </div>
+
+                          <div>
+                            <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                              Standard / Grade
+                            </label>
+                            <select
+                              value={grade}
+                              onChange={(e) => setGrade(e.target.value)}
+                              className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-semibold text-slate-800"
+                            >
+                              <option value="Class 12">Class 12</option>
+                              <option value="Class 11">Class 11</option>
+                              <option value="Class 10">Class 10</option>
+                              <option value="Undergraduate">Undergraduate</option>
+                            </select>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div className="pt-2">
                     <button

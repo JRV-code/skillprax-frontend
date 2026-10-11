@@ -118,16 +118,20 @@ export default function Home() {
     name,
     educationBoard,
     grade,
+    profession,
+    age,
   }: {
     name: string;
-    educationBoard: string;
-    grade: string;
+    educationBoard?: string;
+    grade?: string;
+    profession?: string;
+    age?: number;
   }) => {
     try {
       const res = await fetch('/api/profiles', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, educationBoard, grade }),
+        body: JSON.stringify({ name, educationBoard, grade, profession, age }),
       });
       if (!res.ok) throw new Error('Failed to create profile');
       const data = await res.json();

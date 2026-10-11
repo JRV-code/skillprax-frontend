@@ -1,19 +1,22 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Sparkles, Zap, FlaskConical, Code, Trophy, 
   Target, Layers, ArrowRight, ShieldCheck, Check,
-  Atom, Activity, Palette, Home, Brain
+  Atom, Activity, Palette, Home, Brain, Tag, Compass
 } from 'lucide-react';
 import { SkillTrack, DomainCategory } from '@/types';
 
-interface EnrollSkillModalProps {
+export interface EnrollSkillModalProps {
   isOpen: boolean;
   onClose: () => void;
   onEnroll?: (newTrack: SkillTrack) => void;
+  initialTitle?: string;
+  initialDomain?: string;
+  initialSubGenre?: string;
 }
 
 const DOMAINS: Array<{
@@ -66,21 +69,42 @@ const DOMAINS: Array<{
   },
 ];
 
+const SUB_GENRES_MAP: Record<string, string[]> = {
+  Science: ['Physical Kinetics', 'Organic Reaction Mechanisms', 'Thermodynamics', 'Quantum Foundations', 'Cellular Genetics'],
+  Athletics: ['Goalkeeping & Reflexes', 'Striker Finishing', 'Sprint Acceleration & Biomechanics', 'Midfield Playmaking', 'Explosive Plyometrics'],
+  Art: ['Dynamic Portrait Sketching', 'Oil Painting & Glazes', 'Human Anatomy & Gesture', 'Vector Design Systems', '3D Hard-Surface Modeling'],
+  Homemaking: ['Culinary Thermodynamics', 'Macronutrient Engineering', 'Spatial Micro-Organization', 'Budgeting & Asset Balance'],
+  'Cognitive Logic': ['Distributed Systems Consensus', 'Formal Propositional Logic', 'Graph Algorithms & Traversal', 'System Architecture & Concurrency'],
+};
+
 export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
   isOpen,
   onClose,
   onEnroll,
+  initialTitle = '',
+  initialDomain = '',
+  initialSubGenre = '',
 }) => {
   const router = useRouter();
   const [selectedDomainId, setSelectedDomainId] = useState<DomainCategory>('Science');
   const [customTitle, setCustomTitle] = useState<string>('');
+  const [subGenre, setSubGenre] = useState<string>('');
   const [targetGoal, setTargetGoal] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string>('');
 
+  useEffect(() => {
+    if (initialDomain && DOMAINS.some(d => d.id === initialDomain)) {
+      setSelectedDomainId(initialDomain as DomainCategory);
+    }
+    if (initialTitle) setCustomTitle(initialTitle);
+    if (initialSubGenre) setSubGenre(initialSubGenre);
+  }, [initialTitle, initialDomain, initialSubGenre, isOpen]);
+
   if (!isOpen) return null;
 
   const currentDomain = DOMAINS.find((d) => d.id === selectedDomainId) || DOMAINS[0];
+  const suggestedPills = SUB_GENRES_MAP[selectedDomainId] || [];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,6 +127,7 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
           profileId: activeProfileId,
           title: titleToUse,
           domain: selectedDomainId,
+          subGenre: subGenre.trim() || undefined,
           targetGoal: targetGoal.trim() || 'Full Mastery',
         }),
       });
@@ -148,9 +173,14 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
                 <h3 className="text-lg font-heading font-extrabold tracking-tight">
                   ⚡ Generate Mastery Track
                 </h3>
-                <p className="text-xs text-slate-300">
-                  Synthesize an organic Groq LLaMA roadmap across 5 core human domains
-                </p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <span className="text-xs text-slate-300">
+                    SKILL-TRACK Dynamic Pedagogy Engine
+                  </span>
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-400/30 px-2 py-0.5 rounded-full">
+                    3–8 Milestones
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -185,14 +215,14 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
                     <div
                       key={dom.id}
                       onClick={() => setSelectedDomainId(dom.id)}
-                      className={`p-4 rounded-2xl border transition-all duration-200 cursor-pointer flex items-start gap-3.5 relative ${
+                      className={`p-3.5 rounded-2xl border transition-all duration-200 cursor-pointer flex items-start gap-3 relative ${
                         isSelected
                           ? 'border-emerald-500 bg-emerald-50/70 shadow-md ring-2 ring-emerald-400/30'
                           : 'border-slate-200 hover:border-slate-300 bg-slate-50/50 hover:bg-white'
                       }`}
                     >
-                      <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${dom.gradient} text-white flex items-center justify-center shrink-0 shadow-xs`}>
-                        <IconComp className="w-5 h-5" />
+                      <div className={`w-9 h-9 rounded-xl bg-gradient-to-br ${dom.gradient} text-white flex items-center justify-center shrink-0 shadow-xs`}>
+                        <IconComp className="w-4 h-4" />
                       </div>
 
                       <div className="flex-1 min-w-0">
@@ -200,13 +230,9 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
                           <h4 className="text-xs font-heading font-bold text-slate-900 truncate">
                             {dom.label}
                           </h4>
-                          {isSelected && (
-                            <span className="w-4 h-4 rounded-full bg-emerald-600 text-white flex items-center justify-center">
-                              <Check className="w-2.5 h-2.5 stroke-[3]" />
-                            </span>
-                          )}
+                          {isSelected && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
                         </div>
-                        <p className="text-[11px] text-slate-500 mt-1 line-clamp-2 leading-relaxed">
+                        <p className="text-[11px] text-slate-500 line-clamp-1 mt-0.5">
                           {dom.description}
                         </p>
                       </div>
@@ -216,64 +242,114 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
               </div>
             </div>
 
-            {/* Step 2: Custom Title & Target Goal */}
-            <div className="space-y-4 pt-2 border-t border-slate-100">
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Skill or Topic Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                  placeholder={currentDomain.placeholder}
-                  required
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white"
-                />
-              </div>
+            {/* Step 2: Skill Title */}
+            <div className="space-y-2">
+              <label className="block text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                <Target className="w-4 h-4 text-sky-600" />
+                <span>2. Target Skill / Discipline Title</span>
+              </label>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1.5">
-                  Target Socratic Mastery Goal (Optional)
-                </label>
-                <input
-                  type="text"
-                  value={targetGoal}
-                  onChange={(e) => setTargetGoal(e.target.value)}
-                  placeholder="e.g. Master kinematic impulse and acute vector force clearance"
-                  className="w-full px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-medium focus:outline-none focus:ring-2 focus:ring-emerald-500/30 focus:border-emerald-500 bg-white"
-                />
-              </div>
+              <input
+                type="text"
+                value={customTitle}
+                onChange={(e) => setCustomTitle(e.target.value)}
+                placeholder={currentDomain.placeholder}
+                required
+                className="w-full px-4 py-2.5 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs md:text-sm font-medium text-slate-800 placeholder-slate-400"
+              />
             </div>
 
-            {/* Actions */}
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
-              >
-                Cancel
-              </button>
+            {/* Step 3: Sub-Genre Specialization & Interactive Pills */}
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Tag className="w-4 h-4 text-amber-500" />
+                  <span>3. Sub-Genre Specialization (Recommended)</span>
+                </label>
+                <span className="text-[10px] font-semibold text-slate-400">
+                  Select a pill or enter custom
+                </span>
+              </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="px-6 py-2.5 rounded-xl text-xs font-heading font-extrabold bg-gradient-to-r from-emerald-500 via-teal-500 to-emerald-600 hover:from-emerald-400 hover:to-teal-400 text-white shadow-md shadow-emerald-600/20 flex items-center gap-2 transition-all cursor-pointer active:scale-95 btn-shimmer uppercase"
-              >
-                {isSubmitting ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    <span>Synthesizing Groq Roadmap...</span>
-                  </>
-                ) : (
-                  <>
-                    <span>⚡ Generate Mastery Track</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </>
-                )}
-              </button>
+              {/* Interactive Pills */}
+              <div className="flex flex-wrap gap-1.5">
+                {suggestedPills.map((pill) => {
+                  const isPillActive = subGenre === pill;
+                  return (
+                    <button
+                      type="button"
+                      key={pill}
+                      onClick={() => setSubGenre(isPillActive ? '' : pill)}
+                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                        isPillActive
+                          ? 'bg-amber-500 text-white shadow-xs'
+                          : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700 border border-slate-200/60'
+                      }`}
+                    >
+                      {pill}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <input
+                type="text"
+                value={subGenre}
+                onChange={(e) => setSubGenre(e.target.value)}
+                placeholder="e.g., Striker Finishing, Memory Concurrency, Molecular Thermodynamics"
+                className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-amber-500 bg-white text-xs font-medium text-slate-800 placeholder-slate-400"
+              />
             </div>
+
+            {/* Step 4: Target Goal & Scope Badge */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
+                  <Compass className="w-4 h-4 text-emerald-600" />
+                  <span>4. Specific Mastery Objective (Optional)</span>
+                </label>
+                <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2 py-0.5 rounded-md">
+                  Roadmap Scope: 3–8 Milestones
+                </span>
+              </div>
+
+              <input
+                type="text"
+                value={targetGoal}
+                onChange={(e) => setTargetGoal(e.target.value)}
+                placeholder="e.g., Pass JEE Advanced Mechanics, Zero Allocations, Tournament Ready"
+                className="w-full px-4 py-2 rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white text-xs font-medium text-slate-800 placeholder-slate-400"
+              />
+            </div>
+
+            {/* Dynamic AI Sizing Banner */}
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-50 via-teal-50 to-sky-50 border border-emerald-200/80 flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                <Zap className="w-4 h-4" />
+              </div>
+              <p className="text-xs text-slate-600 font-medium leading-relaxed">
+                <strong className="text-emerald-900 font-bold">Autonomous Scoping:</strong> Groq evaluates technical complexity and automatically synthesizes between 3 and 8 milestones with Assessable Competency Units and verified Tavily study assets.
+              </p>
+            </div>
+
+            {/* Submission Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full py-3.5 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-500 hover:to-teal-500 text-white rounded-2xl font-heading font-bold text-xs tracking-wider uppercase shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 cursor-pointer transition-all active:scale-[0.98] disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  <span>Synthesizing Dynamic Roadmap (Groq)...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4 text-amber-300" />
+                  <span>Generate Track & Launch Studio ➔</span>
+                </>
+              )}
+            </button>
           </form>
         </motion.div>
       </div>
@@ -282,4 +358,3 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
 };
 
 export default EnrollSkillModal;
-

@@ -7,7 +7,7 @@ import {
   Flame, Shield, Edit3, Plus, ArrowRight, Play, 
   Award, Settings, RefreshCw 
 } from 'lucide-react';
-import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 
 export default function ProfileHubPage() {
@@ -17,6 +17,30 @@ export default function ProfileHubPage() {
   const [simulating, setSimulating] = useState(false);
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [showEnrollModal, setShowEnrollModal] = useState(false);
+  const [selectedHorizon, setSelectedHorizon] = useState<{ title: string; domain: string; subGenre: string } | null>(null);
+  const [recommendations, setRecommendations] = useState<any[]>([
+    {
+      domain: 'Engineering & Applied Technology',
+      title: 'Full-Stack Distributed Systems',
+      subGenre: 'Microservices & Event Sourcing',
+      affinityScore: 94,
+      rationale: 'Lateral Progression: Amplifies your core asynchronous logic with fault-tolerant distributed protocols.',
+    },
+    {
+      domain: 'Formal Sciences & Mathematics',
+      title: 'Applied Discrete Algorithms & Graph Theory',
+      subGenre: 'Combinatorial Optimization',
+      affinityScore: 89,
+      rationale: 'Foundational Deepening: Strengthens graph traversal and algorithmic optimality proof techniques.',
+    },
+    {
+      domain: 'Design & Visual Systems',
+      title: 'Human-Computer Interaction Ergonomics',
+      subGenre: 'Micro-Interaction Design',
+      affinityScore: 86,
+      rationale: 'Cross-Disciplinary Amplifier: Bridges engineering rigor with fluid responsive aesthetic architectures.',
+    },
+  ]);
 
   useEffect(() => {
     const storedId = localStorage.getItem('skillprax_active_profile_id');
@@ -35,6 +59,16 @@ export default function ProfileHubPage() {
       if (!res.ok) throw new Error('Telemetry retrieval failed');
       const data = await res.json();
       setTelemetry(data);
+
+      try {
+        const recRes = await fetch(`/api/profiles/${profileId}/recommendations`);
+        if (recRes.ok) {
+          const recData = await recRes.json();
+          if (recData.recommendations && recData.recommendations.length > 0) {
+            setRecommendations(recData.recommendations);
+          }
+        }
+      } catch (_) {}
     } catch (err) {
       console.error(err);
     } finally {
@@ -73,11 +107,11 @@ export default function ProfileHubPage() {
   const { profile, xpTelemetry, cadenceTelemetry, competencyTelemetry, badges, enrolledWorkspaces } = telemetry;
 
   return (
-    <div className="min-h-screen bg-[#FAFAFA] text-slate-800 flex flex-col font-sans">
+    <div className="min-h-screen bg-transparent text-slate-800 flex flex-col font-sans">
       {/* TOP STATUS HEADER */}
       <header className="h-16 bg-white/90 backdrop-blur-md border-b border-slate-200/80 px-6 md:px-12 flex items-center justify-between sticky top-0 z-30">
         <div className="flex items-center gap-4">
-          <SkillpraxLogo size="sm"/>
+          <SkillTrackLogo size="sm"/>
           <div className="flex items-center gap-2 pl-4 border-l border-slate-200">
             <span className="text-[10px] font-black uppercase tracking-wider bg-slate-100 text-slate-700 px-2 py-0.5 rounded-md">
               HUB
@@ -322,15 +356,18 @@ export default function ProfileHubPage() {
         </div>
 
         {/* CARD 5: ENROLLED SKILL TRACKS */}
-        <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+        <div className="p-6 md:p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
           <div className="flex items-center justify-between">
             <div>
               <h3 className="text-lg font-bold text-slate-900">Enrolled Skill Tracks</h3>
               <p className="text-xs text-slate-400">Isolated roadmap node graphs, assessable units, and evaluation milestones</p>
             </div>
             <button
-              onClick={() => setShowEnrollModal(true)}
-              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all"
+              onClick={() => {
+                setSelectedHorizon(null);
+                setShowEnrollModal(true);
+              }}
+              className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
             >
               <Plus className="w-4 h-4"/>
               Enroll New Skill
@@ -338,14 +375,14 @@ export default function ProfileHubPage() {
           </div>
 
           {enrolledWorkspaces.length === 0 ? (
-            <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200">
+            <div className="p-8 text-center bg-slate-50/70 rounded-2xl border border-slate-200">
               <p className="text-sm font-semibold text-slate-600">No active skill tracks enrolled.</p>
               <p className="text-xs text-slate-400 mt-1">Click "+ Enroll New Skill" to synthesize a custom Groq roadmap.</p>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {enrolledWorkspaces.map((track: any) => (
-                <Link className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 bg-white hover:shadow-md transition-all block group" href={`/workspace/${track.id}`} key={track.id}>
+                <Link className="p-5 rounded-2xl border border-slate-200/90 hover:border-emerald-500 bg-white hover:shadow-md transition-all block group" href={`/workspace/${track.id}`} key={track.id}>
                   <div className="flex items-center justify-between">
                     <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
                       {track.title}
@@ -362,13 +399,91 @@ export default function ProfileHubPage() {
             </div>
           )}
         </div>
+
+        {/* CARD 6: CURATED NEXT HORIZONS (AI-SYNTHESIZED RECOMMENDATIONS) */}
+        <div className="p-6 md:p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
+                  NEURAL COMPASS
+                </span>
+                <span className="text-xs font-semibold text-slate-400">
+                  Autonomous Progression Advisor
+                </span>
+              </div>
+              <h3 className="text-lg font-heading font-extrabold text-slate-900 mt-1">
+                Curated Next Horizons
+              </h3>
+              <p className="text-xs text-slate-500">
+                AI-synthesized complementary skill tracks based on your milestone pass velocity and domain affinities
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {recommendations.map((rec: any, idx: number) => (
+              <div
+                key={idx}
+                className="p-5 rounded-2xl border border-slate-200/90 hover:border-sky-400 bg-gradient-to-br from-white via-slate-50/50 to-sky-50/30 hover:shadow-md transition-all flex flex-col justify-between group space-y-4"
+              >
+                <div className="space-y-2.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[170px]">
+                      {rec.domain}
+                    </span>
+                    <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full shrink-0">
+                      {rec.affinityScore}% Match
+                    </span>
+                  </div>
+
+                  <h4 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
+                    {rec.title}
+                  </h4>
+
+                  {rec.subGenre && (
+                    <div className="inline-block px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-800">
+                      🎯 {rec.subGenre}
+                    </div>
+                  )}
+
+                  <p className="text-[11px] text-slate-600 leading-relaxed">
+                    {rec.rationale}
+                  </p>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setSelectedHorizon({
+                      title: rec.title,
+                      domain: rec.domain === 'Engineering & Applied Technology' ? 'Science' : rec.domain === 'Formal Sciences & Mathematics' ? 'Cognitive Logic' : rec.domain,
+                      subGenre: rec.subGenre || '',
+                    });
+                    setShowEnrollModal(true);
+                  }}
+                  className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer group-hover:bg-emerald-600"
+                >
+                  <span>Enroll in this Track</span>
+                  <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
       </main>
 
       <EnrollSkillModal
         isOpen={showEnrollModal}
-        onClose={() => setShowEnrollModal(false)}
+        onClose={() => {
+          setShowEnrollModal(false);
+          setSelectedHorizon(null);
+        }}
+        initialTitle={selectedHorizon?.title}
+        initialDomain={selectedHorizon?.domain}
+        initialSubGenre={selectedHorizon?.subGenre}
         onEnroll={(newTrack) => {
           setShowEnrollModal(false);
+          setSelectedHorizon(null);
           if (newTrack?.id) {
             router.push(`/workspace/${newTrack.id}`);
           }
@@ -377,3 +492,4 @@ export default function ProfileHubPage() {
     </div>
   );
 }
+

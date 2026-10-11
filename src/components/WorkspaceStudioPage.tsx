@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { SkillTrack, FlowchartNode, AIEngine, StudyResource, QuizQuestion } from '@/types';
-import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
 import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
+import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
+import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
 import {
   GitBranch,
   BookOpen,
@@ -48,13 +50,10 @@ interface WorkspaceStudioPageProps {
   onPassEvaluation: () => void;
 }
 
-function shuffleArray<T>(array: T[]): T[] {
-  const arr = [...array];
-  for (let i = arr.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [arr[i], arr[j]] = [arr[j], arr[i]];
-  }
-  return arr;
+function extractYouTubeId(url?: string): string | null {
+  if (!url) return null;
+  const match = url.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([\w-]{11})/);
+  return match ? match[1] : null;
 }
 
 export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
@@ -69,100 +68,156 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   const [showEngineModal, setShowEngineModal] = useState<boolean>(false);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
 
-  const [nodes, setNodes] = useState<FlowchartNode[]>([
-    {
-      id: 'node-1',
-      label: 'Step 1: Axiomatic Foundations',
-      subLabel: 'Core Physical & Syntactic Axioms',
-      status: 'completed',
-      x: 80,
-      y: 110,
-      width: 195,
-      height: 80,
-      tier: 1,
-      objectives: [
-        'Master base kinematic/structural formulas and initial boundary conditions',
-        'Verify prerequisite conservation and nomenclature principles',
-        'Eliminate introductory misconceptions and formula oversights',
-      ],
-      acus: ['ACU-101: Axiomatic boundary verification', 'ACU-102: Formula consistency audit'],
-      aiSummary: 'Axiomatic baseline established with 100% verified prerequisite checks.',
-    },
-    {
-      id: 'node-2',
-      label: 'Step 2: Core Dynamics & Execution',
-      subLabel: 'Active Socratic Learning Node',
-      status: 'active',
-      x: 360,
-      y: 110,
-      width: 200,
-      height: 80,
-      tier: 2,
-      objectives: [
-        'Execute primary operational steps under steady-state conditions',
-        'Discriminate between direct primary actions and distractor shortcuts',
-        'Measure latency and ensure correct kinetic sequence',
-      ],
-      acus: ['ACU-201: Procedural synthesis execution', 'ACU-202: Kinetic trajectory verification'],
-      aiSummary: 'Active study node currently loaded in Workspace Studio.',
-    },
-    {
-      id: 'node-3',
-      label: 'Step 3: Socratic Diagnostic Synthesis',
-      subLabel: 'Formative Gate & Misconceptions',
-      status: 'locked',
-      x: 640,
-      y: 110,
-      width: 200,
-      height: 80,
-      tier: 3,
-      objectives: [
-        'Isolate false intuitive assumptions under high-pressure scenarios',
-        'Reconstruct knowledge graphs from first principles',
-        'Demonstrate mastery above the 80% threshold',
-      ],
-      acus: ['ACU-301: Misconception diagnostic analysis', 'ACU-302: Edge-case fault recovery'],
-      aiSummary: 'Diagnostic synthesis gate locked. Complete Step 2 evaluation to unlock.',
-    },
-    {
-      id: 'node-4',
-      label: 'Step 4: Applied Domain Architecture',
-      subLabel: 'Multi-variable Scenario Testing',
-      status: 'locked',
-      x: 920,
-      y: 110,
-      width: 200,
-      height: 80,
-      tier: 4,
-      objectives: [
-        'Synthesize interconnected domain frameworks',
-        'Resolve multi-step optimization and parameter tuning',
-      ],
-      acus: ['ACU-401: Framework integration', 'ACU-402: Optimization parameters'],
-      aiSummary: 'Autonomous expansion node.',
-    },
-  ]);
+  // Raw database steps sorted by index
+  const dbSteps = useMemo(() => {
+    if (!rawWorkspace?.steps || !Array.isArray(rawWorkspace.steps) || rawWorkspace.steps.length === 0) {
+      return [];
+    }
+    return [...rawWorkspace.steps].sort((a: any, b: any) => (a.stepIndex || 0) - (b.stepIndex || 0));
+  }, [rawWorkspace]);
 
-  const [activeNodeId, setActiveNodeId] = useState<string>('node-2');
+  // ACTIVE STEP: Current database milestone being worked through
+  const activeStepIndex = useMemo(() => {
+    if (dbSteps.length === 0) return currentTrack.currentStep || 1;
+    const firstUnpassed = dbSteps.find((s: any) => s.status !== 'PASSED');
+    return firstUnpassed ? (firstUnpassed.stepIndex || 1) : dbSteps.length;
+  }, [dbSteps, currentTrack.currentStep]);
+
+  // VIEWING STEP: Decoupled milestone currently inspected on screen
+  const [viewingStepIndex, setViewingStepIndex] = useState<number>(activeStepIndex);
+
+  // Sync viewingStepIndex if activeStepIndex advances after passing
+  useEffect(() => {
+    setViewingStepIndex(activeStepIndex);
+  }, [activeStepIndex]);
+
+  // Flowchart node graph state
+  const [nodes, setNodes] = useState<FlowchartNode[]>([]);
   const [lockedShakeId, setLockedShakeId] = useState<string | null>(null);
 
+  // Hydrate flowchart nodes dynamically from database steps with strict decoupled states
+  useEffect(() => {
+    if (dbSteps.length > 0) {
+      const mappedNodes: FlowchartNode[] = dbSteps.map((step: any, idx: number) => {
+        const stepNum = step.stepIndex || idx + 1;
+        const isPassed = step.status === 'PASSED' || stepNum < activeStepIndex;
+        const isActive = stepNum === activeStepIndex;
+
+        let nodeStatus: 'completed' | 'active' | 'locked' = 'locked';
+        if (isPassed) {
+          nodeStatus = 'completed';
+        } else if (isActive) {
+          nodeStatus = 'active';
+        }
+
+        const acusList = Array.isArray(step.acus)
+          ? step.acus.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
+          : Array.isArray(step.assessableUnits)
+            ? step.assessableUnits.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
+            : [];
+
+        return {
+          id: step.id || `node-${stepNum}`,
+          label: `Step ${stepNum}: ${step.title}`,
+          subLabel: step.title || `Milestone ${stepNum}`,
+          status: nodeStatus,
+          x: 80 + idx * 280,
+          y: 110,
+          width: 210,
+          height: 85,
+          tier: stepNum,
+          objectives: acusList.length > 0 ? acusList : [`Master step ${stepNum} competencies`],
+          acus: acusList.length > 0 ? acusList : [`ACU-${stepNum}01: Core Invariants`, `ACU-${stepNum}02: Verification`],
+          aiSummary: isPassed ? 'Milestone cleared.' : isActive ? 'Active study milestone.' : 'Locked milestone.',
+        };
+      });
+      setNodes(mappedNodes);
+    } else {
+      // Fallback 4 initial nodes
+      const fallbackNodes: FlowchartNode[] = [
+        {
+          id: 'node-1',
+          label: 'Step 1: Axiomatic Foundations',
+          subLabel: 'Core Physical & Syntactic Axioms',
+          status: activeStepIndex > 1 ? 'completed' : 'active',
+          x: 80,
+          y: 110,
+          width: 210,
+          height: 85,
+          tier: 1,
+          objectives: ['Master base formulas and boundary conditions', 'Verify prerequisite principles'],
+          acus: ['ACU-101: Axiomatic boundary verification', 'ACU-102: Consistency audit'],
+          aiSummary: 'Axiomatic baseline established.',
+        },
+        {
+          id: 'node-2',
+          label: 'Step 2: Core Dynamics & Execution',
+          subLabel: 'Active Socratic Learning Node',
+          status: activeStepIndex === 2 ? 'active' : activeStepIndex > 2 ? 'completed' : 'locked',
+          x: 360,
+          y: 110,
+          width: 210,
+          height: 85,
+          tier: 2,
+          objectives: ['Execute primary operational steps under steady-state conditions'],
+          acus: ['ACU-201: Procedural synthesis execution', 'ACU-202: Trajectory verification'],
+          aiSummary: 'Active study node currently loaded.',
+        },
+        {
+          id: 'node-3',
+          label: 'Step 3: Socratic Diagnostic Synthesis',
+          subLabel: 'Formative Gate & Misconceptions',
+          status: 'locked',
+          x: 640,
+          y: 110,
+          width: 210,
+          height: 85,
+          tier: 3,
+          objectives: ['Isolate false intuitive assumptions under high-pressure scenarios'],
+          acus: ['ACU-301: Misconception diagnostic analysis', 'ACU-302: Edge-case fault recovery'],
+          aiSummary: 'Diagnostic synthesis gate locked.',
+        },
+      ];
+      setNodes(fallbackNodes);
+    }
+  }, [dbSteps, activeStepIndex]);
+
+  // Selected step object corresponding to VIEWING step index
+  const viewingStepObj = useMemo(() => {
+    if (dbSteps.length === 0) return null;
+    return dbSteps.find((s: any) => s.stepIndex === viewingStepIndex) || dbSteps[0];
+  }, [dbSteps, viewingStepIndex]);
+
+  const viewingStepId = viewingStepObj?.id || currentTrack.id;
+  const viewingStepNum = viewingStepObj?.stepIndex || viewingStepIndex;
+  const viewingStepTitle = viewingStepObj?.title || `Milestone ${viewingStepIndex}`;
+
+  // Check if learner is in Retrospective Review Mode
+  const isReviewMode = viewingStepIndex < activeStepIndex && viewingStepObj?.status === 'PASSED';
+
+  const viewingStepAcus: { id: string; title: string; description: string }[] = useMemo(() => {
+    if (viewingStepObj?.acus && Array.isArray(viewingStepObj.acus) && viewingStepObj.acus.length > 0) {
+      return viewingStepObj.acus.map((a: any, idx: number) => ({
+        id: a.id || `acu-${idx + 1}`,
+        title: typeof a === 'string' ? a : (a.title || `ACU ${idx + 1}`),
+        description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a.description || 'ACU description'),
+      }));
+    }
+    if (viewingStepObj?.assessableUnits && Array.isArray(viewingStepObj.assessableUnits)) {
+      return viewingStepObj.assessableUnits.map((a: any, idx: number) => ({
+        id: a.id || `acu-${idx + 1}`,
+        title: typeof a === 'string' ? a : (a.title || `ACU ${idx + 1}`),
+        description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a.description || 'ACU description'),
+      }));
+    }
+    return [
+      { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
+      { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },
+    ];
+  }, [viewingStepObj]);
+
   const [checkedACUs, setCheckedACUs] = useState<Record<string, boolean>>({});
-
-  const [resourcesSynthesized, setResourcesSynthesized] = useState<boolean>(false);
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
-  const [activeVideoModal, setActiveVideoModal] = useState<StudyResource | null>(null);
-
-  const [quizState, setQuizState] = useState<'ready' | 'evaluating' | 'completed'>('ready');
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-  const [isSubmittingQuiz, setIsSubmittingQuiz] = useState<boolean>(false);
-  const [evaluationFeedback, setEvaluationFeedback] = useState<{
-    correctCount: number;
-    totalCount: number;
-    scorePercent: number;
-    passed: boolean;
-  } | null>(null);
-
   const [energyBeamFired, setEnergyBeamFired] = useState<boolean>(false);
   const [levelUpData, setLevelUpData] = useState<{
     score: number;
@@ -171,133 +226,40 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     nextStepIndex: number | null;
   } | null>(null);
 
-  // Hydrate flowchart nodes dynamically from database workspace steps
-  useEffect(() => {
-    if (rawWorkspace?.steps && Array.isArray(rawWorkspace.steps) && rawWorkspace.steps.length > 0) {
-      const sortedSteps = [...rawWorkspace.steps].sort((a: any, b: any) => (a.stepIndex || 0) - (b.stepIndex || 0));
-      const mappedNodes: FlowchartNode[] = sortedSteps.map((step: any, idx: number) => {
-        const isPassed = step.status === 'PASSED';
-        const isUnlocked = step.status !== 'LOCKED';
-        let nodeStatus: 'completed' | 'active' | 'locked' = 'locked';
-        if (isPassed) {
-          nodeStatus = 'completed';
-        } else if (isUnlocked) {
-          nodeStatus = 'active';
-        }
+  // In-App Modal States
+  const [activeYouTubeModal, setActiveYouTubeModal] = useState<{
+    isOpen: boolean;
+    videoId: string | null;
+    title: string;
+    channelOrAuthor: string;
+    takeaway: string;
+  }>({
+    isOpen: false,
+    videoId: null,
+    title: '',
+    channelOrAuthor: '',
+    takeaway: '',
+  });
 
-        const acusList = Array.isArray(step.acus)
-          ? step.acus.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
-          : Array.isArray(step.assessableUnits)
-          ? step.assessableUnits.map((a: any) => typeof a === 'string' ? a : (a.title || 'ACU'))
-          : [];
-
-        return {
-          id: step.id || `node-${step.stepIndex || idx + 1}`,
-          label: `Step ${step.stepIndex || idx + 1}: ${step.title}`,
-          subLabel: step.title || `Milestone ${idx + 1}`,
-          status: nodeStatus,
-          x: 80 + idx * 280,
-          y: 110,
-          width: 200,
-          height: 80,
-          tier: step.stepIndex || idx + 1,
-          objectives: acusList.length > 0 ? acusList : [`Master step ${idx + 1} competencies`],
-          acus: acusList.length > 0 ? acusList : [`ACU-${idx + 1}01: Core Invariants`, `ACU-${idx + 1}02: Verification`],
-          aiSummary: isPassed ? 'Milestone cleared.' : isUnlocked ? 'Active study milestone.' : 'Locked milestone.',
-        };
-      });
-      setNodes(mappedNodes);
-
-      const firstActive = mappedNodes.find(n => n.status === 'active') || mappedNodes[0];
-      if (firstActive) {
-        setActiveNodeId(firstActive.id);
-      }
-    }
-  }, [rawWorkspace]);
-
-  const selectedNode = useMemo(() => {
-    return nodes.find((n) => n.id === activeNodeId) || nodes[0] || { id: 'node-1', label: currentTrack.title, subLabel: 'Milestone 1', status: 'active', tier: 1, acus: [], objectives: [] };
-  }, [nodes, activeNodeId, currentTrack.title]);
-
-  const activeStepObj = useMemo(() => {
-    if (!rawWorkspace?.steps || !Array.isArray(rawWorkspace.steps)) return null;
-    return rawWorkspace.steps.find((s: any) => s.id === activeNodeId || s.stepIndex === selectedNode?.tier) || rawWorkspace.steps[0];
-  }, [rawWorkspace, activeNodeId, selectedNode]);
-
-  const activeStepId = activeStepObj?.id || currentTrack.id;
-  const activeStepNum = activeStepObj?.stepIndex || selectedNode?.tier || currentTrack.currentStep;
-  const activeStepTitle = activeStepObj?.title || selectedNode?.label || currentTrack.title;
-
-  const activeStepAcus = useMemo(() => {
-    if (activeStepObj?.acus && Array.isArray(activeStepObj.acus) && activeStepObj.acus.length > 0) {
-      return activeStepObj.acus.map((a: any, idx: number) => ({
-        id: a.id || `acu-${idx + 1}`,
-        title: typeof a === 'string' ? a : (a.title || `ACU ${idx + 1}`),
-        description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a.description || 'ACU description'),
-      }));
-    }
-    return selectedNode?.acus?.map((a, idx) => ({
-      id: `acu-${idx + 1}`,
-      title: typeof a === 'string' ? a : (a as any).title || 'ACU',
-      description: typeof a === 'string' ? `Assessable concept unit ${idx + 1}` : (a as any).description || 'ACU description',
-    })) || [
-      { id: 'acu-1', title: 'Baseline Competency', description: 'Core invariant model' },
-      { id: 'acu-2', title: 'Diagnostic Verification', description: 'Misconception gate' },
-    ];
-  }, [activeStepObj, selectedNode]);
-
-  const handleStepPassed = (score: number, passPayload?: any) => {
-    const totalCount = nodes.length || 5;
-    const isFinal = passPayload?.isFinalStep || activeStepNum >= totalCount;
-    const nextIdx = passPayload?.nextStepIndex || activeStepNum + 1;
-
-    setLevelUpData({
-      score,
-      xpEarned: passPayload?.xpEarned || activeStepNum * 500,
-      isFinalStep: isFinal,
-      nextStepIndex: isFinal ? null : nextIdx,
-    });
-
-    setEnergyBeamFired(true);
-    setTimeout(() => setEnergyBeamFired(false), 2500);
-
-    setNodes((prev) => {
-      let foundActive = false;
-      return prev.map((n) => {
-        if (n.id === activeNodeId || n.tier === activeStepNum) {
-          foundActive = true;
-          return { ...n, status: 'completed' as const };
-        }
-        if (foundActive && n.status === 'locked') {
-          foundActive = false;
-          return { ...n, status: 'active' as const };
-        }
-        return n;
-      });
-    });
-
-    onPassEvaluation();
-  };
-
-  const handleAdvanceToNextMilestone = () => {
-    if (levelUpData?.nextStepIndex) {
-      const nextNode = nodes.find(n => n.tier === levelUpData.nextStepIndex);
-      if (nextNode) {
-        setActiveNodeId(nextNode.id);
-      }
-      setLevelUpData(null);
-      setActiveTab('roadmap');
-    }
-  };
-
-  const generateQuestions = useCallback(() => {
-    setSelectedAnswers({});
-    setEvaluationFeedback(null);
-  }, []);
-
-  useEffect(() => {
-    generateQuestions();
-  }, [generateQuestions]);
+  const [activeReaderModal, setActiveReaderModal] = useState<{
+    isOpen: boolean;
+    title: string;
+    sourceUrl: string;
+    sourceBadge: string;
+    takeaway: string;
+    corePrinciple: string;
+    mechanics: string[];
+    commonTraps: string[];
+  }>({
+    isOpen: false,
+    title: '',
+    sourceUrl: '',
+    sourceBadge: 'Documentation',
+    takeaway: '',
+    corePrinciple: '',
+    mechanics: [],
+    commonTraps: [],
+  });
 
   const handleNodeClick = (node: FlowchartNode) => {
     if (node.status === 'locked') {
@@ -305,7 +267,38 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       setTimeout(() => setLockedShakeId(null), 500);
       return;
     }
-    setActiveNodeId(node.id);
+    // Decoupled state: clicking passed or active milestone sets viewingStepIndex without modifying database activeStepIndex
+    setViewingStepIndex(node.tier);
+  };
+
+  const handleStepPassed = (score: number, passPayload?: any) => {
+    const totalCount = nodes.length || 5;
+    const isFinal = passPayload?.isFinalStep || viewingStepNum >= totalCount;
+    const nextIdx = passPayload?.nextStepIndex || activeStepIndex + 1;
+
+    setLevelUpData({
+      score,
+      xpEarned: passPayload?.xpEarned || viewingStepNum * 500,
+      isFinalStep: isFinal,
+      nextStepIndex: isFinal ? null : nextIdx,
+    });
+
+    setEnergyBeamFired(true);
+    setTimeout(() => setEnergyBeamFired(false), 2500);
+
+    // If passed the active milestone, update progression and advance
+    if (viewingStepIndex === activeStepIndex) {
+      onPassEvaluation();
+      setViewingStepIndex(nextIdx);
+    }
+  };
+
+  const handleAdvanceToNextMilestone = () => {
+    if (levelUpData?.nextStepIndex) {
+      setViewingStepIndex(levelUpData.nextStepIndex);
+      setLevelUpData(null);
+      setActiveTab('roadmap');
+    }
   };
 
   const handleSpawnNextStep = () => {
@@ -320,8 +313,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       status: 'locked',
       x: newX,
       y: 110,
-      width: 200,
-      height: 80,
+      width: 210,
+      height: 85,
       tier: nextIdx,
       objectives: [
         'Analyze non-linear edge cases generated from past evaluations',
@@ -339,14 +332,12 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   const handleSynthesizeMaterials = async () => {
     setIsSynthesizing(true);
     try {
-      const stepIdToUse = activeStepId || currentTrack.id;
-
-      const res = await fetch(`/api/steps/${stepIdToUse}/level-up-resources`, {
+      const res = await fetch(`/api/steps/${viewingStepId}/level-up-resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          stepIndex: activeStepNum,
-          title: activeStepTitle,
+          stepIndex: viewingStepNum,
+          title: viewingStepTitle,
           workspaceTitle: currentTrack.title,
         }),
       });
@@ -361,11 +352,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
             title: r.title || 'Curated Resource',
             subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
             url: r.url || '#',
-            durationOrPages: r.type === 'VIDEO' ? 'Tutorial Video' : 'Documentation',
-            viewsOrCitation: 'Verified Resource',
-            thumbnailUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
+            durationOrPages: r.type === 'VIDEO' ? 'YouTube Tutorial' : 'Documentation',
+            viewsOrCitation: r.platform || 'Verified Study Resource',
             verified: true,
-            organization: 'Skillprax Verified',
+            organization: 'SKILL-TRACK Verified',
           }));
           setFetchedResources(mapped);
         }
@@ -374,72 +364,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       console.error('Failed to synthesize resources:', err);
     } finally {
       setIsSynthesizing(false);
-      setResourcesSynthesized(true);
     }
   };
 
-  const allAnswered = useMemo(() => {
-    if (quizQuestions.length === 0) return false;
-    return quizQuestions.every((q) => selectedAnswers[q.id] !== undefined);
-  }, [quizQuestions, selectedAnswers]);
-
-  const handleSubmitEvaluation = () => {
-    if (!allAnswered) return;
-    setIsSubmittingQuiz(true);
-
-    setTimeout(() => {
-      let correct = 0;
-      quizQuestions.forEach((q) => {
-        const chosenId = selectedAnswers[q.id];
-        const chosenOpt = q.options.find((o) => o.id === chosenId);
-        if (chosenOpt && chosenOpt.isCorrect) {
-          correct += 1;
-        }
-      });
-
-      const total = quizQuestions.length;
-      const scorePct = Math.round((correct / total) * 100);
-      const passed = scorePct >= 80;
-
-      setEvaluationFeedback({
-        correctCount: correct,
-        totalCount: total,
-        scorePercent: scorePct,
-        passed,
-      });
-
-      setIsSubmittingQuiz(false);
-      setQuizState('completed');
-
-      if (passed) {
-        setEnergyBeamFired(true);
-        setTimeout(() => setEnergyBeamFired(false), 2500);
-
-        setNodes((prev) => {
-          let foundActive = false;
-          return prev.map((n) => {
-            if (n.status === 'active') {
-              foundActive = true;
-              return { ...n, status: 'completed' as const };
-            }
-            if (foundActive && n.status === 'locked') {
-              foundActive = false;
-              return { ...n, status: 'active' as const };
-            }
-            return n;
-          });
-        });
-
-        onPassEvaluation();
-      }
-    }, 700);
-  };
-
+  // Resources for the current viewing step
   const activeStepResources: StudyResource[] = useMemo(() => {
     if (fetchedResources && fetchedResources.length > 0) {
       return fetchedResources;
     }
-    const dbRes = activeStepObj?.resources;
+    const dbRes = viewingStepObj?.resources;
     let rawArr: any[] = [];
     if (Array.isArray(dbRes)) {
       rawArr = dbRes;
@@ -454,15 +387,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         title: r.title || 'Curated Resource',
         subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
         url: r.url || '#',
-        durationOrPages: r.type === 'VIDEO' ? 'Tutorial Video' : 'Documentation',
-        viewsOrCitation: r.platform || 'Verified Resource',
-        thumbnailUrl: 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?auto=format&fit=crop&w=600&q=80',
+        durationOrPages: r.type === 'VIDEO' ? 'YouTube Tutorial' : 'Documentation',
+        viewsOrCitation: r.platform || 'Verified Study Resource',
         verified: true,
-        organization: 'Skillprax Verified',
+        organization: 'SKILL-TRACK Verified',
       }));
     }
     return [];
-  }, [fetchedResources, activeStepObj]);
+  }, [fetchedResources, viewingStepObj]);
 
   return (
     <motion.div
@@ -472,9 +404,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
       className="min-h-screen bg-transparent text-slate-800 pb-20 relative overflow-x-hidden"
     >
+      {/* Top Application Header */}
       <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-8 py-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 shadow-2xs">
         <div className="flex items-center gap-3">
-          <SkillpraxLogo
+          <SkillTrackLogo
             size="sm"
             animate={true}
             glow={true}
@@ -493,14 +426,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
         <div className="flex items-center gap-2.5 self-end md:self-auto">
           <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-mono font-bold text-slate-700">
-            <span>MILESTONE</span>
+            <span>ACTIVE MILESTONE</span>
             <span className="text-emerald-700">
-              {currentTrack.currentStep} / {currentTrack.totalSteps}
+              {activeStepIndex} / {currentTrack.totalSteps}
             </span>
             <div className="w-12 h-1.5 bg-slate-200 rounded-full overflow-hidden ml-1">
               <div
                 className="h-full bg-emerald-500 rounded-full"
-                style={{ width: `${currentTrack.progressPercent}%` }}
+                style={{ width: `${Math.round(((activeStepIndex - 1) / (currentTrack.totalSteps || 5)) * 100)}%` }}
               />
             </div>
           </div>
@@ -516,8 +449,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               {selectedEngine === 'groq-llama-3.3-70b'
                 ? '⚡ Groq LLaMA 3.3 70B'
                 : selectedEngine === 'llama-3.1-8b'
-                ? 'LLaMA 3.1 8B'
-                : 'Mixtral 8x7B'}
+                  ? 'LLaMA 3.1 8B'
+                  : 'Mixtral 8x7B'}
             </span>
           </button>
 
@@ -539,16 +472,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         </div>
       </header>
 
+      {/* Tabs Navigation Strip */}
       <div className="sticky top-[57px] z-30 bg-white/90 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-8 py-2">
         <div className="max-w-6xl mx-auto flex items-center justify-center sm:justify-start">
           <div className="flex items-center p-1 bg-slate-100 rounded-2xl border border-slate-200/90 shadow-2xs relative">
             <button
               onClick={() => setActiveTab('roadmap')}
-              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
-                activeTab === 'roadmap'
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${activeTab === 'roadmap'
                   ? 'text-emerald-950 font-bold'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               {activeTab === 'roadmap' && (
                 <motion.div
@@ -563,11 +496,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
             <button
               onClick={() => setActiveTab('resources')}
-              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
-                activeTab === 'resources'
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${activeTab === 'resources'
                   ? 'text-emerald-950 font-bold'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               {activeTab === 'resources' && (
                 <motion.div
@@ -582,11 +514,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
             <button
               onClick={() => setActiveTab('evaluation')}
-              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${
-                activeTab === 'evaluation'
+              className={`px-4 py-2 rounded-xl text-xs md:text-sm font-heading font-semibold transition-all duration-200 flex items-center gap-2 cursor-pointer relative z-10 hover:scale-[1.02] active:scale-[0.96] ${activeTab === 'evaluation'
                   ? 'text-emerald-950 font-bold'
                   : 'text-slate-600 hover:text-slate-900'
-              }`}
+                }`}
             >
               {activeTab === 'evaluation' && (
                 <motion.div
@@ -596,7 +527,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 />
               )}
               <Zap className="w-4 h-4 text-amber-500" />
-              <span>⚡ Evaluation Gate</span>
+              <span>⚡ Socratic Gate (70%)</span>
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping ml-0.5" />
             </button>
           </div>
@@ -604,6 +535,40 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       </div>
 
       <main className="max-w-6xl mx-auto px-4 md:px-6 pt-6">
+        {/* RETROSPECTIVE REVIEW MODE PERSISTENT BANNER */}
+        <AnimatePresence>
+          {isReviewMode && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className="mb-6 p-4 rounded-2xl bg-amber-50/95 border border-amber-300 shadow-sm flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-amber-950"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-9 h-9 rounded-xl bg-amber-100 text-amber-800 flex items-center justify-center shrink-0 shadow-2xs">
+                  <RotateCcw className="w-4 h-4" />
+                </div>
+                <div>
+                  <h4 className="text-xs md:text-sm font-heading font-bold text-amber-950">
+                    Viewing Milestone {viewingStepNum}: {viewingStepTitle} (Completed)
+                  </h4>
+                  <p className="text-[11px] text-amber-800">
+                    You can review past documentation, re-watch video tutorials, or retake the evaluation anytime without altering active progression.
+                  </p>
+                </div>
+              </div>
+
+              <button
+                onClick={() => setViewingStepIndex(activeStepIndex)}
+                className="px-4 py-2 rounded-xl text-xs font-heading font-bold bg-amber-600 hover:bg-amber-700 text-white shadow-xs transition-all flex items-center gap-1.5 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.96]"
+              >
+                <span>Return to Current Active Milestone (Step {activeStepIndex})</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <AnimatePresence mode="wait">
           {activeTab === 'roadmap' && (
             <motion.div
@@ -614,14 +579,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-6"
             >
+              {/* Stepper Header Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 rounded-2xl bg-white border border-slate-200 shadow-xs">
                 <div>
                   <h2 className="text-base font-heading font-bold text-slate-900 flex items-center gap-2">
                     <GitBranch className="w-4 h-4 text-emerald-600" />
-                    <span>Living Milestone Node Flowchart</span>
+                    <span>Interactive Living Flowchart Stepper</span>
                   </h2>
                   <p className="text-xs text-slate-500">
-                    Click any node to inspect assessable concept units (ACUs) or unlock evaluation.
+                    Click any passed milestone to enter Retrospective Review Mode, or click the active milestone to advance.
                   </p>
                 </div>
 
@@ -644,6 +610,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
               </div>
 
+              {/* FLOWCHART CANVAS */}
               <div className="bg-white rounded-3xl border border-slate-200/90 shadow-sm p-4 overflow-x-auto relative min-h-[300px]">
                 {energyBeamFired && (
                   <div className="absolute inset-0 bg-emerald-500/10 backdrop-blur-xs flex items-center justify-center z-30 pointer-events-none animate-pulse">
@@ -655,12 +622,13 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 )}
 
                 <div className="min-w-[1000px] h-[280px] relative select-none">
+                  {/* SVG CONNECTORS (Solid emerald for passed, dotted slate for locked) */}
                   <svg className="absolute inset-0 w-full h-full pointer-events-none z-0">
                     <defs>
                       <linearGradient id="energyGradient" x1="0%" y1="0%" x2="100%" y2="0%">
                         <stop offset="0%" stopColor="#10B981" />
-                        <stop offset="50%" stopColor="#38BDF8" />
-                        <stop offset="100%" stopColor="#6366F1" />
+                        <stop offset="50%" stopColor="#0284C7" />
+                        <stop offset="100%" stopColor="#10B981" />
                       </linearGradient>
                       <filter id="laserGlow" x="-20%" y="-20%" width="140%" height="140%">
                         <feGaussianBlur stdDeviation="3" result="blur" />
@@ -677,20 +645,23 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                       const endY = next.y + next.height / 2;
                       const cp1X = startX + 40;
                       const cp2X = endX - 40;
-                      const isLineActive = node.status === 'completed';
+
+                      const isPassedLine = node.status === 'completed' && next.status === 'completed';
+                      const isActiveTransition = node.status === 'completed' && next.status === 'active';
 
                       return (
                         <g key={node.id}>
+                          {/* Base connector line */}
                           <path
                             d={`M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`}
                             fill="none"
-                            stroke={isLineActive ? '#10B981' : '#E2E8F0'}
-                            strokeWidth={isLineActive ? '3' : '2'}
-                            strokeDasharray={isLineActive ? '6 4' : 'none'}
-                            className={isLineActive ? 'animate-energy-line' : ''}
+                            stroke={isPassedLine ? '#10B981' : isActiveTransition ? '#0284C7' : '#CBD5E1'}
+                            strokeWidth={isPassedLine || isActiveTransition ? '3' : '2'}
+                            strokeDasharray={isPassedLine ? 'none' : '6 6'}
                           />
 
-                          {isLineActive && (
+                          {/* Glowing active flow particle */}
+                          {isActiveTransition && (
                             <path
                               d={`M ${startX} ${startY} C ${cp1X} ${startY}, ${cp2X} ${endY}, ${endX} ${endY}`}
                               fill="none"
@@ -706,8 +677,9 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     })}
                   </svg>
 
+                  {/* STEP NODES (PASSED, ACTIVE, LOCKED) */}
                   {nodes.map((node) => {
-                    const isSelected = selectedNode.id === node.id;
+                    const isViewing = viewingStepIndex === node.tier;
                     const isPassed = node.status === 'completed';
                     const isActive = node.status === 'active';
                     const isLocked = node.status === 'locked';
@@ -722,50 +694,47 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                           top: `${node.y}px`,
                           width: `${node.width}px`,
                         }}
-                        className={`absolute rounded-2xl p-4 transition-all duration-200 cursor-pointer z-10 ${
-                          isShaking ? 'animate-shake' : ''
-                        } ${
-                          isPassed
+                        className={`absolute rounded-2xl p-4 transition-all duration-200 cursor-pointer z-10 ${isShaking ? 'animate-shake' : ''
+                          } ${isPassed
                             ? 'bg-gradient-to-br from-emerald-500 to-teal-600 text-white shadow-md shadow-emerald-500/25 border border-emerald-400'
                             : isActive
-                            ? 'bg-white text-slate-900 border-2 border-emerald-500 shadow-lg shadow-emerald-500/20 ring-4 ring-emerald-100'
-                            : 'bg-slate-100/90 text-slate-500 border border-slate-200/80 opacity-75 hover:opacity-100'
-                        } ${isSelected ? 'scale-105' : 'hover:scale-[1.02]'}`}
+                              ? 'bg-white text-slate-900 border-2 border-emerald-500 shadow-xl shadow-emerald-500/20 ring-4 ring-emerald-100'
+                              : 'bg-slate-100/90 text-slate-400 border border-slate-200/80 opacity-75 hover:opacity-100'
+                          } ${isViewing ? 'ring-2 ring-sky-500 scale-105' : 'hover:scale-[1.02]'}`}
                       >
                         <div className="flex items-center justify-between mb-1.5">
                           <span
-                            className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${
-                              isPassed
+                            className={`text-[10px] font-mono font-bold uppercase tracking-wider px-2 py-0.5 rounded-md ${isPassed
                                 ? 'bg-white/20 text-white'
                                 : isActive
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : 'bg-slate-200 text-slate-600'
-                            }`}
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : 'bg-slate-200 text-slate-600'
+                              }`}
                           >
                             {isPassed ? 'PASSED ✓' : isActive ? 'ACTIVE STEP' : 'LOCKED'}
                           </span>
 
                           {isPassed ? (
-                            <CheckCircle2 className="w-4 h-4 text-emerald-100" />
+                            <div className="w-5 h-5 rounded-full bg-white/20 flex items-center justify-center text-white">
+                              <Check className="w-3.5 h-3.5 stroke-[3]" />
+                            </div>
                           ) : isActive ? (
-                            <Zap className="w-4 h-4 text-amber-400 animate-pulse" />
+                            <Zap className="w-4 h-4 text-amber-500 animate-pulse" />
                           ) : (
                             <Lock className="w-3.5 h-3.5 text-slate-400" />
                           )}
                         </div>
 
                         <h4
-                          className={`text-xs font-heading font-bold leading-snug truncate ${
-                            isPassed ? 'text-white' : 'text-slate-900'
-                          }`}
+                          className={`text-xs font-heading font-bold leading-snug truncate ${isPassed ? 'text-white' : 'text-slate-900'
+                            }`}
                         >
                           {node.label}
                         </h4>
 
                         <p
-                          className={`text-[10px] truncate mt-0.5 ${
-                            isPassed ? 'text-emerald-100' : 'text-slate-500'
-                          }`}
+                          className={`text-[10px] truncate mt-0.5 ${isPassed ? 'text-emerald-100' : 'text-slate-500'
+                            }`}
                         >
                           {node.subLabel}
                         </p>
@@ -775,6 +744,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
               </div>
 
+              {/* INSPECTOR CARD FOR CURRENTLY VIEWED MILESTONE */}
               <div className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm relative overflow-hidden space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-100">
                   <div className="flex items-center gap-3">
@@ -784,14 +754,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     <div>
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-full font-bold uppercase bg-emerald-100 text-emerald-800 border border-emerald-200">
-                          {selectedNode.status}
+                          {isReviewMode ? 'REVIEW MODE' : viewingStepObj?.status || 'ACTIVE'}
                         </span>
-                        <span className="text-xs text-slate-400 font-mono">Tier {selectedNode.tier}</span>
+                        <span className="text-xs text-slate-400 font-mono">Milestone {viewingStepNum}</span>
                       </div>
                       <h3 className="text-lg font-heading font-bold text-slate-900 mt-0.5">
-                        {selectedNode.label}
+                        {viewingStepTitle}
                       </h3>
-                      <p className="text-xs text-slate-500">{selectedNode.subLabel}</p>
+                      <p className="text-xs text-slate-500">
+                        {isReviewMode ? 'Completed Milestone — Available for Retrospective Review' : 'Target Milestone Objectives & ACU Competencies'}
+                      </p>
                     </div>
                   </div>
 
@@ -805,13 +777,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {/* Milestone Objectives */}
                   <div className="space-y-2.5">
                     <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                       <Target className="w-4 h-4 text-emerald-600" />
                       <span>Milestone Objectives</span>
                     </h4>
                     <div className="space-y-2">
-                      {selectedNode.objectives.map((obj, i) => (
+                      {(viewingStepObj?.whatYouWillLearn ? [viewingStepObj.whatYouWillLearn] : [`Master milestone ${viewingStepNum} core operational standards`]).map((obj: string, i: number) => (
                         <div
                           key={i}
                           className="p-3 rounded-xl bg-slate-50 border border-slate-200/80 text-xs text-slate-700 flex items-start gap-2.5"
@@ -825,40 +798,39 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     </div>
                   </div>
 
+                  {/* Assessable Concept Units */}
                   <div className="space-y-2.5">
                     <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-700 flex items-center gap-2">
                       <FileCheck className="w-4 h-4 text-sky-600" />
                       <span>Assessable Concept Units (ACUs)</span>
                     </h4>
                     <div className="space-y-2">
-                      {selectedNode.acus.map((acu, i) => {
-                        const isChecked = !!checkedACUs[acu];
+                      {viewingStepAcus.map((acu: { id: string; title: string; description: string }, i: number) => {
+                        const isChecked = !!checkedACUs[acu.title];
                         return (
                           <div
                             key={i}
                             onClick={() =>
-                              setCheckedACUs((prev) => ({ ...prev, [acu]: !prev[acu] }))
+                              setCheckedACUs((prev) => ({ ...prev, [acu.title]: !prev[acu.title] }))
                             }
-                            className={`p-3 rounded-xl border text-xs font-mono flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${
-                              isChecked
+                            className={`p-3 rounded-xl border text-xs font-mono flex items-center justify-between gap-3 cursor-pointer transition-all select-none ${isChecked
                                 ? 'bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold'
                                 : 'bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
-                            }`}
+                              }`}
                           >
                             <div className="flex items-center gap-2.5 truncate">
                               <div
-                                className={`w-4 h-4 rounded-md flex items-center justify-center border transition-colors ${
-                                  isChecked
+                                className={`w-4 h-4 rounded-md flex items-center justify-center border transition-colors ${isChecked
                                     ? 'bg-emerald-600 border-emerald-600 text-white'
                                     : 'border-slate-300 bg-white'
-                                }`}
+                                  }`}
                               >
                                 {isChecked && <Check className="w-3 h-3 stroke-[3]" />}
                               </div>
-                              <span className="truncate">{acu}</span>
+                              <span className="truncate">{acu.title}</span>
                             </div>
                             <span className="text-[10px] text-slate-400 font-sans">
-                              {isChecked ? 'Audited' : 'Verify'}
+                              {isChecked ? 'Verified' : 'Audit'}
                             </span>
                           </div>
                         );
@@ -883,12 +855,12 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               {(!activeStepResources || activeStepResources.length === 0) && !isSynthesizing && (
                 <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-4">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200 shadow-sm">
-                    <Sparkles className="w-7 h-7 text-emerald-600 animate-pulse"/>
+                    <Sparkles className="w-7 h-7 text-emerald-600 animate-pulse" />
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-xl font-heading font-extrabold text-slate-900">Milestone Curriculum Ready</h3>
                     <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                      Synthesize live web resources curated specifically for "{activeStepTitle}" using Tavily web search and Groq AI intelligence.
+                      Synthesize live web resources curated specifically for "{viewingStepTitle}" using Tavily search and Groq pedagogy engine. Zero link rot guaranteed.
                     </p>
                   </div>
                   <div className="pt-2">
@@ -906,7 +878,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
               )}
 
-              {/* SYNTHESIZING STATE */}
+              {/* SYNTHESIZING SPINNER */}
               {isSynthesizing && (
                 <div className="p-10 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-3">
                   <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
@@ -914,12 +886,12 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     Querying Tavily Web Search & Curating via Groq...
                   </h4>
                   <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Harvesting technical documentation and video demonstrations tailored to "{activeStepTitle}".
+                    Harvesting technical documentation and video demonstrations tailored to "{viewingStepTitle}".
                   </p>
                 </div>
               )}
 
-              {/* DYNAMIC RESOURCES DISPLAY */}
+              {/* DYNAMIC RESOURCES (CLEAN ICON CARDS — ZERO THUMBNAILS) */}
               {activeStepResources && activeStepResources.length > 0 && !isSynthesizing && (
                 <>
                   <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
@@ -931,7 +903,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                         </h3>
                       </div>
                       <p className="text-xs text-slate-600 max-w-xl">
-                        Curated directly from live web search for "{activeStepTitle}".
+                        Curated directly from verified web search for "{viewingStepTitle}". Videos open in-app; documentation opens in 4-quadrant reader.
                       </p>
                     </div>
 
@@ -945,95 +917,139 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     </button>
                   </div>
 
-                  {/* VIDEOS SECTION */}
+                  {/* VIDEOS SECTION (CLEAN ICON CARDS TRIGGERING InAppYouTubePlayerModal) */}
                   {activeStepResources.filter((r) => r.type === 'youtube').length > 0 && (
                     <div className="space-y-3">
                       <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                         <Video className="w-4 h-4 text-red-500" />
-                        <span>Verified Visual & Video Walkthroughs</span>
+                        <span>Verified Visual & Video Walkthroughs (In-App Player)</span>
                       </h4>
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {activeStepResources
                           .filter((r) => r.type === 'youtube')
-                          .map((res) => (
-                            <a
-                              key={res.id}
-                              href={res.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-red-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
-                            >
-                              <div className="space-y-2.5">
-                                <div className="flex items-center justify-between">
-                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-red-50 text-red-700 border border-red-200 flex items-center gap-1.5">
-                                    <Video className="w-3 h-3 text-red-600 fill-current" />
-                                    <span>YOUTUBE TUTORIAL</span>
-                                  </span>
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                          .map((res) => {
+                            const vId = extractYouTubeId(res.url);
+
+                            return (
+                              <div
+                                key={res.id}
+                                onClick={() => {
+                                  setActiveYouTubeModal({
+                                    isOpen: true,
+                                    videoId: vId || 'dQw4w9WgXcQ',
+                                    title: res.title,
+                                    channelOrAuthor: res.viewsOrCitation || 'Verified YouTube Tutorial',
+                                    takeaway: res.subtitle || 'Focus on the mechanics and execution demonstrated in this tutorial.',
+                                  });
+                                }}
+                                className="bg-white/95 rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-red-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group hover:scale-[1.01]"
+                              >
+                                <div className="space-y-3">
+                                  <div className="flex items-center justify-between">
+                                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-red-50 text-red-700 border border-red-200/80 flex items-center gap-1.5">
+                                      <Video className="w-3.5 h-3.5 text-red-600 fill-current" />
+                                      <span>YOUTUBE TUTORIAL</span>
+                                    </span>
+                                    <span className="text-[11px] font-mono text-slate-400 font-medium">In-App Player</span>
+                                  </div>
+
+                                  <div className="flex items-start gap-3">
+                                    <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                                      <Youtube className="w-5 h-5" />
+                                    </div>
+                                    <div>
+                                      <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-red-700 transition-colors leading-snug">
+                                        {res.title}
+                                      </h5>
+                                      <p className="text-xs text-slate-600 leading-relaxed mt-1 line-clamp-2">
+                                        {res.subtitle}
+                                      </p>
+                                    </div>
+                                  </div>
                                 </div>
 
-                                <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-red-700 transition-colors leading-snug">
-                                  {res.title}
-                                </h5>
-
-                                <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
-                                  {res.subtitle}
-                                </p>
-                              </div>
-
-                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-red-700">
-                                <span>{res.viewsOrCitation || 'Verified Video'}</span>
-                                <div className="flex items-center gap-1 group-hover:translate-x-0.5 transition-transform">
-                                  <span>Launch Video Tutorial</span>
-                                  <ExternalLink className="w-3.5 h-3.5" />
+                                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-red-700">
+                                  <span className="text-slate-500 font-mono text-[11px]">{res.durationOrPages || 'Tutorial Video'}</span>
+                                  <div className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                    <span>Play in App</span>
+                                    <ChevronRight className="w-3.5 h-3.5" />
+                                  </div>
                                 </div>
                               </div>
-                            </a>
-                          ))}
+                            );
+                          })}
                       </div>
                     </div>
                   )}
 
-                  {/* DOCUMENTATION SECTION */}
+                  {/* DOCUMENTATION SECTION (CLEAN ICON CARDS TRIGGERING InAppContentReaderModal) */}
                   {activeStepResources.filter((r) => r.type === 'doc').length > 0 && (
                     <div className="space-y-3 pt-2">
                       <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
                         <BookOpen className="w-4 h-4 text-sky-500" />
-                        <span>Canonical Technical Documentation</span>
+                        <span>Canonical Technical Documentation (4-Quadrant Reader)</span>
                       </h4>
 
                       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         {activeStepResources
                           .filter((r) => r.type === 'doc')
                           .map((doc) => (
-                            <a
+                            <div
                               key={doc.id}
-                              href={doc.url}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="bg-white rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+                              onClick={() => {
+                                setActiveReaderModal({
+                                  isOpen: true,
+                                  title: doc.title,
+                                  sourceUrl: doc.url,
+                                  sourceBadge: 'Documentation',
+                                  takeaway: doc.subtitle,
+                                  corePrinciple: doc.subtitle,
+                                  mechanics: [
+                                    '1. Establish initial conditions and prerequisite parameters.',
+                                    '2. Trace step-by-step implementation in canonical order.',
+                                    '3. Cross-reference edge cases and test assertions.',
+                                  ],
+                                  commonTraps: [
+                                    'Overlooking pre-condition assertions.',
+                                    'Conflating nominal syntax with edge-case behavior.',
+                                  ],
+                                });
+                              }}
+                              className="bg-white/95 rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group hover:scale-[1.01]"
                             >
-                              <div className="space-y-2.5">
+                              <div className="space-y-3">
                                 <div className="flex items-center justify-between">
-                                  <span className="px-2 py-0.5 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200">
-                                    VERIFIED DOC
+                                  <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200/80 flex items-center gap-1.5">
+                                    <BookOpen className="w-3.5 h-3.5 text-sky-600" />
+                                    <span>DOCUMENTATION</span>
                                   </span>
-                                  <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                                  <span className="text-[11px] font-mono text-slate-400 font-medium">4-Quadrant Reader</span>
                                 </div>
 
-                                <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
-                                  {doc.title}
-                                </h5>
-
-                                <p className="text-xs text-slate-600 leading-relaxed">{doc.subtitle}</p>
+                                <div className="flex items-start gap-3">
+                                  <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
+                                    <FileText className="w-5 h-5" />
+                                  </div>
+                                  <div>
+                                    <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
+                                      {doc.title}
+                                    </h5>
+                                    <p className="text-xs text-slate-600 leading-relaxed mt-1 line-clamp-2">
+                                      {doc.subtitle}
+                                    </p>
+                                  </div>
+                                </div>
                               </div>
 
                               <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-sky-700">
-                                <span>{doc.viewsOrCitation}</span>
-                                <ExternalLink className="w-3.5 h-3.5 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                                <span className="text-slate-500 font-mono text-[11px]">{doc.viewsOrCitation || 'Verified Doc'}</span>
+                                <div className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                  <span>Read in App</span>
+                                  <ChevronRight className="w-3.5 h-3.5" />
+                                </div>
                               </div>
-                            </a>
+                            </div>
                           ))}
                       </div>
                     </div>
@@ -1041,7 +1057,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </>
               )}
 
-              {/* Ready for Quiz Button */}
+              {/* Ready for Quiz Prompt Banner */}
               <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
@@ -1049,20 +1065,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   </div>
                   <div>
                     <h4 className="text-sm font-heading font-bold text-emerald-950">
-                      Materials Mastered? Take the Competency Check
+                      Materials Mastered? Take the Socratic Competency Check
                     </h4>
                     <p className="text-xs text-emerald-800">
-                      Proceed directly to the in-place Evaluation Gate to unlock the next milestone.
+                      Passing threshold is 70%. Score 100% or take the perfection drill to earn Grandmaster XP.
                     </p>
                   </div>
                 </div>
 
                 <button
-                  onClick={() => {
-                    generateQuestions();
-                    setQuizState('evaluating');
-                    setActiveTab('evaluation');
-                  }}
+                  onClick={() => setActiveTab('evaluation')}
                   className="px-5 py-2.5 rounded-xl font-heading font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
                 >
                   <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
@@ -1082,10 +1094,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               className="space-y-6"
             >
               <QuizAndEvaluationEngine
-                stepId={activeStepId}
-                stepIndex={activeStepNum}
-                stepTitle={activeStepTitle}
-                acus={activeStepAcus}
+                stepId={viewingStepId}
+                stepIndex={viewingStepNum}
+                stepTitle={viewingStepTitle}
+                acus={viewingStepAcus}
                 onStepPassed={(score, passPayload) => {
                   handleStepPassed(score, passPayload);
                 }}
@@ -1099,7 +1111,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
             <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
               <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
-                <ShieldCheck className="w-9 h-9"/>
+                <ShieldCheck className="w-9 h-9" />
               </div>
 
               <div>
@@ -1134,7 +1146,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer btn-shimmer"
                 >
                   <span>Level Up: Enter Milestone {levelUpData.nextStepIndex}</span>
-                  <ArrowRight className="w-4 h-4"/>
+                  <ArrowRight className="w-4 h-4" />
                 </button>
               )}
             </div>
@@ -1142,65 +1154,27 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         )}
       </main>
 
-      <AnimatePresence>
-        {activeVideoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-2xl bg-white rounded-3xl overflow-hidden shadow-2xl border border-slate-200"
-            >
-              <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Video className="w-4 h-4 text-red-500" />
-                  <span className="text-xs font-semibold">{activeVideoModal.organization}</span>
-                </div>
-                <button
-                  onClick={() => setActiveVideoModal(null)}
-                  className="w-7 h-7 rounded-full bg-white/10 hover:bg-white/20 text-white flex items-center justify-center text-xs cursor-pointer"
-                >
-                  ✕
-                </button>
-              </div>
+      {/* Standalone In-App Modals */}
+      <InAppYouTubePlayerModal
+        isOpen={activeYouTubeModal.isOpen}
+        onClose={() => setActiveYouTubeModal((prev) => ({ ...prev, isOpen: false }))}
+        videoId={activeYouTubeModal.videoId}
+        videoTitle={activeYouTubeModal.title}
+        channelOrAuthor={activeYouTubeModal.channelOrAuthor}
+        takeaway={activeYouTubeModal.takeaway}
+      />
 
-              <div className="p-6 space-y-4">
-                <h3 className="text-lg font-heading font-bold text-slate-900">
-                  {activeVideoModal.title}
-                </h3>
-                <p className="text-xs text-slate-600 leading-relaxed">
-                  {activeVideoModal.subtitle}
-                </p>
-
-                <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 text-xs flex items-center justify-between text-slate-600">
-                  <span>Runtime: {activeVideoModal.durationOrPages}</span>
-                  <span className="font-semibold text-emerald-600">
-                    {activeVideoModal.viewsOrCitation}
-                  </span>
-                </div>
-
-                <div className="pt-2 flex items-center justify-end gap-2">
-                  <button
-                    onClick={() => setActiveVideoModal(null)}
-                    className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-                  >
-                    Close
-                  </button>
-                  <a
-                    href={activeVideoModal.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="px-5 py-2 rounded-xl text-xs font-semibold bg-red-600 hover:bg-red-700 text-white shadow-xs flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <span>Watch Full Lecture on YouTube</span>
-                    <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      <InAppContentReaderModal
+        isOpen={activeReaderModal.isOpen}
+        onClose={() => setActiveReaderModal((prev) => ({ ...prev, isOpen: false }))}
+        title={activeReaderModal.title}
+        sourceUrl={activeReaderModal.sourceUrl}
+        sourceBadge={activeReaderModal.sourceBadge}
+        takeaway={activeReaderModal.takeaway}
+        corePrinciple={activeReaderModal.corePrinciple}
+        mechanics={activeReaderModal.mechanics}
+        commonTraps={activeReaderModal.commonTraps}
+      />
 
       <AIEngineSelectorModal
         isOpen={showEngineModal}
@@ -1217,7 +1191,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
             const saved = localStorage.getItem('skillprax_tracks');
             const current = saved ? JSON.parse(saved) : [];
             localStorage.setItem('skillprax_tracks', JSON.stringify([...current, newTrack]));
-          } catch {}
+          } catch { }
           onNavigate('studio');
           window.location.href = `/workspace/${newTrack.id}`;
         }}
