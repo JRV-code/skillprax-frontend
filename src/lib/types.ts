@@ -8,6 +8,8 @@ export type DomainCategory =
 export interface UserProfile {
   id: string;
   name: string;
+  email?: string;
+  gender?: 'Male' | 'Female' | 'Non-Binary' | 'Prefer not to say' | string;
   educationBoard: string;
   grade: string;
   activeMonths: number;
@@ -30,6 +32,34 @@ export interface UserProfile {
   maxFreezes?: number;
   skillsCompleted?: number;
   studyCadence?: any[];
+}
+
+export type SupportedLanguage = 'en' | 'hi' | 'fr' | 'es' | 'de';
+
+export interface Review {
+  id: string;
+  profileId?: string;
+  userName: string;
+  avatarUrl?: string;
+  rating: number;
+  reviewText: string;
+  skillTag?: string;
+  isVerified: boolean;
+  createdAt: string;
+}
+
+export interface SportDrill {
+  id: string;
+  title: string;
+  durationMinutes: number;
+  focusPoints: string[];
+  completed: boolean;
+}
+
+export interface SportWorkoutPlan {
+  sportName: string;
+  subGenre: string;
+  drills: SportDrill[];
 }
 
 export interface ACU {

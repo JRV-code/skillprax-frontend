@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Youtube, BookOpen, Sparkles, CheckCircle2 } from 'lucide-react';
+import { 
+  X, Youtube, Play, Pause, RotateCcw, RotateCw, 
+  Gauge, Volume2, Sparkles, CheckCircle2 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export interface InAppYouTubePlayerModalProps {
@@ -14,15 +17,30 @@ export interface InAppYouTubePlayerModalProps {
   takeaway?: string;
 }
 
+const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
+
+declare global {
+  interface Window {
+    YT: any;
+    onYouTubeIframeAPIReady: any;
+  }
+}
+
 export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = ({
   isOpen,
   onClose,
   videoId,
-  videoTitle = 'Verified Socratic Video Tutorial',
+  videoTitle = 'Verified Pedagogical Video Resource',
   channelOrAuthor = 'Curated Pedagogical Breakdown',
   takeaway = 'Focus on the structural mechanics, key sequences, and error recovery steps illustrated in this walkthrough.',
 }) => {
   const [mounted, setMounted] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(true);
+  const [currentTime, setCurrentTime] = useState(0);
+  const [duration, setDuration] = useState(300); // 5 mins default fallback
+  const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const playerRef = useRef<any>(null);
+  const intervalRef = useRef<any>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -39,12 +57,119 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
     };
   }, [isOpen, onClose]);
 
+  // Load YouTube IFrame API
+  useEffect(() => {
+    if (!isOpen || !videoId) return;
+
+    if (!window.YT) {
+      const tag = document.createElement('script');
+      tag.src = 'https://www.youtube.com/iframe_api';
+      const firstScriptTag = document.getElementsByTagName('script')[0];
+      firstScriptTag?.parentNode?.insertBefore(tag, firstScriptTag);
+    }
+
+    const initPlayer = () => {
+      if (!window.YT || !window.YT.Player) return;
+      try {
+        playerRef.current = new window.YT.Player('yt-portal-player', {
+          videoId,
+          playerVars: {
+            autoplay: 1,
+            controls: 0, // hide native controls so our custom controller shines
+            rel: 0,
+            modestbranding: 1,
+            enablejsapi: 1,
+            origin: window.location.origin,
+          },
+          events: {
+            onReady: (event: any) => {
+              const dur = event.target.getDuration();
+              if (dur > 0) setDuration(dur);
+              event.target.playVideo();
+              setIsPlaying(true);
+            },
+            onStateChange: (event: any) => {
+              if (event.data === 1) setIsPlaying(true);
+              else if (event.data === 2) setIsPlaying(false);
+            },
+          },
+        });
+      } catch (err) {
+        console.warn('YT Player initialization error:', err);
+      }
+    };
+
+    if (window.YT && window.YT.Player) {
+      initPlayer();
+    } else {
+      window.onYouTubeIframeAPIReady = initPlayer;
+    }
+
+    // Time ticker
+    intervalRef.current = setInterval(() => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
+        const cur = playerRef.current.getCurrentTime();
+        const dur = playerRef.current.getDuration();
+        if (typeof cur === 'number') setCurrentTime(cur);
+        if (typeof dur === 'number' && dur > 0) setDuration(dur);
+      }
+    }, 500);
+
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
+        try {
+          playerRef.current.destroy();
+        } catch (_) {}
+      }
+    };
+  }, [isOpen, videoId]);
+
   if (!mounted) return null;
+
+  const togglePlayPause = () => {
+    if (!playerRef.current) return;
+    if (isPlaying) {
+      playerRef.current.pauseVideo?.();
+      setIsPlaying(false);
+    } else {
+      playerRef.current.playVideo?.();
+      setIsPlaying(true);
+    }
+  };
+
+  const seekBy = (seconds: number) => {
+    if (!playerRef.current) return;
+    const target = Math.max(0, Math.min(duration, currentTime + seconds));
+    playerRef.current.seekTo?.(target, true);
+    setCurrentTime(target);
+  };
+
+  const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = parseFloat(e.target.value);
+    setCurrentTime(val);
+    if (playerRef.current) {
+      playerRef.current.seekTo?.(val, true);
+    }
+  };
+
+  const handleSpeedChange = (speed: number) => {
+    setPlaybackSpeed(speed);
+    if (playerRef.current && typeof playerRef.current.setPlaybackRate === 'function') {
+      playerRef.current.setPlaybackRate(speed);
+    }
+  };
+
+  const formatTime = (secs: number) => {
+    const m = Math.floor(secs / 60);
+    const s = Math.floor(secs % 60);
+    return `${m}:${s < 10 ? '0' : ''}${s}`;
+  };
 
   return createPortal(
     <AnimatePresence>
       {isOpen && videoId && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 md:p-6 bg-slate-950/80 backdrop-blur-md">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 bg-slate-950/85 backdrop-blur-md">
           {/* Backdrop click to dismiss */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -59,24 +184,24 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 16 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative z-10 w-full max-w-4xl bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col"
+            className="relative z-10 w-full max-w-4xl bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col text-white"
           >
             {/* Top Modal Header */}
-            <div className="px-6 py-4 bg-slate-50/90 border-b border-slate-200/80 flex items-center justify-between">
+            <div className="px-6 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
               <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-red-100 flex items-center justify-center text-red-600 shadow-xs">
+                <div className="w-9 h-9 rounded-xl bg-rose-500/20 text-rose-400 flex items-center justify-center shadow-xs">
                   <Youtube className="w-5 h-5" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-red-50 text-red-700 border border-red-200/60 px-2 py-0.5 rounded-md">
-                      IN-APP PLAYER
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-rose-500/20 text-rose-300 border border-rose-500/30 px-2 py-0.5 rounded-md">
+                      IN-APP MEDIA CONTROLLER
                     </span>
-                    <span className="text-xs font-semibold text-slate-500">
+                    <span className="text-xs font-semibold text-slate-400">
                       {channelOrAuthor}
                     </span>
                   </div>
-                  <h3 className="text-sm md:text-base font-heading font-extrabold text-slate-900 line-clamp-1 mt-0.5">
+                  <h3 className="text-sm md:text-base font-heading font-extrabold text-white line-clamp-1 mt-0.5">
                     {videoTitle}
                   </h3>
                 </div>
@@ -84,35 +209,99 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
 
               <button
                 onClick={onClose}
-                className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-all cursor-pointer"
+                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
                 title="Close Video"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Responsive 16:9 Video Canvas */}
+            {/* Video Canvas */}
             <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
-              <iframe
-                src={`https://www.youtube.com/embed/${videoId}?autoplay=1&rel=0&modestbranding=1&playsinline=1`}
-                title={videoTitle}
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                allowFullScreen
-                className="w-full h-full border-0"
-              />
+              <div id="yt-portal-player" className="w-full h-full" />
+            </div>
+
+            {/* COMPREHENSIVE CUSTOM MEDIA CONTROLS BAR */}
+            <div className="p-4 md:p-5 bg-slate-950 border-t border-slate-800/80 space-y-3">
+              {/* Timeline Scrubber */}
+              <div className="space-y-1">
+                <input
+                  type="range"
+                  min="0"
+                  max={duration || 100}
+                  step="1"
+                  value={currentTime}
+                  onChange={handleScrub}
+                  className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                />
+                <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 font-bold">
+                  <span>{formatTime(currentTime)}</span>
+                  <span>{formatTime(duration)}</span>
+                </div>
+              </div>
+
+              {/* Bottom Control Buttons Grid */}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                {/* Left: Play/Pause, -10s, +10s */}
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={togglePlayPause}
+                    className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                  >
+                    {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
+                    <span className="text-xs">{isPlaying ? 'Pause' : 'Play'}</span>
+                  </button>
+
+                  <button
+                    onClick={() => seekBy(-10)}
+                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Rewind 10s"
+                  >
+                    <RotateCcw className="w-3.5 h-3.5" />
+                    <span>-10s</span>
+                  </button>
+
+                  <button
+                    onClick={() => seekBy(10)}
+                    className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
+                    title="Forward 10s"
+                  >
+                    <RotateCw className="w-3.5 h-3.5" />
+                    <span>+10s</span>
+                  </button>
+                </div>
+
+                {/* Right: Playback Speed Selector */}
+                <div className="flex items-center gap-1.5 bg-slate-900 border border-slate-800 p-1 rounded-xl">
+                  <Gauge className="w-3.5 h-3.5 text-slate-400 ml-1.5 mr-0.5" />
+                  {SPEED_OPTIONS.map((spd) => (
+                    <button
+                      key={spd}
+                      onClick={() => handleSpeedChange(spd)}
+                      className={`px-2 py-1 rounded-lg text-xs font-mono font-bold transition-all cursor-pointer ${
+                        playbackSpeed === spd
+                          ? 'bg-emerald-600 text-white'
+                          : 'text-slate-400 hover:text-white'
+                      }`}
+                    >
+                      {spd}x
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             {/* Pedagogical Takeaway Footer */}
-            <div className="p-5 md:p-6 bg-white flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-slate-100">
+            <div className="p-4 md:p-5 bg-slate-900 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-slate-800">
               <div className="flex items-start gap-3">
-                <div className="w-7 h-7 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0 mt-0.5">
+                <div className="w-7 h-7 rounded-lg bg-emerald-500/20 text-emerald-400 flex items-center justify-center shrink-0 mt-0.5">
                   <Sparkles className="w-4 h-4" />
                 </div>
                 <div>
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-slate-400">
+                  <h4 className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
                     Key Pedagogical Takeaway
                   </h4>
-                  <p className="text-xs md:text-sm text-slate-700 font-medium mt-0.5 leading-relaxed">
+                  <p className="text-xs text-slate-300 font-medium mt-0.5 leading-relaxed">
                     {takeaway}
                   </p>
                 </div>

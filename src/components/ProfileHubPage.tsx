@@ -42,7 +42,6 @@ interface ProfileHubPageProps {
   onSelectTrack: (trackId: string) => void;
   onAddTrack: (track: SkillTrack) => void;
   onNavigate: (page: 'landing' | 'profile' | 'studio') => void;
-  onOpenAdmin: () => void;
 }
 
 // Reusable Animated Number with Pop-In Physics
@@ -243,7 +242,6 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
   onSelectTrack,
   onAddTrack,
   onNavigate,
-  onOpenAdmin,
 }) => {
   const [hoveredDay, setHoveredDay] = useState<DayCadence | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -997,7 +995,6 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
         onClose={() => setShowEditProfileModal(false)}
         userProfile={userProfile}
         onUpdateProfile={onUpdateProfile}
-        onOpenAdmin={onOpenAdmin}
       />
     </motion.div>
   );

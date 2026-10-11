@@ -1,26 +1,17 @@
 'use client';
 
-import React, { useState } from 'react';
-import {
-  X,
-  User,
-  Clock,
-  Bell,
-  Sparkles,
-  Check,
-  ChevronUp,
-  ChevronDown,
-  Camera,
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { 
+  X, Check, Camera, Clock, Bell, Sparkles, ChevronUp, ChevronDown, User, Mail, GraduationCap 
 } from 'lucide-react';
-
 import { UserProfile } from '@/types';
 
-interface EditProfileModalProps {
+export interface EditProfileModalProps {
   isOpen: boolean;
   onClose: () => void;
   userProfile: UserProfile;
-  onUpdateProfile: (updated: any) => void;
-  onOpenAdmin?: () => void;
+  onUpdateProfile: (updated: Partial<UserProfile>) => void;
 }
 
 const AVATAR_PRESETS = [
@@ -51,40 +42,94 @@ const AVATAR_PRESETS = [
   },
 ];
 
+const PROFESSION_OPTIONS = [
+  'Student',
+  'Software Engineer',
+  'Healthcare Professional',
+  'Designer',
+  'Educator',
+  'Entrepreneur',
+  'Other',
+];
+
+const GENDER_OPTIONS = ['Male', 'Female', 'Non-Binary', 'Prefer not to say'];
+
 export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   isOpen,
   onClose,
   userProfile,
   onUpdateProfile,
-  onOpenAdmin,
 }) => {
   const [name, setName] = useState(userProfile.name);
+  const [email, setEmail] = useState(userProfile.email || '');
+  const [gender, setGender] = useState<string>(userProfile.gender || 'Prefer not to say');
   const [age, setAge] = useState((userProfile.age || 18).toString());
-  const [profession, setProfession] = useState(userProfile.profession || '');
+  
+  // Profession states
+  const initialProfBase = PROFESSION_OPTIONS.includes(userProfile.profession || '')
+    ? userProfile.profession || 'Student'
+    : userProfile.profession?.includes('Student')
+    ? 'Student'
+    : 'Other';
+  const [selectedProfession, setSelectedProfession] = useState<string>(initialProfBase);
+  const [customProfession, setCustomProfession] = useState<string>(
+    initialProfBase === 'Other' ? userProfile.profession || '' : ''
+  );
+  const [educationBoard, setEducationBoard] = useState(userProfile.educationBoard || 'CBSE');
+  const [grade, setGrade] = useState(userProfile.grade || 'Class 12');
+
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || AVATAR_PRESETS[0].url);
   const [targetHours, setTargetHours] = useState(userProfile.targetHours || 1);
-  const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes || 0);
-  const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime || '20:00');
+  const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes || 50);
+  const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime || '20:30');
   const [notificationsEnabled, setNotificationsEnabled] = useState(userProfile.notificationsEnabled ?? true);
   const [customAvatarInput, setCustomAvatarInput] = useState('');
   const [showCustomInput, setShowCustomInput] = useState(false);
   const [savedSuccess, setSavedSuccess] = useState(false);
+  const [validationError, setValidationError] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!isOpen || !mounted) return null;
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setValidationError(null);
 
-    if (profession.trim().toLowerCase() === '/admin') {
-      if (onOpenAdmin) onOpenAdmin();
-      onClose();
+    if (!name.trim()) {
+      setValidationError('Please define your Full Name.');
+      return;
+    }
+    if (!gender) {
+      setValidationError('Please select your Gender identity.');
+      return;
+    }
+    if (selectedProfession === 'Other' && !customProfession.trim()) {
+      setValidationError('Please specify your custom profession.');
+      return;
+    }
+    if (selectedProfession === 'Student' && (!educationBoard.trim() || !grade.trim())) {
+      setValidationError('Please specify your Board and Grade standard.');
       return;
     }
 
+    const finalProfession = selectedProfession === 'Other' 
+      ? customProfession.trim() 
+      : selectedProfession === 'Student'
+      ? `${educationBoard} ${grade} Student`
+      : selectedProfession;
+
     onUpdateProfile({
-      name: name.trim() || userProfile.name,
+      name: name.trim(),
+      email: email.trim() || undefined,
+      gender,
       age: parseInt(age, 10) || userProfile.age,
-      profession: profession.trim() || userProfile.profession,
+      profession: finalProfession,
+      educationBoard: selectedProfession === 'Student' ? educationBoard.trim() : userProfile.educationBoard,
+      grade: selectedProfession === 'Student' ? grade.trim() : userProfile.grade,
       avatarUrl: avatarUrl || userProfile.avatarUrl,
       targetHours: Math.max(0, Math.min(24, targetHours)),
       targetMinutes: Math.max(0, Math.min(59, targetMinutes)),
@@ -96,7 +141,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     setTimeout(() => {
       setSavedSuccess(false);
       onClose();
-    }, 500);
+    }, 600);
   };
 
   const handleHourSpin = (delta: number) => {
@@ -106,103 +151,83 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const handleMinSpin = (delta: number) => {
     setTargetMinutes((prev) => {
       const next = prev + delta;
+      if (next >= 60) return 0;
       if (next < 0) return 55;
-      if (next > 55) return 0;
       return next;
     });
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/60 backdrop-blur-md view-transition-enter overflow-y-auto">
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl p-5 sm:p-8 shadow-2xl border border-emerald-200/90 ring-1 ring-black/5 my-8 max-h-[92vh] overflow-y-auto font-sans">
-        {/* Close Button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-700 rounded-full hover:bg-slate-100 transition-colors cursor-pointer"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
-        {/* Modal Header */}
-        <div className="flex items-center gap-3 mb-6 pb-4 border-b border-slate-100">
-          <div className="p-3 bg-emerald-100 text-emerald-800 rounded-2xl shadow-xs">
-            <User className="w-6 h-6" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <h2 className="text-xl font-heading font-bold text-slate-900">
-                Learner Profile Settings
-              </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 text-emerald-800 rounded-full font-bold">
-                EDIT INTERFACE
-              </span>
+  return createPortal(
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
+      <div className="w-full max-w-2xl bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden my-8 animate-fade-in">
+        {/* Header Bar */}
+        <div className="px-6 py-5 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 flex items-center justify-center font-bold">
+              <User className="w-5 h-5" />
             </div>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Customize your identity, academic goals, daily cadence, and telemetry targets
-            </p>
+            <div>
+              <h3 className="text-base font-heading font-extrabold tracking-tight">
+                Learner Profile & Demographics
+              </h3>
+              <p className="text-xs text-slate-300">
+                Personal identity, daily commitments, and notification schedule
+              </p>
+            </div>
           </div>
+
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center text-sm transition-colors cursor-pointer"
+          >
+            <X className="w-4 h-4" />
+          </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Avatar Selection Section */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
-            <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider">
-              Profile Avatar
+        <form onSubmit={handleSubmit} className="p-6 md:p-8 space-y-6">
+          {validationError && (
+            <div className="p-3 bg-rose-50 border border-rose-200 rounded-xl text-xs text-rose-700 font-semibold">
+              {validationError}
+            </div>
+          )}
+
+          {/* Avatar Selector */}
+          <div>
+            <label className="block text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 mb-2">
+              Select Profile Avatar
             </label>
+            <div className="flex items-center gap-4 flex-wrap">
+              <img
+                src={avatarUrl}
+                alt="Profile Preview"
+                className="w-14 h-14 rounded-2xl object-cover border-2 border-emerald-500 shadow-sm"
+              />
 
-            <div className="flex flex-col sm:flex-row items-center gap-4">
-              {/* Active Avatar Preview with Glow */}
-              <div className="relative group">
-                <div className="absolute -inset-1 rounded-full bg-gradient-to-r from-emerald-400 to-sky-400 blur-sm opacity-60 animate-pulse" />
-                <img
-                  src={avatarUrl}
-                  alt="Profile Preview"
-                  className="relative w-16 h-16 rounded-full object-cover border-2 border-white shadow-md"
-                  onError={(e) => {
-                    e.currentTarget.src =
-                      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80';
-                  }}
-                />
-                <span className="absolute bottom-0 right-0 p-1 bg-emerald-600 text-white rounded-full border-2 border-white shadow-xs">
-                  <Check className="w-3 h-3" />
-                </span>
-              </div>
-
-              {/* Presets List */}
-              <div className="flex-1">
-                <span className="text-[11px] text-slate-500 font-medium block mb-1.5">
-                  Select a preset persona:
-                </span>
-                <div className="flex flex-wrap items-center gap-2">
-                  {AVATAR_PRESETS.map((preset) => {
-                    const isSelected = avatarUrl === preset.url;
-                    return (
-                      <button
-                        key={preset.id}
-                        type="button"
-                        onClick={() => setAvatarUrl(preset.url)}
-                        className={`relative rounded-full p-0.5 transition-all cursor-pointer ${
-                          isSelected
-                            ? 'ring-2 ring-emerald-500 scale-105 shadow-md'
-                            : 'opacity-70 hover:opacity-100 hover:scale-105'
-                        }`}
-                        title={preset.label}
-                      >
-                        <img
-                          src={preset.url}
-                          alt={preset.label}
-                          className="w-9 h-9 rounded-full object-cover"
-                        />
-                      </button>
-                    );
-                  })}
-
+              <div className="flex-1 min-w-[200px]">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {AVATAR_PRESETS.map((preset) => (
+                    <button
+                      type="button"
+                      key={preset.id}
+                      onClick={() => {
+                        setAvatarUrl(preset.url);
+                        setShowCustomInput(false);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                        avatarUrl === preset.url
+                          ? 'border-emerald-500 bg-emerald-50 text-emerald-700 shadow-xs'
+                          : 'border-slate-200 hover:border-slate-300 bg-slate-50 text-slate-700'
+                      }`}
+                    >
+                      {preset.label}
+                    </button>
+                  ))}
                   <button
                     type="button"
                     onClick={() => setShowCustomInput(!showCustomInput)}
-                    className="px-2.5 py-1.5 rounded-xl border border-slate-300 text-[11px] text-slate-600 hover:text-emerald-700 hover:border-emerald-400 bg-white font-medium flex items-center gap-1 transition-colors"
+                    className="px-2.5 py-1.5 rounded-xl border border-slate-300 text-xs text-slate-600 hover:text-emerald-700 hover:border-emerald-400 bg-white font-medium flex items-center gap-1 transition-colors"
                   >
-                    <Camera className="w-3 h-3" />
+                    <Camera className="w-3.5 h-3.5" />
                     <span>Custom URL</span>
                   </button>
                 </div>
@@ -225,7 +250,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                           setShowCustomInput(false);
                         }
                       }}
-                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold"
+                      className="px-3 py-1.5 bg-emerald-600 text-white rounded-xl text-xs font-semibold cursor-pointer"
                     >
                       Apply
                     </button>
@@ -236,10 +261,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </div>
 
           {/* Personal Identity Fields */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Full Name
+                Full Name *
               </label>
               <input
                 type="text"
@@ -252,12 +277,52 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
 
             <div>
+              <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1">
+                <Mail className="w-3.5 h-3.5 text-slate-400" />
+                <span>Gmail / Email ID *</span>
+              </label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="your.name@gmail.com"
+                required
+                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-900"
+              />
+            </div>
+          </div>
+
+          {/* Demographics: Gender & Age */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="sm:col-span-2 space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Gender Identity (Mandatory) *
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {GENDER_OPTIONS.map((g) => (
+                  <button
+                    key={g}
+                    type="button"
+                    onClick={() => setGender(g)}
+                    className={`py-2 px-2.5 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer truncate ${
+                      gender === g
+                        ? 'border-emerald-500 bg-emerald-50 text-emerald-800 shadow-xs ring-1 ring-emerald-400'
+                        : 'border-slate-200 bg-slate-50/70 text-slate-600 hover:bg-white'
+                    }`}
+                  >
+                    {g}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <div>
               <label className="block text-xs font-semibold text-slate-700 mb-1">
                 Age
               </label>
               <input
                 type="number"
-                min="10"
+                min="8"
                 max="99"
                 value={age}
                 onChange={(e) => setAge(e.target.value)}
@@ -267,38 +332,90 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Profession / Academic Track */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block text-xs font-semibold text-slate-700">
-                Profession / Academic Focus
-              </label>
-              <span className="text-[11px] text-slate-400 font-mono">
-                Hint: Type <code className="bg-slate-100 text-emerald-700 px-1 py-0.5 rounded">/admin</code> for Master Console
-              </span>
+          {/* Dynamic Profession Field */}
+          <div className="space-y-3 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80">
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-700">
+              Profession / Occupation (Mandatory) *
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {PROFESSION_OPTIONS.map((prof) => (
+                <button
+                  key={prof}
+                  type="button"
+                  onClick={() => setSelectedProfession(prof)}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-semibold border transition-all cursor-pointer ${
+                    selectedProfession === prof
+                      ? 'border-sky-500 bg-sky-50 text-sky-800 ring-1 ring-sky-400 shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-700 hover:border-slate-300'
+                  }`}
+                >
+                  {prof}
+                </button>
+              ))}
             </div>
-            <input
-              type="text"
-              value={profession}
-              onChange={(e) => {
-                setProfession(e.target.value);
-                if (e.target.value.trim().toLowerCase() === '/admin') {
-                  if (onOpenAdmin) onOpenAdmin();
-                  onClose();
-                }
-              }}
-              placeholder="e.g. Class 12 Student (NEET / JEE Advanced)"
-              required
-              className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-900"
-            />
+
+            {/* Accordion 1: If Student selected */}
+            {selectedProfession === 'Student' && (
+              <div className="p-3.5 bg-white rounded-xl border border-sky-200 space-y-3 mt-2 animate-fade-in">
+                <div className="flex items-center gap-1.5 text-sky-800 text-xs font-bold">
+                  <GraduationCap className="w-4 h-4" />
+                  <span>Student Academic Credentials</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                      Education Board
+                    </label>
+                    <input
+                      type="text"
+                      value={educationBoard}
+                      onChange={(e) => setEducationBoard(e.target.value)}
+                      placeholder="e.g. CBSE, ICSE, GSEB"
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-500 mb-1">
+                      Grade / Standard
+                    </label>
+                    <input
+                      type="text"
+                      value={grade}
+                      onChange={(e) => setGrade(e.target.value)}
+                      placeholder="e.g. Class 12, Undergraduate"
+                      required
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Accordion 2: If Other selected */}
+            {selectedProfession === 'Other' && (
+              <div className="p-3.5 bg-white rounded-xl border border-sky-200 mt-2 animate-fade-in">
+                <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                  Please specify your profession *
+                </label>
+                <input
+                  type="text"
+                  value={customProfession}
+                  onChange={(e) => setCustomProfession(e.target.value)}
+                  placeholder="e.g. Data Scientist, Architect, Sound Engineer"
+                  required
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Daily Study Target (Dual Spin Controls) */}
+          {/* Daily Study Target */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 space-y-3">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-bold text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
                 <Clock className="w-4 h-4 text-emerald-600" />
-                Daily Target Study Cadence
+                <span>Daily Target Study Cadence</span>
               </label>
               <span className="text-xs font-bold font-mono text-emerald-800">
                 {targetHours}h {targetMinutes}m per day
@@ -373,7 +490,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Reminder Schedule & Notification Toggle */}
+          {/* Daily Schedule & Notification Toggle */}
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <div className="flex items-center gap-2.5">
               <div className="p-2 bg-emerald-100 text-emerald-700 rounded-xl">
@@ -381,10 +498,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               </div>
               <div>
                 <span className="text-xs font-semibold text-slate-800 block">
-                  Daily Study Reminder Notification
+                  Daily Learning Reminder Notification
                 </span>
                 <span className="text-[11px] text-slate-500">
-                  Receive autonomous checkpoint reminder at specified time
+                  Send reminder email to {email || 'your email'}
                 </span>
               </div>
             </div>
@@ -412,17 +529,6 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Live Preview Card Mini-Strip */}
-          <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-200/70 flex items-center justify-between text-xs text-slate-700">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-emerald-600 animate-pulse" />
-              <span>Preview: <strong>{name || 'Learner'}</strong> ({profession || 'Student'})</span>
-            </div>
-            <span className="text-[10px] font-mono text-emerald-800 font-bold">
-              {userProfile.flameStreak || 7}d 🔥 | {userProfile.activeFreezes || 1}🧊
-            </span>
-          </div>
-
           {/* Action Buttons */}
           <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3">
             <button
@@ -434,7 +540,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </button>
             <button
               type="submit"
-              className="px-7 py-2.5 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white text-xs font-bold tracking-wide rounded-xl shadow-lg shadow-emerald-500/25 btn-tactile btn-shimmer cursor-pointer flex items-center gap-2"
+              className="px-7 py-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-xs font-bold tracking-wide rounded-xl shadow-lg shadow-emerald-500/25 cursor-pointer flex items-center gap-2 transition-all active:scale-95"
             >
               {savedSuccess ? (
                 <>
@@ -451,7 +557,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 };
 
