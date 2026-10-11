@@ -171,17 +171,34 @@ export default function ProfileHubPage() {
     try {
       setSavingSchedule(true);
       setScheduleNotice(null);
-      const res = await fetch(`/api/profiles/${activeProfileId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          alertNotification: scheduleTime,
-          targetHours: goalHours,
-          targetMinutes: goalMinutes,
-          remindersEnabled,
+      
+      const userTimezone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC';
+
+      const [resProfile, resUser] = await Promise.all([
+        fetch(`/api/profiles/${activeProfileId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            alertNotification: scheduleTime,
+            targetHours: goalHours,
+            targetMinutes: goalMinutes,
+            remindersEnabled,
+          }),
         }),
-      });
-      if (!res.ok) throw new Error('Failed to update schedule');
+        fetch('/api/user/reminder-settings', {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            profileId: activeProfileId,
+            email: telemetry?.profile?.email,
+            dailyReminderEnabled: remindersEnabled,
+            preferredReminderTime: scheduleTime,
+            timezone: userTimezone,
+          }),
+        }),
+      ]);
+
+      if (!resProfile.ok && !resUser.ok) throw new Error('Failed to update schedule');
       await loadTelemetry(activeProfileId);
       setScheduleNotice({
         type: 'success',
@@ -1255,7 +1272,7 @@ export default function ProfileHubPage() {
             <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <h3 className="text-base font-bold text-slate-900">Your Submitted Reviews</h3>
+                  <h3 className="text-base font-bold text-slate-900">Your Reviews</h3>
                   <p className="text-xs text-slate-400">Manage or revise your existing feedback</p>
                 </div>
                 <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
@@ -1270,7 +1287,7 @@ export default function ProfileHubPage() {
                 </div>
               ) : userReviews.length === 0 ? (
                 <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 text-xs text-slate-500">
-                  You haven't submitted any reviews yet. Share your thoughts in the form above!
+                  You haven't written any reviews yet. Share your experience using the review form above.
                 </div>
               ) : (
                 <div className="space-y-4">

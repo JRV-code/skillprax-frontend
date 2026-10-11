@@ -1,7 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { BrandLogo } from '@/components/common/BrandLogo';
+import { LearnerAccountModal } from '@/components/LearnerAccountModal';
+import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { UserProfile, SkillTrack, Review } from '@/types';
 import { LanguageSelector } from '@/components/LanguageSelector';
 import {
@@ -46,24 +48,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [isGatewayOpen, setIsGatewayOpen] = useState(false);
   const [gatewayMode, setGatewayMode] = useState<'create' | 'existing'>('create');
 
-  // New Profile Form State
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [gender, setGender] = useState('Prefer not to say');
-  const [profession, setProfession] = useState('Student');
-  const [educationBoard, setEducationBoard] = useState('CBSE');
-  const [grade, setGrade] = useState('Class 12');
-  const [age, setAge] = useState((userProfile.age ?? 18).toString());
-
-  // Existing Profile Secure Lookup State
-  const [lookupQuery, setLookupQuery] = useState('');
-  const [lookupResult, setLookupResult] = useState<any | null>(null);
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupError, setLookupError] = useState<string | null>(null);
-
-  // Google Auth Notification
-  const [googleAuthError, setGoogleAuthError] = useState<string | null>(null);
-
   // Public Reviews Wall of Love
   const [publicReviews, setPublicReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(true);
@@ -89,77 +73,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   const handleOpenGetStarted = (mode: 'create' | 'existing' = 'create') => {
     setGatewayMode(mode);
-    setLookupError(null);
-    setLookupResult(null);
     setIsGatewayOpen(true);
   };
 
-  const handleLookupProfile = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!lookupQuery.trim()) return;
-
-    setLookupLoading(true);
-    setLookupError(null);
-    setLookupResult(null);
-
-    try {
-      const res = await fetch(`/api/profiles/lookup?query=${encodeURIComponent(lookupQuery.trim())}`);
-      const data = await res.json();
-      if (res.ok && data.profile) {
-        setLookupResult(data.profile);
-      } else {
-        setLookupError(data.error || 'No matching profile found.');
-      }
-    } catch (err: any) {
-      setLookupError('Failed to query database. Check connection.');
-    } finally {
-      setLookupLoading(false);
+  const handleLearnerSuccess = (profile: any) => {
+    if (onSelectProfile && profile?.id) {
+      onSelectProfile(profile.id);
     }
-  };
-
-  const handleSelectFoundProfile = (profile: any) => {
-    localStorage.setItem('skillprax_active_profile_id', profile.id);
-    if (onSelectProfile) onSelectProfile(profile.id);
-    setIsGatewayOpen(false);
-    onNavigate('page02');
-  };
-
-  const handleGoogleAuth = () => {
-    setGoogleAuthError(null);
-    const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-    if (!clientId) {
-      setGoogleAuthError('Google OAuth Client ID is required. Please set NEXT_PUBLIC_GOOGLE_CLIENT_ID in your environment.');
-      return;
-    }
-    // Redirect to Google Identity OAuth flow
-    const redirectUri = window.location.origin;
-    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=email%20profile`;
-    window.location.href = authUrl;
-  };
-
-  const handleCreateNewProfile = (e: React.FormEvent) => {
-    e.preventDefault();
-
-    if (onCreateProfile) {
-      onCreateProfile({
-        name: name.trim() || 'Explorer',
-        educationBoard: profession === 'Student' ? educationBoard : undefined,
-        grade: profession === 'Student' ? grade : undefined,
-        profession: profession === 'Student' ? `${educationBoard} ${grade} Student` : profession,
-        age: parseInt(age, 10) || 18,
+    if (profile) {
+      onUpdateProfile({
+        name: profile.name,
+        email: profile.email,
+        gender: profile.gender,
+        profession: profile.profession,
+        avatarUrl: profile.avatarUrl || profile.avatar_url,
       });
-      setIsGatewayOpen(false);
-      return;
     }
-
-    onUpdateProfile({
-      name: name.trim() || 'Explorer',
-      email: email.trim() || undefined,
-      gender,
-      age: parseInt(age, 10) || 18,
-      profession: profession === 'Student' ? `${educationBoard} ${grade} Student` : profession,
-    });
-
     setIsGatewayOpen(false);
     onNavigate('page02');
   };
@@ -177,11 +106,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           className="flex items-center gap-2 cursor-pointer group"
           onClick={() => onNavigate('page01')}
         >
-          <SkillpraxLogo size="xs" showText={false} />
-          <span className="font-heading font-black text-xl tracking-tight transition-transform duration-200 group-hover:scale-105">
-            <span className="text-[#0284C7] font-black">SKILL-</span>
-            <span className="text-[#F59E0B] font-black">TRACK</span>
-          </span>
+          <BrandLogo size="md" showWordmark={true} />
         </div>
 
         <div className="flex items-center gap-2 sm:gap-4">
@@ -237,9 +162,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           initial={{ scale: 0.65, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative my-2 sm:my-4"
+          className="relative my-2 sm:my-4 flex items-center justify-center"
         >
-          <SkillpraxLogo size="hero" showText={true} glow={true} animate={true} />
+          <BrandLogo size="lg" showWordmark={true} />
         </motion.div>
 
         <motion.div
@@ -342,69 +267,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </motion.div>
 
-        {/* PUBLIC COMMUNITY REVIEWS & WALL OF LOVE (MODULE 8) */}
-        <section className="pt-16 max-w-5xl w-full text-left">
-          <div className="text-center mb-8">
-            <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-3 py-1 rounded-full border border-emerald-200/80">
-              Community Testimonials
-            </span>
-            <h2 className="text-2xl sm:text-3xl font-heading font-black text-slate-900 mt-2">
-              Wall of Love & Verified Mastery Reviews
-            </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
-              Read how autonomous Socratic milestones helped learners master deep technical disciplines.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {publicReviews.map((rev) => (
-              <div
-                key={rev.id}
-                className="p-5 rounded-3xl bg-white/90 backdrop-blur-md border border-slate-200/80 shadow-sm hover:shadow-md transition-all space-y-3"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={rev.avatarUrl || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80'}
-                      alt={rev.userName}
-                      className="w-10 h-10 rounded-2xl object-cover border border-emerald-300"
-                    />
-                    <div>
-                      <h4 className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                        <span>{rev.userName}</span>
-                        {rev.isVerified && (
-                          <span className="inline-flex items-center gap-0.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded-full border border-emerald-200/60">
-                            <ShieldCheck className="w-3 h-3 text-emerald-600" />
-                            <span>Verified</span>
-                          </span>
-                        )}
-                      </h4>
-                      <span className="text-[11px] text-slate-400 font-medium">
-                        Skill: <strong className="text-slate-600">{rev.skillTag || 'General Track'}</strong>
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Star Rating */}
-                  <div className="flex items-center gap-0.5">
-                    {[1, 2, 3, 4, 5].map((s) => (
-                      <Star
-                        key={s}
-                        className={`w-3.5 h-3.5 ${
-                          s <= rev.rating ? 'text-amber-400 fill-amber-400' : 'text-slate-200'
-                        }`}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <p className="text-xs text-slate-600 leading-relaxed italic">
-                  "{rev.reviewText}"
-                </p>
-              </div>
-            ))}
-          </div>
-        </section>
+        {/* PUBLIC COMMUNITY REVIEWS & WALL OF LOVE */}
+        <ReviewsSection reviews={publicReviews} loading={loadingReviews} />
       </main>
 
       {/* Footer */}
@@ -437,281 +301,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </footer>
 
-      {/* GATEWAY MODAL (NEW PROFILE OR SECURE SINGLE LOOKUP) */}
-      <AnimatePresence>
-        {isGatewayOpen && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md overflow-y-auto">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 10 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 10 }}
-              transition={{ duration: 0.2 }}
-              className="relative w-full max-w-lg bg-white/95 backdrop-blur-xl rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden my-8"
-            >
-              <div className="p-6 bg-gradient-to-r from-slate-900 via-slate-800 to-slate-900 text-white flex items-center justify-between">
-                <div>
-                  <h3 className="text-base font-heading font-extrabold tracking-tight">
-                    {gatewayMode === 'create' ? 'Create Learner Account' : 'Secure Account Lookup'}
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-0.5">
-                    {gatewayMode === 'create'
-                      ? 'Establish your identity to access personalized workspaces'
-                      : 'Retrieve your account via registered name or email'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsGatewayOpen(false)}
-                  className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white flex items-center justify-center transition-colors cursor-pointer"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-
-              {/* Tab Selector */}
-              <div className="flex border-b border-slate-200 bg-slate-50/50">
-                <button
-                  onClick={() => setGatewayMode('create')}
-                  className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
-                    gatewayMode === 'create'
-                      ? 'border-emerald-600 text-emerald-800 bg-white'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  New Learner Profile
-                </button>
-                <button
-                  onClick={() => setGatewayMode('existing')}
-                  className={`flex-1 py-3 text-xs font-bold text-center border-b-2 transition-all cursor-pointer ${
-                    gatewayMode === 'existing'
-                      ? 'border-emerald-600 text-emerald-800 bg-white'
-                      : 'border-transparent text-slate-500 hover:text-slate-800'
-                  }`}
-                >
-                  Lookup Existing Profile
-                </button>
-              </div>
-
-              <div className="p-6 space-y-5">
-                {/* Google OAuth Login Button */}
-                <div className="space-y-2">
-                  <button
-                    onClick={handleGoogleAuth}
-                    type="button"
-                    className="w-full py-2.5 px-4 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs rounded-xl border border-slate-200 shadow-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
-                  </button>
-
-                  {googleAuthError && (
-                    <div className="p-2.5 bg-rose-50 border border-rose-200 rounded-xl text-[11px] text-rose-700 font-semibold flex items-center gap-1.5">
-                      <AlertCircle className="w-3.5 h-3.5 shrink-0 text-rose-600" />
-                      <span>{googleAuthError}</span>
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-2 my-3">
-                    <div className="h-[1px] flex-1 bg-slate-200" />
-                    <span className="text-[10px] uppercase font-bold text-slate-400">or with profile credentials</span>
-                    <div className="h-[1px] flex-1 bg-slate-200" />
-                  </div>
-                </div>
-
-                {/* 1. CREATE NEW PROFILE MODE */}
-                {gatewayMode === 'create' && (
-                  <form onSubmit={handleCreateNewProfile} className="space-y-4">
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Full Name *
-                        </label>
-                        <input
-                          type="text"
-                          value={name}
-                          onChange={(e) => setName(e.target.value)}
-                          placeholder="e.g. Manendra"
-                          required
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Email Address *
-                        </label>
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="user@gmail.com"
-                          required
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Gender (Mandatory) *
-                        </label>
-                        <select
-                          value={gender}
-                          onChange={(e) => setGender(e.target.value)}
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        >
-                          <option value="Male">Male</option>
-                          <option value="Female">Female</option>
-                          <option value="Non-Binary">Non-Binary</option>
-                          <option value="Prefer not to say">Prefer not to say</option>
-                        </select>
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1">
-                          Profession (Mandatory) *
-                        </label>
-                        <select
-                          value={profession}
-                          onChange={(e) => setProfession(e.target.value)}
-                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        >
-                          <option value="Student">Student</option>
-                          <option value="Software Engineer">Software Engineer</option>
-                          <option value="Healthcare Professional">Healthcare Professional</option>
-                          <option value="Designer">Designer</option>
-                          <option value="Educator">Educator</option>
-                          <option value="Entrepreneur">Entrepreneur</option>
-                          <option value="Other">Other</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    {profession === 'Student' && (
-                      <div className="grid grid-cols-2 gap-3 p-3 bg-emerald-50/50 rounded-xl border border-emerald-200/80">
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Board
-                          </label>
-                          <input
-                            type="text"
-                            value={educationBoard}
-                            onChange={(e) => setEducationBoard(e.target.value)}
-                            placeholder="CBSE"
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                            Grade / Class
-                          </label>
-                          <input
-                            type="text"
-                            value={grade}
-                            onChange={(e) => setGrade(e.target.value)}
-                            placeholder="Class 12"
-                            className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-300 bg-white"
-                          />
-                        </div>
-                      </div>
-                    )}
-
-                    <button
-                      type="submit"
-                      className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl uppercase tracking-wider shadow-md transition-all cursor-pointer flex items-center justify-center gap-2"
-                    >
-                      <UserPlus className="w-4 h-4" />
-                      <span>Establish Profile & Launch Studio ➔</span>
-                    </button>
-                  </form>
-                )}
-
-                {/* 2. SECURE SINGLE LOOKUP MODE (NO OPEN DUMP) */}
-                {gatewayMode === 'existing' && (
-                  <div className="space-y-4">
-                    <form onSubmit={handleLookupProfile} className="space-y-3">
-                      <label className="block text-xs font-semibold text-slate-700">
-                        Enter Profile Name or Email:
-                      </label>
-                      <div className="flex gap-2">
-                        <input
-                          type="text"
-                          value={lookupQuery}
-                          onChange={(e) => setLookupQuery(e.target.value)}
-                          placeholder="e.g. Manendra Patel or learner@gmail.com"
-                          required
-                          className="flex-1 px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                        />
-                        <button
-                          type="submit"
-                          disabled={lookupLoading}
-                          className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
-                        >
-                          {lookupLoading ? <Sparkles className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                          <span>Lookup</span>
-                        </button>
-                      </div>
-                    </form>
-
-                    {lookupError && (
-                      <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-semibold flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
-                        <span>{lookupError}</span>
-                      </div>
-                    )}
-
-                    {lookupResult && (
-                      <div className="p-4 bg-emerald-50/70 border border-emerald-300 rounded-2xl space-y-3 animate-fade-in">
-                        <div className="flex items-center justify-between">
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
-                              {lookupResult.name.slice(0, 2).toUpperCase()}
-                            </div>
-                            <div>
-                              <h4 className="text-xs font-bold text-slate-900">{lookupResult.name}</h4>
-                              <span className="text-[10px] text-slate-500">{lookupResult.profession}</span>
-                            </div>
-                          </div>
-
-                          <div className="text-right">
-                            <span className="text-xs font-mono font-bold text-amber-700 bg-amber-100 px-2 py-0.5 rounded-full">
-                              🔥 {lookupResult.streakDays || 1}d Streak
-                            </span>
-                          </div>
-                        </div>
-
-                        <button
-                          onClick={() => handleSelectFoundProfile(lookupResult)}
-                          className="w-full py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-sm"
-                        >
-                          <span>Launch Learning Studio with this Account ➔</span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+      {/* LEARNER ACCOUNT MODAL (GOOGLE AUTH + ONBOARDING & LOOKUP) */}
+      <LearnerAccountModal
+        isOpen={isGatewayOpen}
+        onClose={() => setIsGatewayOpen(false)}
+        onSuccess={handleLearnerSuccess}
+        initialMode={gatewayMode}
+      />
     </div>
   );
 };
