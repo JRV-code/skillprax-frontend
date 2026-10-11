@@ -1,10 +1,10 @@
 'use client';
 
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Youtube, Play, Pause, RotateCcw, RotateCw, 
-  Gauge, Volume2, Sparkles, CheckCircle2 
+  Gauge, Volume2, Sparkles, CheckCircle2, Maximize, Minimize 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -37,16 +37,63 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
   const [mounted, setMounted] = useState(false);
   const [isPlaying, setIsPlaying] = useState(true);
   const [currentTime, setCurrentTime] = useState(0);
-  const [duration, setDuration] = useState(300); // 5 mins default fallback
+  const [duration, setDuration] = useState(300);
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
+  const [isTheater, setIsTheater] = useState(false);
+
   const playerRef = useRef<any>(null);
   const intervalRef = useRef<any>(null);
 
+  // Clean teardown handler
+  const terminatePlayer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+    if (playerRef.current) {
+      try {
+        playerRef.current.pauseVideo?.();
+        playerRef.current.stopVideo?.();
+        playerRef.current.mute?.();
+        playerRef.current.destroy?.();
+      } catch (_) {}
+      playerRef.current = null;
+    }
+  }, []);
+
+  const handleClose = () => {
+    terminatePlayer();
+    onClose();
+  };
+
+  const togglePlayPause = useCallback(() => {
+    if (!playerRef.current) return;
+    try {
+      if (isPlaying) {
+        playerRef.current.pauseVideo?.();
+        setIsPlaying(false);
+      } else {
+        playerRef.current.playVideo?.();
+        setIsPlaying(true);
+      }
+    } catch (_) {}
+  }, [isPlaying]);
+
+  // Spacebar and Escape key handling
   useEffect(() => {
     setMounted(true);
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') {
+        handleClose();
+      } else if (e.code === 'Space') {
+        const target = e.target as HTMLElement;
+        if (target.tagName !== 'INPUT' && target.tagName !== 'TEXTAREA') {
+          e.preventDefault();
+          togglePlayPause();
+        }
+      }
     };
+
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'hidden';
@@ -55,9 +102,9 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, togglePlayPause]);
 
-  // Load YouTube IFrame API
+  // Load YouTube IFrame API & Mount Player
   useEffect(() => {
     if (!isOpen || !videoId) return;
 
@@ -71,11 +118,17 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
     const initPlayer = () => {
       if (!window.YT || !window.YT.Player) return;
       try {
+        if (playerRef.current) {
+          try {
+            playerRef.current.destroy();
+          } catch (_) {}
+        }
+
         playerRef.current = new window.YT.Player('yt-portal-player', {
           videoId,
           playerVars: {
             autoplay: 1,
-            controls: 0, // hide native controls so our custom controller shines
+            controls: 0, // hide default controls in favor of custom glassmorphic controller
             rel: 0,
             modestbranding: 1,
             enablejsapi: 1,
@@ -95,7 +148,7 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
           },
         });
       } catch (err) {
-        console.warn('YT Player initialization error:', err);
+        console.warn('YouTube Player initialization error:', err);
       }
     };
 
@@ -105,58 +158,50 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
       window.onYouTubeIframeAPIReady = initPlayer;
     }
 
-    // Time ticker
+    // High frequency time ticker
     intervalRef.current = setInterval(() => {
       if (playerRef.current && typeof playerRef.current.getCurrentTime === 'function') {
-        const cur = playerRef.current.getCurrentTime();
-        const dur = playerRef.current.getDuration();
-        if (typeof cur === 'number') setCurrentTime(cur);
-        if (typeof dur === 'number' && dur > 0) setDuration(dur);
-      }
-    }, 500);
-
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      if (playerRef.current && typeof playerRef.current.destroy === 'function') {
         try {
-          playerRef.current.destroy();
+          const cur = playerRef.current.getCurrentTime();
+          const dur = playerRef.current.getDuration();
+          if (typeof cur === 'number') setCurrentTime(cur);
+          if (typeof dur === 'number' && dur > 0) setDuration(dur);
         } catch (_) {}
       }
+    }, 400);
+
+    return () => {
+      terminatePlayer();
     };
-  }, [isOpen, videoId]);
+  }, [isOpen, videoId, terminatePlayer]);
 
   if (!mounted) return null;
 
-  const togglePlayPause = () => {
-    if (!playerRef.current) return;
-    if (isPlaying) {
-      playerRef.current.pauseVideo?.();
-      setIsPlaying(false);
-    } else {
-      playerRef.current.playVideo?.();
-      setIsPlaying(true);
-    }
-  };
-
   const seekBy = (seconds: number) => {
     if (!playerRef.current) return;
-    const target = Math.max(0, Math.min(duration, currentTime + seconds));
-    playerRef.current.seekTo?.(target, true);
-    setCurrentTime(target);
+    try {
+      const target = Math.max(0, Math.min(duration, currentTime + seconds));
+      playerRef.current.seekTo?.(target, true);
+      setCurrentTime(target);
+    } catch (_) {}
   };
 
   const handleScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     const val = parseFloat(e.target.value);
     setCurrentTime(val);
     if (playerRef.current) {
-      playerRef.current.seekTo?.(val, true);
+      try {
+        playerRef.current.seekTo?.(val, true);
+      } catch (_) {}
     }
   };
 
   const handleSpeedChange = (speed: number) => {
     setPlaybackSpeed(speed);
     if (playerRef.current && typeof playerRef.current.setPlaybackRate === 'function') {
-      playerRef.current.setPlaybackRate(speed);
+      try {
+        playerRef.current.setPlaybackRate(speed);
+      } catch (_) {}
     }
   };
 
@@ -169,13 +214,13 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
   return createPortal(
     <AnimatePresence>
       {isOpen && videoId && (
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 md:p-6 bg-slate-950/85 backdrop-blur-md">
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-slate-950/85 backdrop-blur-md">
           {/* Backdrop click to dismiss */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            onClick={onClose}
+            onClick={handleClose}
             className="absolute inset-0 cursor-pointer"
           />
 
@@ -184,7 +229,9 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.94, y: 16 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
-            className="relative z-10 w-full max-w-4xl bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col text-white"
+            className={`relative z-10 w-full ${
+              isTheater ? 'max-w-6xl' : 'max-w-4xl'
+            } bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col text-white transition-all duration-300`}
           >
             {/* Top Modal Header */}
             <div className="px-6 py-4 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between">
@@ -207,17 +254,32 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
                 </div>
               </div>
 
-              <button
-                onClick={onClose}
-                className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
-                title="Close Video"
-              >
-                <X className="w-5 h-5" />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Theater Mode Toggle */}
+                <button
+                  onClick={() => setIsTheater((prev) => !prev)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+                  title={isTheater ? 'Default Size' : 'Theater Mode'}
+                >
+                  {isTheater ? <Minimize className="w-4 h-4" /> : <Maximize className="w-4 h-4" />}
+                </button>
+
+                {/* Close Button */}
+                <button
+                  onClick={handleClose}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800 transition-all cursor-pointer"
+                  title="Close Video (Terminates Audio)"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
             </div>
 
-            {/* Video Canvas */}
-            <div className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden">
+            {/* Video Canvas with GPU hardware acceleration */}
+            <div
+              className="relative w-full aspect-video bg-black flex items-center justify-center overflow-hidden"
+              style={{ transform: 'translateZ(0)' }}
+            >
               <div id="yt-portal-player" className="w-full h-full" />
             </div>
 
@@ -249,13 +311,13 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
                     className="p-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
                   >
                     {isPlaying ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4 fill-white" />}
-                    <span className="text-xs">{isPlaying ? 'Pause' : 'Play'}</span>
+                    <span className="text-xs">{isPlaying ? 'Pause (Space)' : 'Play (Space)'}</span>
                   </button>
 
                   <button
                     onClick={() => seekBy(-10)}
                     className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                    title="Rewind 10s"
+                    title="Rewind 10 seconds"
                   >
                     <RotateCcw className="w-3.5 h-3.5" />
                     <span>-10s</span>
@@ -264,7 +326,7 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
                   <button
                     onClick={() => seekBy(10)}
                     className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold text-xs flex items-center gap-1 cursor-pointer transition-colors"
-                    title="Forward 10s"
+                    title="Forward 10 seconds"
                   >
                     <RotateCw className="w-3.5 h-3.5" />
                     <span>+10s</span>
@@ -284,7 +346,7 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
                           : 'text-slate-400 hover:text-white'
                       }`}
                     >
-                      {spd}x
+                      {spd === 1 ? '1.0x' : `${spd}x`}
                     </button>
                   ))}
                 </div>
@@ -308,7 +370,7 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
               </div>
 
               <button
-                onClick={onClose}
+                onClick={handleClose}
                 className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer shrink-0"
               >
                 <CheckCircle2 className="w-4 h-4" />

@@ -40,6 +40,7 @@ import {
   Compass,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 
 interface WorkspaceStudioPageProps {
   currentTrack: SkillTrack;
@@ -283,6 +284,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       nextStepIndex: isFinal ? null : nextIdx,
     });
 
+    if (typeof window !== 'undefined') {
+      try {
+        confetti({
+          particleCount: 150,
+          spread: 80,
+          origin: { y: 0.55 },
+        });
+      } catch (_) {}
+    }
+
     setEnergyBeamFired(true);
     setTimeout(() => setEnergyBeamFired(false), 2500);
 
@@ -295,7 +306,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
   const handleAdvanceToNextMilestone = () => {
     if (levelUpData?.nextStepIndex) {
-      setViewingStepIndex(levelUpData.nextStepIndex);
+      const nextIdx = levelUpData.nextStepIndex;
+      setNodes((prev) =>
+        prev.map((n) => {
+          if (n.tier < nextIdx) return { ...n, status: 'completed' as const };
+          if (n.tier === nextIdx) return { ...n, status: 'active' as const };
+          return n;
+        })
+      );
+      setViewingStepIndex(nextIdx);
       setLevelUpData(null);
       setActiveTab('roadmap');
     }
@@ -1115,7 +1134,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               </div>
 
               <div>
-                <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3.5 py-1 rounded-full border border-emerald-200">
+                <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3.5 py-1 rounded-full border border-emerald-200 inline-block">
                   {levelUpData.isFinalStep ? 'Track Mastery Achieved!' : `Milestone Cleared`}
                 </span>
                 <h3 className="text-2xl font-heading font-extrabold text-slate-900 mt-3">
@@ -1128,9 +1147,62 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </p>
               </div>
 
-              <div className="p-4 bg-slate-50 rounded-2xl border border-slate-200/80 flex items-center justify-between text-xs font-bold">
-                <span className="text-slate-500">Reward Earned</span>
-                <span className="text-amber-600 font-mono font-extrabold text-sm">+{levelUpData.xpEarned} XP</span>
+              {/* Dynamic Score Radial */}
+              <div className="relative inline-flex items-center justify-center mx-auto">
+                <svg className="w-24 h-24 transform -rotate-90">
+                  <circle
+                    cx="48"
+                    cy="48"
+                    r={38}
+                    stroke="currentColor"
+                    strokeWidth="7"
+                    className="text-slate-100"
+                    fill="transparent"
+                  />
+                  <motion.circle
+                    cx="48"
+                    cy="48"
+                    r={38}
+                    stroke="url(#modalScoreGrad)"
+                    strokeWidth="7"
+                    fill="transparent"
+                    strokeDasharray={2 * Math.PI * 38}
+                    initial={{ strokeDashoffset: 2 * Math.PI * 38 }}
+                    animate={{ strokeDashoffset: (2 * Math.PI * 38) * (1 - (levelUpData.score || 0) / 100) }}
+                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    strokeLinecap="round"
+                  />
+                  <defs>
+                    <linearGradient id="modalScoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                      <stop offset="0%" stopColor="#10B981" />
+                      <stop offset="100%" stopColor="#F59E0B" />
+                    </linearGradient>
+                  </defs>
+                </svg>
+                <div className="absolute flex flex-col items-center justify-center text-center">
+                  <span className="text-xl font-black font-mono text-slate-900 tracking-tight">
+                    {levelUpData.score}%
+                  </span>
+                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                    Mastery
+                  </span>
+                </div>
+              </div>
+
+              {/* XP Gain Bar */}
+              <div className="p-4 bg-slate-900 text-white rounded-2xl border border-emerald-500/30 space-y-2 text-left">
+                <div className="flex items-center justify-between text-xs font-bold">
+                  <span className="text-slate-400 uppercase tracking-wider text-[10px]">Verified XP Reward</span>
+                  <span className="text-amber-400 font-mono font-extrabold text-sm">+{levelUpData.xpEarned} XP</span>
+                </div>
+                <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                  <motion.div
+                    initial={{ width: '0%' }}
+                    animate={{ width: '100%' }}
+                    transition={{ duration: 1.2, ease: 'easeOut', delay: 0.15 }}
+                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                  />
+                </div>
               </div>
 
               {levelUpData.isFinalStep ? (
@@ -1145,7 +1217,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   onClick={handleAdvanceToNextMilestone}
                   className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer btn-shimmer"
                 >
-                  <span>Level Up: Enter Milestone {levelUpData.nextStepIndex}</span>
+                  <span>Advance to Next Level →</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
               )}

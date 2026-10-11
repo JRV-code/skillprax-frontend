@@ -1,13 +1,104 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Sparkles, CheckCircle2, AlertTriangle, BookOpen, 
   Video, ArrowRight, RotateCcw, ShieldCheck, ExternalLink, Target, Flame, XCircle, Shield, Award, Check
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useScroll, useTransform } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
 import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
+
+function AnimatedScoreRadial({ score }: { score: number }) {
+  const [displayedScore, setDisplayedScore] = useState(0);
+
+  useEffect(() => {
+    let start = 0;
+    const duration = 1200;
+    const stepTime = 20;
+    const steps = duration / stepTime;
+    const increment = Math.max(1, score / steps);
+
+    const timer = setInterval(() => {
+      start += increment;
+      if (start >= score) {
+        setDisplayedScore(score);
+        clearInterval(timer);
+      } else {
+        setDisplayedScore(Math.floor(start));
+      }
+    }, stepTime);
+
+    return () => clearInterval(timer);
+  }, [score]);
+
+  const radius = 38;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (score / 100) * circumference;
+
+  return (
+    <div className="relative inline-flex items-center justify-center mx-auto my-2">
+      <svg className="w-24 h-24 transform -rotate-90">
+        <circle
+          cx="48"
+          cy="48"
+          r={radius}
+          stroke="currentColor"
+          strokeWidth="7"
+          className="text-slate-100"
+          fill="transparent"
+        />
+        <motion.circle
+          cx="48"
+          cy="48"
+          r={radius}
+          stroke="url(#scoreGradRadial)"
+          strokeWidth="7"
+          fill="transparent"
+          strokeDasharray={circumference}
+          initial={{ strokeDashoffset: circumference }}
+          animate={{ strokeDashoffset }}
+          transition={{ duration: 1.2, ease: "easeOut" }}
+          strokeLinecap="round"
+        />
+        <defs>
+          <linearGradient id="scoreGradRadial" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#10B981" />
+            <stop offset="100%" stopColor="#F59E0B" />
+          </linearGradient>
+        </defs>
+      </svg>
+      <div className="absolute flex flex-col items-center justify-center text-center">
+        <span className="text-xl font-black font-mono text-slate-900 tracking-tight">
+          {displayedScore}%
+        </span>
+        <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+          Mastery
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function XpGainBar({ xpGained = 150 }: { xpGained?: number }) {
+  return (
+    <div className="w-full max-w-xs mx-auto p-3 bg-slate-900 text-white rounded-2xl border border-emerald-500/30 shadow-md space-y-1.5">
+      <div className="flex items-center justify-between text-[11px] font-bold">
+        <span className="text-slate-400 uppercase tracking-wider text-[9px]">Verified XP Gain</span>
+        <span className="text-amber-400 font-mono font-black text-xs">+{xpGained} XP</span>
+      </div>
+      <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+        <motion.div
+          initial={{ width: '0%' }}
+          animate={{ width: '100%' }}
+          transition={{ duration: 1.2, ease: 'easeOut', delay: 0.15 }}
+          className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+        />
+      </div>
+    </div>
+  );
+}
 
 interface ACU {
   id: string;
@@ -213,6 +304,36 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
       const missedIds = data.failedQuestionIds || [];
       setFailedQuestionIds(missedIds);
+
+      // Unfreeze next milestone in database and trigger celebration if >= 70%
+      if (score >= 70) {
+        try {
+          if (typeof window !== 'undefined') {
+            confetti({
+              particleCount: 120,
+              spread: 70,
+              origin: { y: 0.6 },
+            });
+          }
+          const storedProfileId = typeof window !== 'undefined'
+            ? localStorage.getItem('skillprax_active_profile_id') || 'default-user'
+            : 'default-user';
+
+          await fetch('/api/milestones/submit-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: storedProfileId,
+              skillId: stepId,
+              milestoneOrder: stepIndex,
+              scorePercentage: score,
+              skillTitle: stepTitle,
+            }),
+          });
+        } catch (milestoneErr) {
+          console.error('[milestones/submit-quiz] Sync error:', milestoneErr);
+        }
+      }
 
       // 70% Mastery Threshold & Tri-Branch Decision Gate:
       if (score === 100) {
@@ -438,8 +559,30 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
             </div>
           </div>
 
-          {/* Questions Container */}
-          <div className="space-y-5">
+          {/* Questions Container with Parallax Doodles */}
+          <div className="relative space-y-5">
+            {/* Background Parallax Floating Doodles */}
+            <motion.div
+              animate={{ y: [-12, 12, -12] }}
+              transition={{ duration: 6, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -top-6 -right-2 text-3xl font-mono font-bold text-slate-300/40 pointer-events-none select-none z-0"
+            >
+              ∫ ∂x ∑
+            </motion.div>
+            <motion.div
+              animate={{ y: [12, -12, 12] }}
+              transition={{ duration: 7, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute top-1/2 -left-3 text-2xl font-mono font-bold text-slate-300/40 pointer-events-none select-none z-0"
+            >
+              λ π ∇
+            </motion.div>
+            <motion.div
+              animate={{ y: [-10, 10, -10] }}
+              transition={{ duration: 5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -bottom-6 right-6 text-2xl font-mono font-bold text-slate-300/40 pointer-events-none select-none z-0"
+            >
+              θ √ Δ
+            </motion.div>
             {questions.map((q, qIndex) => {
               const isAnswered = selectedAnswers[q.id] !== undefined;
               const isCurrent = activeQuestionIndex === qIndex;
@@ -561,12 +704,18 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
               Milestone Cleared (Passing Threshold ≥ 70%)
             </span>
             <h3 className="text-2xl md:text-3xl font-heading font-extrabold text-slate-900">
-              Mastery Verified: {lastScore}%
+              Mastery Verified!
             </h3>
             <p className="text-xs md:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
               You achieved {lastScore}%, exceeding the 70% passing threshold. Milestone {stepIndex + 1} is now unlocked! Choose whether to advance immediately or sharpen your accuracy for 100% Grandmaster status.
             </p>
           </div>
+
+          {/* Dynamic Score Radial */}
+          <AnimatedScoreRadial score={lastScore} />
+
+          {/* XP Gain Bar */}
+          <XpGainBar xpGained={150} />
 
           {/* Dual-Choice Cards */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-xl mx-auto pt-2">
@@ -590,7 +739,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                 }}
                 className="w-full py-3 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer btn-shimmer"
               >
-                <span>Advance to Milestone {stepIndex + 1}</span>
+                <span>Advance to Next Level →</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>
@@ -644,6 +793,12 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
               Every single scenario test and assessable unit verified with 100% precision.
             </p>
           </div>
+
+          {/* Dynamic Score Radial */}
+          <AnimatedScoreRadial score={100} />
+
+          {/* XP Gain Bar */}
+          <XpGainBar xpGained={1000} />
 
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-amber-100/90 border border-amber-300 text-amber-900 font-mono font-black text-base shadow-sm">
             <Sparkles className="w-5 h-5 text-amber-600 animate-spin" />

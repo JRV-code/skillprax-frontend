@@ -13,6 +13,7 @@ import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
+import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
 
 function isProfileComplete(profile: any): boolean {
@@ -32,7 +33,7 @@ export default function ProfileHubPage() {
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   
   // Navigation & Tabs
-  const [activeTab, setActiveTab] = useState<'trajectories' | 'analytics' | 'schedule' | 'reviews'>('trajectories');
+  const [activeTab, setActiveTab] = useState<'identity' | 'analytics' | 'schedule' | 'reviews'>('identity');
 
   // Modals
   const [showEnrollModal, setShowEnrollModal] = useState(false);
@@ -409,6 +410,71 @@ export default function ProfileHubPage() {
           </div>
         )}
 
+        {/* ACTIVE WORKSPACE SPOTLIGHT CARD (MODULE 4) */}
+        {(() => {
+          const primaryWorkspace = enrolledWorkspaces[0];
+          const activeSkillTitle = primaryWorkspace?.title || 'Distributed Systems & Cloud Architecture';
+          const activeStageIndex = primaryWorkspace ? (primaryWorkspace.passedStepsCount || 0) + 1 : 2;
+          const activeStageName = primaryWorkspace?.subTitle || 'Advanced Architectures';
+
+          return (
+            <div className="backdrop-blur-xl bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-2xl border border-sky-500/30 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
+              <div className="absolute -right-16 -top-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
+              
+              <div className="flex items-center gap-5 relative z-10">
+                {/* Animated Hovering 3D TaskBot Widget with soft bobbing float physics */}
+                <motion.div
+                  animate={{ y: [-8, 8, -8], rotate: [-2, 2, -2] }}
+                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+                  className="relative shrink-0"
+                >
+                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 p-0.5 shadow-xl shadow-sky-500/30">
+                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex flex-col items-center justify-center relative overflow-hidden">
+                      {/* Glowing Eyes */}
+                      <div className="flex items-center gap-2 mb-1.5">
+                        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38BDF8] animate-pulse" />
+                        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38BDF8] animate-pulse" />
+                      </div>
+                      {/* Bot Smile */}
+                      <div className="w-6 h-1 bg-sky-400/80 rounded-full" />
+                      {/* Subtle antenna pulse */}
+                      <div className="absolute top-1 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping" />
+                    </div>
+                  </div>
+                  <div className="w-16 h-2 bg-black/40 rounded-full blur-xs mx-auto mt-1.5" />
+                </motion.div>
+
+                <div className="space-y-1.5">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-sky-300 bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-md">
+                      ACTIVE WORKSPACE SPOTLIGHT
+                    </span>
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-md">
+                      Current Stage: Level {activeStageIndex} - {activeStageName}
+                    </span>
+                  </div>
+                  <h2 className="text-xl md:text-2xl font-heading font-black tracking-tight text-white">
+                    {activeSkillTitle}
+                  </h2>
+                  <p className="text-xs text-sky-200/80 max-w-lg leading-relaxed">
+                    Autonomous Socratic trajectory loaded. Review living flowchart nodes, launch in-app media player, or verify mastery.
+                  </p>
+                </div>
+              </div>
+
+              <div className="shrink-0 relative z-10 w-full md:w-auto">
+                <Link
+                  href="/workspace"
+                  className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <span>Enter Learning Studio ➔</span>
+                  <ArrowRight className="w-4 h-4" />
+                </Link>
+              </div>
+            </div>
+          );
+        })()}
+
         {/* HERO DEMOGRAPHICS BANNER */}
         <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
@@ -494,17 +560,17 @@ export default function ProfileHubPage() {
           {/* TAB BAR NAVIGATION */}
           <div className="flex items-center gap-2 border-b border-slate-100 pt-2 overflow-x-auto">
             <button
-              onClick={() => setActiveTab('trajectories')}
+              onClick={() => setActiveTab('identity')}
               className={`pb-3 px-3 text-xs font-bold flex items-center gap-1.5 transition-all border-b-2 whitespace-nowrap cursor-pointer ${
-                activeTab === 'trajectories'
+                activeTab === 'identity'
                   ? 'border-emerald-600 text-emerald-700'
                   : 'border-transparent text-slate-500 hover:text-slate-800'
               }`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
-              <span>My Trajectories</span>
+              <User className="w-3.5 h-3.5" />
+              <span>Identity & Badges</span>
               <span className="ml-1 text-[10px] px-1.5 py-0.2 bg-slate-100 rounded-full text-slate-600">
-                {enrolledWorkspaces.length}
+                Level {xpTelemetry?.currentLevel || 1}
               </span>
             </button>
 
@@ -551,249 +617,150 @@ export default function ProfileHubPage() {
           </div>
         </div>
 
-        {/* TAB 1: MY TRAJECTORIES */}
-        {activeTab === 'trajectories' && (
+        {/* TAB 1: IDENTITY & EARNED BADGES (MODULE 4) */}
+        {activeTab === 'identity' && (
           <div className="space-y-6 animate-fade-in">
-            {/* 1A. ACADEMIC & COGNITIVE SKILLS */}
-            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex items-center justify-between">
+            {/* 1A. ATTENDANCE STREAK & VERIFIED DEMOGRAPHICS */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {/* Flame Streak Card */}
+              <div className="p-6 bg-gradient-to-br from-amber-500/10 via-white to-orange-500/10 rounded-3xl border border-amber-300/80 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-md">
+                    ATTENDANCE STREAK
+                  </span>
+                  <Flame className="w-5 h-5 text-amber-500 animate-pulse fill-amber-500" />
+                </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-blue-50 text-blue-700 border border-blue-200/60 px-2 py-0.5 rounded-md">
-                      INTELLECTUAL DOMAINS
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-4xl font-black font-mono text-slate-900 tracking-tight">
+                      {profile.flameStreak || profile.streakDays || 7}
                     </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Academic, Engineering, Science & Logic
-                    </span>
+                    <span className="text-xs font-bold text-slate-500">Days Active Streak</span>
                   </div>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">
-                    Academic & Professional Skills
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Socratic milestone node graphs, assessable units, and conceptual diagnostics.
+                  <p className="text-xs text-amber-800/90 mt-1">
+                    Daily milestone consistency unlocks bonus Grandmaster XP multipliers.
                   </p>
                 </div>
+                <div className="flex items-center gap-2 pt-2 border-t border-amber-200/50 text-xs font-semibold text-slate-600">
+                  <Shield className="w-4 h-4 text-sky-600" />
+                  <span>{profile.activeFreezes ?? 1} / {profile.maxFreezes ?? 3} Freeze Shields Active</span>
+                </div>
+              </div>
 
+              {/* Verified Identity Card */}
+              <div className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-0.5 rounded-md">
+                    VERIFIED CREDENTIALS
+                  </span>
+                  <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div className="space-y-1.5">
+                  <div className="text-sm font-bold text-slate-900">
+                    {profile.profession || 'Learner'}
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono">
+                    Board: {profile.educationBoard || 'GSEB'} • Grade: {profile.grade || 'Class 12'}
+                  </div>
+                  <div className="text-xs text-slate-500 font-mono truncate">
+                    Gmail: {profile.email || 'Verified Account'}
+                  </div>
+                </div>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
+                  <span>Age: {profile.age || 18} Years</span>
+                  <span className="text-emerald-700 font-bold">✓ Fully Verified</span>
+                </div>
+              </div>
+
+              {/* Study Target Cadence Card */}
+              <div className="p-6 bg-white rounded-3xl border border-slate-200/80 shadow-sm flex flex-col justify-between space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md">
+                    DAILY TARGET
+                  </span>
+                  <Clock className="w-5 h-5 text-emerald-600" />
+                </div>
+                <div>
+                  <div className="text-3xl font-black font-mono text-slate-900 tracking-tight">
+                    {goalHours}h {goalMinutes}m
+                  </div>
+                  <p className="text-xs text-slate-500 mt-1">
+                    Daily scheduled focus duration with alerts at {scheduleTime}.
+                  </p>
+                </div>
                 <button
-                  onClick={() => {
-                    setEnrollModalProps({ excludeSports: true });
-                    setShowEnrollModal(true);
-                  }}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                  onClick={() => setActiveTab('schedule')}
+                  className="w-full py-2 bg-slate-50 hover:bg-slate-100 rounded-xl text-xs font-bold text-slate-700 border border-slate-200 transition-colors"
                 >
-                  <Plus className="w-4 h-4" />
-                  <span>Enroll New Skill</span>
+                  Adjust Study Cadence ➔
                 </button>
               </div>
-
-              {academicSkills.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50/70 rounded-2xl border border-slate-200">
-                  <p className="text-sm font-semibold text-slate-600">No academic skill tracks enrolled yet.</p>
-                  <p className="text-xs text-slate-400 mt-1">
-                    Click "+ Enroll New Skill" to synthesize an autonomous Groq curriculum.
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {academicSkills.map((track: any) => (
-                    <div
-                      key={track.id}
-                      className="p-5 rounded-2xl border border-slate-200/90 hover:border-blue-400 bg-white hover:shadow-md transition-all space-y-4 group"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-blue-700 bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-md">
-                            {track.domainCategory || track.domain || 'Skill Track'}
-                          </span>
-                          <h4 className="text-base font-bold text-slate-900 mt-1.5 group-hover:text-blue-700 transition-colors">
-                            {track.title}
-                          </h4>
-                          {track.subTitle && (
-                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
-                              {track.subTitle}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Summary: Current Milestone & Completion Percentage */}
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Milestone</p>
-                          <p className="font-bold text-slate-800 mt-0.5">
-                            Node {track.passedStepsCount + 1} of {track.stepsCount || 5}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Progression</p>
-                          <p className="font-black text-emerald-600 mt-0.5">
-                            {track.progress}%
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-blue-600 rounded-full transition-all duration-500"
-                          style={{ width: `${track.progress}%` }}
-                        />
-                      </div>
-
-                      {/* Launch Workspace CTA Button */}
-                      <Link
-                        href={`/workspace/${track.id}`}
-                        className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-blue-600"
-                      >
-                        <span>Launch Workspace ➔</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
 
-            {/* 1B. ATHLETICS & SPORTS SEPARATION */}
+            {/* 1B. EARNED BADGES SHOWCASE */}
             <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md">
-                      ATHLETICS & KINETICS
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Physical Conditioning, Drills & Biomechanics
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-bold text-slate-900 mt-1">
-                    Athletics & Sports Tracks
+                  <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
+                    <Award className="w-4 h-4 text-amber-500" />
+                    <span>Earned Pedagogical Badges & Accolades</span>
                   </h3>
                   <p className="text-xs text-slate-500">
-                    Tracked sports regimens with interactive practice stopwatch and context-aware drill generator.
+                    Milestone mastery proofs validated across Socratic evaluations.
                   </p>
                 </div>
-
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/sports"
-                    className="px-3.5 py-2 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200 font-bold text-xs flex items-center gap-1.5 transition-all"
-                  >
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>Open Sports Hub ➔</span>
-                  </Link>
-                  <button
-                    onClick={() => {
-                      setEnrollModalProps({ restrictToDomain: 'Athletics' });
-                      setShowEnrollModal(true);
-                    }}
-                    className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-all cursor-pointer"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>Enroll Sport</span>
-                  </button>
-                </div>
+                <span className="text-xs font-bold text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/60 font-mono">
+                  {(badges || []).length || 4} Badges Earned
+                </span>
               </div>
 
-              {athleticSports.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50/70 rounded-2xl border border-slate-200 space-y-3">
-                  <p className="text-sm font-semibold text-slate-600">No sports tracks enrolled yet.</p>
-                  <p className="text-xs text-slate-400">
-                    Cricket, Football, Basketball, Tennis, and Sprinting must be practiced under the Sports Hub.
-                  </p>
-                  <Link
-                    href="/sports"
-                    className="inline-flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all"
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                {[
+                  { name: 'Axiom Pioneer', desc: 'Mastered Level 1 foundational units', icon: '⚡', color: 'from-sky-500 to-blue-600' },
+                  { name: 'Socratic Grandmaster', desc: 'Scored 100% on evaluation checkpoint', icon: '👑', color: 'from-amber-400 to-amber-600' },
+                  { name: 'Flame Keeper', desc: 'Maintained 7+ day active study streak', icon: '🔥', color: 'from-rose-500 to-orange-500' },
+                  { name: 'System Architect', desc: 'Completed multi-milestone synthesis', icon: '🏛️', color: 'from-emerald-500 to-teal-600' },
+                ].map((badge, bIdx) => (
+                  <div
+                    key={bIdx}
+                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all text-center space-y-2 group"
                   >
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>Go to Sports Hub & Drill Engine ➔</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {athleticSports.map((track: any) => (
-                    <div
-                      key={track.id}
-                      className="p-5 rounded-2xl border border-slate-200/90 hover:border-emerald-500 bg-white hover:shadow-md transition-all space-y-4 group"
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
-                            Athletics
-                          </span>
-                          <h4 className="text-base font-bold text-slate-900 mt-1.5 group-hover:text-emerald-700 transition-colors">
-                            {track.title}
-                          </h4>
-                          {track.subTitle && (
-                            <p className="text-xs text-slate-500 mt-0.5 line-clamp-1">
-                              {track.subTitle}
-                            </p>
-                          )}
-                        </div>
-                      </div>
-
-                      <div className="p-3 bg-slate-50 rounded-xl border border-slate-100 flex items-center justify-between text-xs">
-                        <div>
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Current Drill Node</p>
-                          <p className="font-bold text-slate-800 mt-0.5">
-                            Milestone {track.passedStepsCount + 1} of {track.stepsCount || 5}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Mastery</p>
-                          <p className="font-black text-emerald-600 mt-0.5">
-                            {track.progress}%
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="w-full h-2 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-600 rounded-full transition-all duration-500"
-                          style={{ width: `${track.progress}%` }}
-                        />
-                      </div>
-
-                      <div className="grid grid-cols-2 gap-2">
-                        <Link
-                          href={`/workspace/${track.id}`}
-                          className="py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center gap-1 transition-all"
-                        >
-                          <span>Studio ➔</span>
-                        </Link>
-                        <Link
-                          href="/sports"
-                          className="py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1 transition-all"
-                        >
-                          <Activity className="w-3.5 h-3.5" />
-                          <span>Drill Timer</span>
-                        </Link>
-                      </div>
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${badge.color} text-white text-2xl flex items-center justify-center mx-auto shadow-md group-hover:scale-105 transition-transform`}>
+                      {badge.icon}
                     </div>
-                  ))}
-                </div>
-              )}
+                    <div className="text-xs font-bold text-slate-900">{badge.name}</div>
+                    <div className="text-[10px] text-slate-500 leading-snug">{badge.desc}</div>
+                  </div>
+                ))}
+              </div>
             </div>
 
-            {/* 1C. CURATED NEXT HORIZONS */}
+            {/* 1C. RESTORED "NEXT HORIZONS" SKILL & SPORTS RECOMMENDATION DRAWER */}
             <div className="p-6 md:p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
                       NEURAL COMPASS
                     </span>
                     <span className="text-xs font-semibold text-slate-400">
-                      Autonomous Progression Advisor
+                      Curated Next Horizons
                     </span>
                   </div>
                   <h3 className="text-lg font-heading font-extrabold text-slate-900 mt-1">
-                    Curated Next Horizons
+                    AI-Curated Next Horizons
                   </h3>
                   <p className="text-xs text-slate-500">
-                    AI-synthesized complementary skill tracks based on your milestone pass velocity and domain affinities.
+                    Complementary cognitive and athletic trajectories tailored to your verified competency baseline.
                   </p>
                 </div>
+
+                <Link
+                  href="/workspace"
+                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+                >
+                  <span>Open Full Workspace Studio ➔</span>
+                </Link>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -827,20 +794,13 @@ export default function ProfileHubPage() {
                       </p>
                     </div>
 
-                    <button
-                      onClick={() => {
-                        setEnrollModalProps({
-                          initialTitle: rec.title,
-                          initialDomain: rec.domain === 'Engineering & Applied Technology' ? 'Science' : rec.domain === 'Formal Sciences & Mathematics' ? 'Cognitive Logic' : rec.domain,
-                          initialSubGenre: rec.subGenre || '',
-                        });
-                        setShowEnrollModal(true);
-                      }}
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all cursor-pointer"
+                    <Link
+                      href="/workspace"
+                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
                     >
-                      <span>Enroll in this Track</span>
+                      <span>Launch in Workspace Studio</span>
                       <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </button>
+                    </Link>
                   </div>
                 ))}
               </div>

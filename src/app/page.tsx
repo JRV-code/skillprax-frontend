@@ -101,12 +101,13 @@ export default function Home() {
   };
 
   const handleNavigate = (page: string) => {
-    if (page === 'page02' || page === 'profile') router.push('/profile');
-    else if (page === 'page03' || page === 'page04' || page === 'studio') {
-      const profileId = localStorage.getItem('skillprax_active_profile_id');
-      if (profileId) router.push('/profile');
-      else router.push('/profile');
-    } else router.push('/');
+    if (page === 'page02' || page === 'profile') {
+      router.push('/profile');
+    } else if (page === 'page03' || page === 'page04' || page === 'studio' || page === 'workspace') {
+      router.push('/workspace');
+    } else {
+      router.push('/');
+    }
   };
 
   const handleSelectProfile = (profileId: string) => {

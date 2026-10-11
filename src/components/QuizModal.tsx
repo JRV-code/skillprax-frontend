@@ -4,6 +4,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { CheckCircle2, XCircle, AlertTriangle, ArrowRight, RotateCcw, BookOpen, Loader2, Zap, X, ExternalLink, Video, FileText, Target, Brain, Microscope, Lock, Unlock, ShieldAlert } from 'lucide-react';
+import { motion } from 'framer-motion';
+import confetti from 'canvas-confetti';
 
 export interface QuizModalProps {
   isOpen: boolean;
@@ -168,6 +170,34 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
       if (!res.ok) throw new Error('Submission evaluation failed');
       const resultData = await res.json();
       setEvaluation(resultData);
+
+      if (resultData.passed || (resultData.score && resultData.score >= 70)) {
+        try {
+          if (typeof window !== 'undefined') {
+            confetti({
+              particleCount: 120,
+              spread: 70,
+              origin: { y: 0.6 },
+            });
+          }
+          const storedProfileId = typeof window !== 'undefined'
+            ? localStorage.getItem('skillprax_active_profile_id') || 'default-user'
+            : 'default-user';
+
+          await fetch('/api/milestones/submit-quiz', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: storedProfileId,
+              skillId: stepId,
+              milestoneOrder: 1,
+              scorePercentage: resultData.score || 70,
+            }),
+          });
+        } catch (e) {
+          console.error(e);
+        }
+      }
 
       // Capture diagnostic prescription if present (failure case)
       if (resultData.diagnosticPrescription) {
