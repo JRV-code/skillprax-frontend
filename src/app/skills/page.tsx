@@ -12,6 +12,7 @@ import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { SocraticQuizModal } from '@/components/SocraticQuizModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
+import { Navbar } from '@/components/common/Navbar';
 
 function CognitiveSkillsWorkspaceContent() {
   const router = useRouter();
@@ -184,8 +185,11 @@ function CognitiveSkillsWorkspaceContent() {
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col font-sans selection:bg-sky-500 selection:text-white">
       <CinematicVideoBackground />
 
+      {/* Universal Top Tri-Separation Navbar */}
+      <Navbar />
+
       {/* HEADER NAVIGATION */}
-      <header className="sticky top-0 z-40 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3.5 flex items-center justify-between">
+      <header className="z-30 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 px-4 md:px-8 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <SkillTrackLogo />
           <div className="hidden sm:flex items-center gap-2 pl-3 border-l border-slate-800 text-xs font-semibold">

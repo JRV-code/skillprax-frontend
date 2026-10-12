@@ -44,6 +44,8 @@ export interface UserProfile {
   guardianName?: string;
   guardianPhone?: string;
   guardianEmail?: string;
+  city?: string;
+  state?: string;
   xp?: number;
 }
 

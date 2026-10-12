@@ -4,7 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   X, Check, Camera, Clock, Bell, Sparkles, ChevronUp, ChevronDown, User, Mail, GraduationCap,
-  Apple, HeartPulse, Globe
+  Apple, HeartPulse, Globe, MapPin
 } from 'lucide-react';
 import { UserProfile } from '@/types';
 
@@ -99,6 +99,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [educationBoard, setEducationBoard] = useState(userProfile.educationBoard || 'CBSE');
   const [grade, setGrade] = useState(userProfile.grade || 'Class 12');
 
+  const [city, setCity] = useState<string>((userProfile as any).city || 'Ahmedabad');
+  const [state, setState] = useState<string>((userProfile as any).state || 'Gujarat');
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || AVATAR_PRESETS[0].url);
   const [dietaryPreference, setDietaryPreference] = useState<string>(userProfile.dietaryPreference || 'Vegetarian');
   const [medicalConditions, setMedicalConditions] = useState<string>(userProfile.medicalConditions || 'None');
@@ -171,6 +173,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       dietaryPreference,
       medicalConditions,
       preferredLanguage: preferredLanguage as any,
+      city: city.trim(),
+      state: state.trim(),
       targetHours: Math.max(0, Math.min(24, targetHours)),
       targetMinutes: Math.max(0, Math.min(59, targetMinutes)),
       dailyReminderTime: reminderTime,
@@ -607,6 +611,42 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                   {lang.label.split(' ')[0]}
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Location & Region (City & State) */}
+          <div className="p-4 rounded-2xl bg-indigo-50/50 border border-indigo-200/80 space-y-3">
+            <label className="block text-xs font-bold text-indigo-950 uppercase tracking-wider flex items-center gap-1.5">
+              <MapPin className="w-4 h-4 text-[#6366F1]" />
+              <span>Location Preferences (Clubs & Sports Gear Near Me)</span>
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  Registered City
+                </label>
+                <input
+                  type="text"
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  placeholder="e.g. Ahmedabad"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-slate-900"
+                />
+              </div>
+              <div>
+                <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                  State / Region
+                </label>
+                <select
+                  value={state}
+                  onChange={(e) => setState(e.target.value)}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-indigo-400 bg-white text-slate-900 cursor-pointer"
+                >
+                  {['Gujarat', 'Maharashtra', 'Karnataka', 'Delhi NCR', 'Tamil Nadu', 'Telangana', 'Rajasthan', 'Uttar Pradesh', 'West Bengal', 'Kerala', 'Punjab', 'Madhya Pradesh', 'Haryana', 'Goa', 'Andhra Pradesh'].map((st) => (
+                    <option key={st} value={st}>{st}</option>
+                  ))}
+                </select>
+              </div>
             </div>
           </div>
 

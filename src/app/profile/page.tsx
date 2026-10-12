@@ -8,13 +8,14 @@ import {
   Award, Settings, RefreshCw, Star, Trash2, Edit2, 
   Bell, Clock, Activity, CheckCircle2, AlertCircle, 
   Lock, Mail, User, Sparkles, Calendar, Check, Send,
-  Apple, HeartPulse, Globe
+  Apple, HeartPulse, Globe, MapPin, Compass
 } from 'lucide-react';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
 import { ProfileReviews } from '@/components/profile/ProfileReviews';
+import { Navbar } from '@/components/common/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -92,6 +93,13 @@ export default function ProfileHubPage() {
   const [sendingTestEmail, setSendingTestEmail] = useState(false);
   const [scheduleNotice, setScheduleNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
+  // Geolocation & Region (Module 3)
+  const [selectedCity, setSelectedCity] = useState('Ahmedabad');
+  const [selectedState, setSelectedState] = useState('Gujarat');
+  const [savingLocation, setSavingLocation] = useState(false);
+  const [geoLocating, setGeoLocating] = useState(false);
+  const [locationNotice, setLocationNotice] = useState<string | null>(null);
+
   // AI Recommendations
   const [recommendations, setRecommendations] = useState<any[]>([
     {
@@ -141,6 +149,8 @@ export default function ProfileHubPage() {
         if (data.profile.targetHours !== undefined) setGoalHours(data.profile.targetHours);
         if (data.profile.targetMinutes !== undefined) setGoalMinutes(data.profile.targetMinutes);
         if (data.profile.remindersEnabled !== undefined) setRemindersEnabled(data.profile.remindersEnabled);
+        if (data.profile.city) setSelectedCity(data.profile.city);
+        if (data.profile.state) setSelectedState(data.profile.state);
       }
 
       try {
@@ -369,9 +379,78 @@ export default function ProfileHubPage() {
     (w: any) => w.domainCategory === 'Athletics' || w.domain === 'Athletics'
   );
 
+  const handleSaveLocation = async () => {
+    try {
+      setSavingLocation(true);
+      setLocationNotice(null);
+      const email = profile?.email;
+      const res = await fetch('/api/user/profile', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          city: selectedCity,
+          state: selectedState,
+        }),
+      });
+      if (res.ok) {
+        setLocationNotice('Location updated successfully!');
+        if (profile) {
+          profile.city = selectedCity;
+          profile.state = selectedState;
+        }
+        setTimeout(() => setLocationNotice(null), 3500);
+      } else {
+        setLocationNotice('Failed to update location preferences.');
+      }
+    } catch (_) {
+      setLocationNotice('Network error saving location.');
+    } finally {
+      setSavingLocation(false);
+    }
+  };
+
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
+    }
+    setGeoLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+          if (res.ok) {
+            const data = await res.json();
+            const detectedCity = data.address?.city || data.address?.town || data.address?.county || 'Ahmedabad';
+            const detectedState = data.address?.state || 'Gujarat';
+            setSelectedCity(detectedCity);
+            setSelectedState(detectedState);
+            setLocationNotice(`Detected: ${detectedCity}, ${detectedState}. Click "Save Location Changes" to persist.`);
+            setTimeout(() => setLocationNotice(null), 5000);
+          }
+        } catch (_) {
+          setSelectedCity('Ahmedabad');
+          setSelectedState('Gujarat');
+        } finally {
+          setGeoLocating(false);
+        }
+      },
+      () => {
+        setGeoLocating(false);
+      },
+      { timeout: 7000 }
+    );
+  };
+
   return (
     <div className="min-h-screen bg-slate-50/80 text-slate-800 flex flex-col font-sans relative">
       <CinematicVideoBackground overlayOpacity={0.12} />
+
+      {/* Universal Top Tri-Separation Navbar */}
+      <Navbar />
 
       {/* TOP STATUS HEADER */}
       <header className="h-16 bg-white/95 backdrop-blur-md border-b border-slate-200/80 px-6 md:px-12 flex items-center justify-between sticky top-0 z-30 shadow-sm">
@@ -771,6 +850,109 @@ export default function ProfileHubPage() {
                 >
                   Adjust Study Cadence ➔
                 </button>
+              </div>
+            </div>
+
+            {/* 1A-2. LOCATION & GEOLOCATION REGION ENGINE (MODULE 3) */}
+            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-9 h-9 rounded-2xl bg-indigo-50 border border-indigo-200/60 flex items-center justify-center text-[#6366F1]">
+                    <MapPin className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                      Location & Region Preferences
+                    </h3>
+                    <p className="text-xs text-slate-500">
+                      Calibrates your local sports clubs, academies, and sports equipment shops on Google Maps.
+                    </p>
+                  </div>
+                </div>
+
+                <motion.button
+                  type="button"
+                  onClick={handleDetectLocation}
+                  disabled={geoLocating}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-[#6366F1] border border-indigo-200 text-xs font-bold transition-all cursor-pointer self-start sm:self-auto"
+                >
+                  <Compass className={`w-3.5 h-3.5 ${geoLocating ? 'animate-spin' : ''}`} />
+                  <span>{geoLocating ? 'Detecting GPS...' : 'Detect My Location'}</span>
+                </motion.button>
+              </div>
+
+              {locationNotice && (
+                <div className="p-3 rounded-xl bg-indigo-50 border border-indigo-200/80 text-xs font-semibold text-indigo-900 flex items-center gap-2">
+                  <Check className="w-4 h-4 text-indigo-600" />
+                  <span>{locationNotice}</span>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                {/* City with Auto-Suggestions */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    Registered City
+                  </label>
+                  <input
+                    type="text"
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    list="profile-city-suggestions"
+                    placeholder="e.g. Ahmedabad"
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-[#6366F1] focus:ring-2 focus:ring-indigo-100 text-sm font-semibold text-slate-900 outline-none transition-all"
+                  />
+                  <datalist id="profile-city-suggestions">
+                    {['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Pune', 'Chennai', 'Hyderabad', 'Kolkata', 'Jaipur'].map((c) => (
+                      <option key={c} value={c} />
+                    ))}
+                  </datalist>
+                </div>
+
+                {/* State Dropdown */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                    State / Territory
+                  </label>
+                  <select
+                    value={selectedState}
+                    onChange={(e) => setSelectedState(e.target.value)}
+                    className="w-full px-4 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 focus:border-[#6366F1] focus:ring-2 focus:ring-indigo-100 text-sm font-semibold text-slate-900 outline-none transition-all cursor-pointer"
+                  >
+                    {[
+                      'Gujarat', 'Maharashtra', 'Karnataka', 'Delhi NCR', 'Tamil Nadu', 
+                      'Telangana', 'Rajasthan', 'Uttar Pradesh', 'West Bengal', 'Kerala', 
+                      'Punjab', 'Madhya Pradesh', 'Haryana', 'Goa', 'Andhra Pradesh'
+                    ].map((st) => (
+                      <option key={st} value={st}>{st}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              <div className="pt-2 flex justify-end">
+                <motion.button
+                  type="button"
+                  onClick={handleSaveLocation}
+                  disabled={savingLocation}
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.97 }}
+                  className="px-5 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  {savingLocation ? (
+                    <>
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      <span>Saving Location...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Check className="w-3.5 h-3.5" />
+                      <span>Save Location Changes</span>
+                    </>
+                  )}
+                </motion.button>
               </div>
             </div>
 

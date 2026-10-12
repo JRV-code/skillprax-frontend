@@ -14,13 +14,13 @@ import {
   Sparkles 
 } from 'lucide-react';
 
-// Sub-view component imports (all mounted)
 import { SportsTrainingView } from '@/components/sports/SportsTrainingView';
 import { ClubsNearMeView } from '@/components/sports/ClubsNearMeView';
-import { SportsShopView } from '@/components/sports/SportsShopView';
+import { SportsDealsView } from '@/components/sports/SportsDealsView';
 import { ManagedTravelView } from '@/components/sports/ManagedTravelView';
 import { ScoutingPrivacyView } from '@/components/sports/ScoutingPrivacyView';
 import { ClubPortalView } from '@/components/sports/ClubPortalView';
+import { Navbar } from '@/components/common/Navbar';
 
 type SportsTab = 'training' | 'clubs' | 'shop' | 'travel' | 'scouting' | 'club-portal';
 
@@ -30,13 +30,16 @@ export default function SportsPage() {
   const navItems = [
     { id: 'training', label: 'Training & Drills', icon: Timer, count: null },
     { id: 'clubs', label: 'Clubs Near Me', icon: MapPin, count: 'Live Map' },
-    { id: 'shop', label: 'Sports Shop', icon: ShoppingBag, count: null },
+    { id: 'shop', label: 'Sports Gear Deals', icon: ShoppingBag, count: 'Real Deals' },
     { id: 'travel', label: 'Managed Travel', icon: Bus, count: null },
     { id: 'scouting', label: 'Scouting & Privacy', icon: ShieldCheck, count: 'Protected' },
   ];
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20">
+      {/* Universal Top Tri-Separation Navbar */}
+      <Navbar />
+
       {/* Top Banner / Hero Header */}
       <div className="bg-white border-b border-slate-200/80 px-4 sm:px-8 pt-8 pb-6">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
@@ -153,7 +156,7 @@ export default function SportsPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              <SportsShopView/>
+              <SportsDealsView/>
             </motion.div>
           )}
 

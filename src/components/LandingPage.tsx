@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { BrandLogo } from '@/components/common/BrandLogo';
-import { LearnerAccountModal } from '@/components/LearnerAccountModal';
+import { UnifiedAuthModal } from '@/components/auth/UnifiedAuthModal';
 import { ReviewsSection } from '@/components/landing/ReviewsSection';
 import { UserProfile, SkillTrack, Review } from '@/types';
 import { LanguageSelector } from '@/components/LanguageSelector';
@@ -743,6 +744,20 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <span>{userProfile.flameStreak || userProfile.streakDays || 1}d STREAK</span>
           </div>
 
+          <Link
+            href="/skills"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-sky-700 hover:bg-sky-50 rounded-xl transition-all duration-200"
+          >
+            <span>Skills Studio</span>
+          </Link>
+
+          <Link
+            href="/sports"
+            className="hidden md:flex items-center gap-1.5 px-3 py-1.5 text-xs font-bold text-slate-700 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200"
+          >
+            <span>Sports Hub</span>
+          </Link>
+
           <button
             onClick={() => onNavigate('page02')}
             className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:text-emerald-700 hover:bg-emerald-50 rounded-xl transition-all duration-200 cursor-pointer active:scale-95 group"
@@ -756,7 +771,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-slate-500 hover:text-slate-800 transition-all duration-200 cursor-pointer active:scale-95"
           >
             <LogIn className="w-3.5 h-3.5" />
-            <span>Lookup Profile</span>
+            <span>Sign In</span>
           </button>
 
           <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-600/20">
@@ -932,12 +947,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </footer>
 
-      {/* LEARNER ACCOUNT MODAL (GOOGLE AUTH + ONBOARDING & LOOKUP) */}
-      <LearnerAccountModal
+      {/* UNIFIED AUTH MODAL (SMART UNIVERSAL AUTO LOGIN / SIGNUP) */}
+      <UnifiedAuthModal
         isOpen={isGatewayOpen}
         onClose={() => setIsGatewayOpen(false)}
         onSuccess={handleLearnerSuccess}
-        initialMode={gatewayMode}
       />
     </div>
   );
