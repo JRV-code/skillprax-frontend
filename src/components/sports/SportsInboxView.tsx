@@ -69,8 +69,8 @@ export default function SportsInboxView() {
     setLoading(true);
     try {
       const [inboxRes, escrowRes] = await Promise.all([
-        fetch("http://localhost:3001/api/sports/scouting/inbox?userId=default-profile"),
-        fetch("http://localhost:3001/api/sports/escrow/user/default-profile"),
+        fetch("/api/sports/scouting/inbox?userId=default-profile"),
+        fetch("/api/sports/escrow/user/default-profile"),
       ]);
 
       if (inboxRes.ok) {
@@ -151,7 +151,7 @@ export default function SportsInboxView() {
   const handleRespond = async (requestId: string, action: "accept" | "decline") => {
     setActionLoading(requestId);
     try {
-      const res = await fetch("http://localhost:3001/api/sports/scouting/respond", {
+      const res = await fetch("/api/sports/scouting/respond", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ requestId, action }),
@@ -180,7 +180,7 @@ export default function SportsInboxView() {
     }
 
     try {
-      const res = await fetch("http://localhost:3001/api/sports/scouting/guardian-approve", {
+      const res = await fetch("/api/sports/scouting/guardian-approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -206,7 +206,7 @@ export default function SportsInboxView() {
     if (!confirm("Are you sure you want to cancel and trigger an instant automated refund via Razorpay?")) return;
     setActionLoading(transactionId);
     try {
-      const res = await fetch("http://localhost:3001/api/sports/escrow/refund", {
+      const res = await fetch("/api/sports/escrow/refund", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ transactionId }),

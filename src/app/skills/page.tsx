@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Suspense } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { 
@@ -13,7 +13,7 @@ import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { SocraticQuizModal } from '@/components/SocraticQuizModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
 
-export default function CognitiveSkillsWorkspacePage() {
+function CognitiveSkillsWorkspaceContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const queryTrackId = searchParams.get('id');
@@ -516,6 +516,18 @@ export default function CognitiveSkillsWorkspacePage() {
         }}
       />
     </div>
+  );
+}
+
+export default function CognitiveSkillsWorkspacePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-slate-950">
+        <div className="w-8 h-8 border-2 border-emerald-500 border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <CognitiveSkillsWorkspaceContent />
+    </Suspense>
   );
 }
 

@@ -107,10 +107,10 @@ export default function AdminPage() {
     setSportsLoading(true);
     try {
       const [clubsRes, driversRes, escrowRes, allClubsRes] = await Promise.all([
-        fetch('http://localhost:3001/api/admin/sports/clubs/pending'),
-        fetch('http://localhost:3001/api/admin/sports/drivers/pending'),
-        fetch('http://localhost:3001/api/admin/sports/escrow/held'),
-        fetch('http://localhost:3001/api/sports/clubs/explore?radiusKm=500'),
+        fetch('/api/admin/sports/clubs/pending'),
+        fetch('/api/admin/sports/drivers/pending'),
+        fetch('/api/admin/sports/escrow/held'),
+        fetch('/api/sports/clubs/explore?radiusKm=500'),
       ]);
 
       if (clubsRes.ok) {
@@ -179,7 +179,7 @@ export default function AdminPage() {
 
   const handleVerifyClub = async (id: string, action: 'approve' | 'reject') => {
     try {
-      const res = await fetch(`http://localhost:3001/api/admin/sports/clubs/${id}/verify`, {
+      const res = await fetch(`/api/admin/sports/clubs/${id}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -194,7 +194,7 @@ export default function AdminPage() {
 
   const handleVerifyDriver = async (id: string, action: 'approve' | 'reject') => {
     try {
-      const res = await fetch(`http://localhost:3001/api/admin/sports/drivers/${id}/verify`, {
+      const res = await fetch(`/api/admin/sports/drivers/${id}/verify`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
@@ -211,7 +211,7 @@ export default function AdminPage() {
     e.preventDefault();
     if (!selectedClubId || !discountFee) return;
     try {
-      const res = await fetch(`http://localhost:3001/api/admin/sports/clubs/${selectedClubId}/discount`, {
+      const res = await fetch(`/api/admin/sports/clubs/${selectedClubId}/discount`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -230,7 +230,7 @@ export default function AdminPage() {
 
   const handleReleaseEscrow = async (id: string, action: 'release' | 'refund') => {
     try {
-      const res = await fetch(`http://localhost:3001/api/admin/sports/escrow/${id}/release`, {
+      const res = await fetch(`/api/admin/sports/escrow/${id}/release`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action }),
