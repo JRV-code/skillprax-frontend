@@ -70,6 +70,20 @@ export default function ProfileHubPage() {
     });
   }, [telemetry]);
 
+  const activeSkillName = 
+    telemetry?.profile?.active_skill_name || 
+    telemetry?.profile?.activeSkillName || 
+    enrolledSkills[0]?.title || 
+    enrolledSkills[0]?.skill_name || 
+    null;
+
+  const activeSportName = 
+    telemetry?.profile?.active_sport_name || 
+    telemetry?.profile?.activeSportName || 
+    enrolledSports[0]?.title || 
+    enrolledSports[0]?.sport_name || 
+    null;
+
   // Reviews
   const [userReviews, setUserReviews] = useState<Review[]>([]);
   const [loadingReviews, setLoadingReviews] = useState(false);
@@ -512,90 +526,42 @@ export default function ProfileHubPage() {
           </div>
         )}
 
-        {/* ACTIVE WORKSPACE SPOTLIGHT CARD (MODULE 4 & SECTION 2) */}
-        {(() => {
-          const primaryWorkspace = enrolledWorkspaces[0];
-          const activeSkillTitle = primaryWorkspace?.title || 'Distributed Systems & Cloud Architecture';
-          const totalPlannedSteps = primaryWorkspace?.totalPlannedSteps || 6;
-          const activeStageIndex = primaryWorkspace ? (primaryWorkspace.passedStepsCount || 0) + 1 : 2;
-          const activeStageName = primaryWorkspace?.subTitle || 'Advanced Architectures';
-          const progressPercent = Math.min(100, Math.round((activeStageIndex / totalPlannedSteps) * 100));
-
-          return (
-            <div className="backdrop-blur-xl bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-2xl border border-sky-500/30 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
-              <div className="absolute -right-16 -top-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
-              
-              <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
-                {/* Animated Hovering 3D TaskBot Widget with continuous floating bob */}
-                <motion.div
-                  animate={{ y: [0, -6, 0] }}
-                  transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="relative shrink-0"
-                >
-                  <div className="w-20 h-20 rounded-2xl bg-gradient-to-tr from-sky-400 via-blue-500 to-indigo-600 p-0.5 shadow-xl shadow-sky-500/30">
-                    <div className="w-full h-full bg-slate-950 rounded-[14px] flex flex-col items-center justify-center relative overflow-hidden">
-                      {/* Glowing Eyes */}
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38BDF8] animate-pulse" />
-                        <span className="w-2.5 h-2.5 rounded-full bg-sky-400 shadow-[0_0_8px_#38BDF8] animate-pulse" />
-                      </div>
-                      {/* Bot Smile */}
-                      <div className="w-6 h-1 bg-sky-400/80 rounded-full" />
-                      {/* Subtle antenna pulse */}
-                      <div className="absolute top-1 w-1.5 h-1.5 bg-amber-400 rounded-full animate-ping" />
-                    </div>
-                  </div>
-                  <div className="w-16 h-2 bg-black/40 rounded-full blur-xs mx-auto mt-1.5" />
-                </motion.div>
-
-                <div className="space-y-1.5">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="text-[10px] font-mono font-black uppercase tracking-wider text-sky-300 bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-md">
-                      ACTIVE WORKSPACE SPOTLIGHT
-                    </span>
-                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-md">
-                      Current Stage: Step {activeStageIndex} of {totalPlannedSteps} ({activeStageName})
-                    </span>
-                  </div>
-                  <h2 className="text-xl md:text-2xl font-heading font-black tracking-tight text-white">
-                    {activeSkillTitle}
-                  </h2>
-                  
-                  {/* Progress Radial & Step indicator */}
-                  <div className="flex items-center gap-3 pt-1">
-                    <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
-                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
-                        <path className="text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                        <path className="text-emerald-400" strokeDasharray={`${progressPercent}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
-                      </svg>
-                      <span className="absolute text-[9px] font-bold font-mono text-emerald-300">{progressPercent}%</span>
-                    </div>
-                    <p className="text-xs text-sky-200/80 leading-snug">
-                      Step {activeStageIndex} of {totalPlannedSteps} • Autonomous Socratic trajectory loaded.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div className="shrink-0 relative z-10 w-full md:w-auto flex flex-col sm:flex-row items-center gap-2.5">
-                <Link
-                  href={primaryWorkspace?.id ? `/workspace?skillId=${primaryWorkspace.id}` : '/workspace'}
-                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
-                >
-                  <span>Continue in Workspace →</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
-                <Link
-                  href="/workspace?action=new"
-                  className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-heading font-bold text-xs uppercase tracking-wider border border-white/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5 text-sky-300" />
-                  <span>Enroll in New Skill / Sport</span>
-                </Link>
-              </div>
+        {/* MINIMALIST ACTIVE DISCIPLINE CARDS */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
+          {/* Card 1: Ongoing Skill Learning */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                ONGOING SKILL LEARNING
+              </span>
+              <h3 className="text-base font-bold text-slate-900">
+                {activeSkillName ? activeSkillName : "No skill enrolled yet"}
+              </h3>
             </div>
-          );
-        })()}
+            {activeSkillName && (
+              <Link className="text-xs font-bold text-[#0284C7] hover:underline" href="/skills">
+                Open Skills Studio →
+              </Link>
+            )}
+          </div>
+
+          {/* Card 2: Ongoing Sports Training */}
+          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
+                ONGOING SPORTS TRAINING
+              </span>
+              <h3 className="text-base font-bold text-slate-900">
+                {activeSportName ? activeSportName : "No sports training active"}
+              </h3>
+            </div>
+            {activeSportName && (
+              <Link className="text-xs font-bold text-emerald-600 hover:underline" href="/sports">
+                Open Sports Hub →
+              </Link>
+            )}
+          </div>
+        </div>
 
         {/* DIETARY & MEDICAL CONDITION BADGES (SECTION 2) */}
         <div className="p-4 md:p-5 bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
@@ -996,233 +962,6 @@ export default function ProfileHubPage() {
                     <div className="text-xs font-bold text-slate-900">{badge.name}</div>
                     <div className="text-[10px] text-slate-500 leading-snug">{badge.desc}</div>
                   </motion.div>
-                ))}
-              </div>
-            </div>
-
-            {/* 1C. ENROLLED SKILLS (COGNITIVE & CREATIVE TRACKS) */}
-            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
-                      COGNITIVE & CREATIVE TRACKS
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Mental, Technical & Architecture Tracks
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-heading font-black text-slate-900 mt-1">
-                    Enrolled Skills Workspace
-                  </h3>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setEnrollModalProps({ excludeSports: true });
-                    setShowEnrollModal(true);
-                  }}
-                  className="px-3.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold border border-sky-200 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Enroll New Skill</span>
-                </button>
-              </div>
-
-              {enrolledSkills.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <p className="text-xs font-semibold text-slate-600">No cognitive skills enrolled yet.</p>
-                  <p className="text-[11px] text-slate-400">Enroll in programming, design, chess, or scientific tracks.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {enrolledSkills.map((sk: any) => (
-                    <div
-                      key={sk.id}
-                      className="p-5 rounded-2xl border border-slate-200 hover:border-sky-400 bg-white hover:shadow-md transition-all space-y-3 group"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md">
-                            {sk.domainCategory || 'Cognitive'}
-                          </span>
-                          <h4 className="text-sm font-bold text-slate-900 mt-1 group-hover:text-sky-700 transition-colors">
-                            {sk.title}
-                          </h4>
-                          {sk.subTitle && (
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{sk.subTitle}</p>
-                          )}
-                        </div>
-                        <span className="text-xs font-black font-mono text-sky-600 bg-sky-50 px-2 py-0.5 rounded-lg shrink-0">
-                          {sk.progress}%
-                        </span>
-                      </div>
-
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-sky-500 rounded-full transition-all duration-300"
-                          style={{ width: `${sk.progress}%` }}
-                        />
-                      </div>
-
-                      <Link
-                        href={`/skills?id=${sk.id}`}
-                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-sky-600"
-                      >
-                        <span>Open Skill Studio →</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 1D. ENROLLED SPORTS (ATHLETIC & PHYSICAL TRACKS) */}
-            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md">
-                      ATHLETIC & PHYSICAL TRACKS
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Physical Drills, Multi-Day Calendar & Daily Nutrition
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-heading font-black text-slate-900 mt-1">
-                    Enrolled Sports Workspace
-                  </h3>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setEnrollModalProps({ restrictToDomain: 'Athletics' });
-                    setShowEnrollModal(true);
-                  }}
-                  className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Enroll Sport</span>
-                </button>
-              </div>
-
-              {enrolledSports.length === 0 ? (
-                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
-                  <p className="text-xs font-semibold text-slate-600">No athletic sports enrolled yet.</p>
-                  <p className="text-[11px] text-slate-400">Enroll in cricket, football, swimming, sprint, or basketball.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {enrolledSports.map((sp: any) => (
-                    <div
-                      key={sp.id}
-                      className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 bg-white hover:shadow-md transition-all space-y-3 group"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
-                            Athletics
-                          </span>
-                          <h4 className="text-sm font-bold text-slate-900 mt-1 group-hover:text-emerald-700 transition-colors">
-                            {sp.title}
-                          </h4>
-                          {sp.subTitle && (
-                            <p className="text-[11px] text-slate-500 line-clamp-1">{sp.subTitle}</p>
-                          )}
-                        </div>
-                        <span className="text-xs font-black font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0">
-                          {sp.progress}%
-                        </span>
-                      </div>
-
-                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-emerald-600 rounded-full transition-all duration-300"
-                          style={{ width: `${sp.progress}%` }}
-                        />
-                      </div>
-
-                      <Link
-                        href={`/sports?id=${sp.id}`}
-                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-emerald-600"
-                      >
-                        <span>Open Sports Studio →</span>
-                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                      </Link>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* 1E. RESTORED "NEXT HORIZONS" SKILL & SPORTS RECOMMENDATION DRAWER */}
-            <div className="p-6 md:p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
-                      NEURAL COMPASS
-                    </span>
-                    <span className="text-xs font-semibold text-slate-400">
-                      Curated Next Horizons
-                    </span>
-                  </div>
-                  <h3 className="text-lg font-heading font-extrabold text-slate-900 mt-1">
-                    AI-Curated Next Horizons
-                  </h3>
-                  <p className="text-xs text-slate-500">
-                    Complementary cognitive and athletic trajectories tailored to your verified competency baseline.
-                  </p>
-                </div>
-
-                <Link
-                  href="/workspace"
-                  className="px-4 py-2 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
-                >
-                  <span>Open Full Workspace Studio ➔</span>
-                </Link>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {recommendations.map((rec: any, idx: number) => (
-                  <div
-                    key={idx}
-                    className="p-5 rounded-2xl border border-slate-200/90 hover:border-sky-400 bg-gradient-to-br from-white via-slate-50/50 to-sky-50/30 hover:shadow-md transition-all flex flex-col justify-between group space-y-4"
-                  >
-                    <div className="space-y-2.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 bg-slate-100 px-2 py-0.5 rounded-md truncate max-w-[170px]">
-                          {rec.domain}
-                        </span>
-                        <span className="text-[11px] font-bold text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-full shrink-0">
-                          {rec.affinityScore}% Match
-                        </span>
-                      </div>
-
-                      <h4 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
-                        {rec.title}
-                      </h4>
-
-                      {rec.subGenre && (
-                        <div className="inline-block px-2.5 py-0.5 rounded-full bg-amber-50 border border-amber-200 text-[10px] font-semibold text-amber-800">
-                          🎯 {rec.subGenre}
-                        </div>
-                      )}
-
-                      <p className="text-[11px] text-slate-600 leading-relaxed">
-                        {rec.rationale}
-                      </p>
-                    </div>
-
-                    <Link
-                      href="/workspace"
-                      className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                    >
-                      <span>Launch in Workspace Studio</span>
-                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                    </Link>
-                  </div>
                 ))}
               </div>
             </div>
