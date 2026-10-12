@@ -1,34 +1,62 @@
 /** @type {import('next').NextConfig} */
-function resolveBackendUrl() {
-  let raw = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || 'https://skillprax-backend.onrender.com';
 
-  if (!raw || typeof raw !== 'string') {
-    return 'https://skillprax-backend.onrender.com';
+function getCleanBackendUrl() {
+  const FALLBACK = 'https://skillprax-backend.onrender.com';
+  let url = process.env.NEXT_PUBLIC_API_URL || process.env.BACKEND_URL || FALLBACK;
+
+  if (!url || typeof url !== 'string') {
+    return FALLBACK;
   }
 
-  // Strip whitespace, surrounding quotes, or accidental formatting
-  raw = raw.trim().replace(/^["']|["']$/g, '');
-
-  if (!raw) {
-    return 'https://skillprax-backend.onrender.com';
+  // 1. If pasted as a markdown link: [text](https://example.com) -> extract https://example.com
+  const mdMatch = url.match(/\((https?:\/\/[^\)]+)\)/i);
+  if (mdMatch) {
+    url = mdMatch[1];
   }
 
-  // Ensure valid URL prefix
-  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-    raw = `https://${raw}`;
+  // 2. Handle accidental "KEY=value" string ingestion
+  if (url.includes('=')) {
+    url = url.split('=').pop()?.trim() || '';
   }
 
-  // Remove trailing slashes
-  raw = raw.replace(/\/+$/, '');
+  // 3. Strip whitespace and wrapper quotes/brackets
+  url = url.trim().replace(/^["'\[]+|["'\]]+$/g, '').trim();
 
-  return raw;
+  // 4. Strip duplicate path parameters or API endpoints
+  url = url
+    .replace(/\/api\/:path\*?.*$/i, '')
+    .replace(/\/api\/?$/i, '')
+    .replace(/\/+$/, '');
+
+  // 5. Enforce valid protocol
+  if (!url.startsWith('http://') && !url.startsWith('https://')) {
+    url = `https://${url}`;
+  }
+
+  // 6. Hard safety check against literal redaction markers, brackets, or undefined
+  if (url.includes('[') || url.includes(']') || url.includes('REDACTED') || url.includes('undefined')) {
+    return FALLBACK;
+  }
+
+  // 7. Validate that it is a parseable URL and strip any accidental pathname
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return FALLBACK;
+  }
 }
 
-const backendUrl = resolveBackendUrl();
+const backendUrl = getCleanBackendUrl();
 
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
+  images: {
+    remotePatterns: [
+      { protocol: 'https', hostname: '**' },
+    ],
+  },
   async rewrites() {
     return [
       {

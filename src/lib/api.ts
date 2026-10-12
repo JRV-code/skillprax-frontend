@@ -7,7 +7,26 @@ import {
   AIProvider,
 } from './types';
 
-export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
+function getCleanApiUrl(raw?: string): string {
+  const FALLBACK = 'https://skillprax-backend.onrender.com';
+  let url = raw || FALLBACK;
+  if (!url || typeof url !== 'string') return FALLBACK;
+  const mdMatch = url.match(/\((https?:\/\/[^\)]+)\)/i);
+  if (mdMatch) url = mdMatch[1];
+  if (url.includes('=')) url = url.split('=').pop()?.trim() || '';
+  url = url.trim().replace(/^["'\[]+|["'\]]+$/g, '').trim();
+  url = url.replace(/\/api\/:path\*?.*$/i, '').replace(/\/api\/?$/i, '').replace(/\/+$/, '');
+  if (!url.startsWith('http://') && !url.startsWith('https://')) url = `https://${url}`;
+  if (url.includes('[') || url.includes(']') || url.includes('REDACTED') || url.includes('undefined')) return FALLBACK;
+  try {
+    const parsed = new URL(url);
+    return `${parsed.protocol}//${parsed.host}`;
+  } catch {
+    return FALLBACK;
+  }
+}
+
+export const API_BASE_URL = getCleanApiUrl(process.env.NEXT_PUBLIC_API_URL);
 
 export async function apiRequest<T>(
   endpoint: string,
