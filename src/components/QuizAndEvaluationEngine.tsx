@@ -618,15 +618,17 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
                   {/* Options List adhering to the Equal Length Rule */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                    {q.options.map((opt, optIdx) => {
+                    {(((q as any).options || (q as any).choices || []) as any[]).map((opt: any, optIdx: number) => {
                       const letter = String.fromCharCode(65 + optIdx);
-                      const isSelected = selectedAnswers[q.id] === opt.id;
+                      const optId = typeof opt === 'object' && opt?.id ? String(opt.id) : letter;
+                      const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.label || opt?.title || String(opt));
+                      const isSelected = selectedAnswers[q.id] === optId || selectedAnswers[q.id] === String(optIdx);
 
                       return (
                         <div
-                          key={opt.id}
+                          key={optId}
                           onClick={() => {
-                            setSelectedAnswers(prev => ({ ...prev, [q.id]: opt.id }));
+                            setSelectedAnswers(prev => ({ ...prev, [q.id]: optId }));
                             setActiveQuestionIndex(qIndex);
                           }}
                           className={`p-4 rounded-xl border text-xs cursor-pointer transition-all duration-200 flex items-start gap-3 select-none ${
@@ -644,7 +646,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                           >
                             {letter}
                           </span>
-                          <span className="leading-relaxed pt-0.5 flex-1">{opt.text}</span>
+                          <span className="leading-relaxed pt-0.5 flex-1">{optText}</span>
                         </div>
                       );
                     })}

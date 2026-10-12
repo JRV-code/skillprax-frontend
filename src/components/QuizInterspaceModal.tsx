@@ -330,27 +330,32 @@ export const QuizInterspaceModal: React.FC<QuizInterspaceModalProps> = ({
 
           {/* Options */}
           <div className="space-y-2.5">
-            {currentQ.options.map((opt, optIndex) => {
-              const selectedOptId = selectedAnswers[currentQ.id];
-              const isSelected = selectedOptId === opt.id;
+            {(((currentQ as any)?.options || (currentQ as any)?.choices || []) as any[]).map((opt: any, optIndex: number) => {
               const letter = String.fromCharCode(65 + optIndex);
+              const optId = typeof opt === 'object' && opt?.id ? String(opt.id) : letter;
+              const optText = typeof opt === 'string' ? opt : (opt?.text || opt?.label || opt?.title || String(opt));
+              const selectedOptId = selectedAnswers[currentQ.id];
+              const isSelected = selectedOptId === optId || selectedOptId === String(optIndex);
+              const isOptCorrect = typeof opt === 'object' && opt?.isCorrect !== undefined
+                ? Boolean(opt.isCorrect)
+                : ((currentQ as any)?.correctOptionIndex === optIndex || (currentQ as any)?.correctOptionId === letter);
 
               let style = 'bg-white border-slate-200 text-slate-700 hover:border-emerald-400 hover:bg-emerald-50/20';
               if (isSelected) {
-                style = 'bg-emerald-50 border-emerald-500 text-emerald-900 ring-2 ring-emerald-200 shadow-xs';
+                style = 'bg-emerald-50 border-emerald-500 text-emerald-950 ring-2 ring-emerald-200 shadow-xs';
               }
               if (isSubmitted) {
-                if (opt.isCorrect) {
+                if (isOptCorrect) {
                   style = 'bg-emerald-100/90 border-emerald-500 text-emerald-950 font-semibold ring-2 ring-emerald-300';
-                } else if (isSelected && !opt.isCorrect) {
+                } else if (isSelected && !isOptCorrect) {
                   style = 'bg-rose-50 border-rose-400 text-rose-900 ring-2 ring-rose-200';
                 }
               }
 
               return (
                 <div
-                  key={opt.id}
-                  onClick={() => handleSelectAnswer(currentQ.id, opt.id)}
+                  key={optId}
+                  onClick={() => handleSelectAnswer(currentQ.id, optId)}
                   className={`flex items-start gap-3 p-3.5 rounded-2xl border text-xs sm:text-sm transition-all duration-200 cursor-pointer select-none active:scale-[0.99] ${style}`}
                 >
                   <div
@@ -360,9 +365,9 @@ export const QuizInterspaceModal: React.FC<QuizInterspaceModalProps> = ({
                         : 'bg-slate-100 text-slate-600 border-slate-300'
                     }`}
                   >
-                    {isSubmitted && opt.isCorrect ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : letter}
+                    {isSubmitted && isOptCorrect ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : letter}
                   </div>
-                  <span className="flex-1 pt-0.5 leading-relaxed">{opt.text}</span>
+                  <span className="flex-1 pt-0.5 leading-relaxed">{optText}</span>
                 </div>
               );
             })}
