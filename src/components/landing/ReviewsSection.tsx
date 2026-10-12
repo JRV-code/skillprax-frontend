@@ -39,13 +39,10 @@ export const ReviewsSection: React.FC<ReviewsSectionProps> = ({
             <MessageSquare className="w-8 h-8 stroke-[1.5]" />
           </div>
           <h3 className="text-base font-extrabold text-slate-900">
-            Community Reviews
+            Community Wall of Love
           </h3>
-          <p className="text-xs font-semibold text-slate-500">
-            No learner reviews submitted yet.
-          </p>
-          <p className="text-xs text-slate-400 max-w-md leading-relaxed">
-            Be the first to complete a skill milestone or sports drill and share your verified experience.
+          <p className="text-sm font-semibold text-slate-600">
+            No reviews yet. Be the first learner to complete a milestone and leave a review!
           </p>
         </div>
       ) : (

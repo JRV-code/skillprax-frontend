@@ -14,6 +14,7 @@ import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { EditProfileModal } from '@/components/EditProfileModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
+import { ProfileReviews } from '@/components/profile/ProfileReviews';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
@@ -47,6 +48,26 @@ export default function ProfileHubPage() {
     initialSubGenre?: string;
   }>({});
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+
+  const enrolledSkills = React.useMemo(() => {
+    return (telemetry?.enrolledWorkspaces || []).filter((w: any) => {
+      const dom = (w.domainCategory || '').toLowerCase();
+      const title = (w.title || '').toLowerCase();
+      const isSport = dom === 'athletics' || 
+        ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'basketball', 'calisthenics', 'sprint'].some(s => title.includes(s));
+      return !isSport;
+    });
+  }, [telemetry]);
+
+  const enrolledSports = React.useMemo(() => {
+    return (telemetry?.enrolledWorkspaces || []).filter((w: any) => {
+      const dom = (w.domainCategory || '').toLowerCase();
+      const title = (w.title || '').toLowerCase();
+      const isSport = dom === 'athletics' || 
+        ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'basketball', 'calisthenics', 'sprint'].some(s => title.includes(s));
+      return isSport;
+    });
+  }, [telemetry]);
 
   // Reviews
   const [userReviews, setUserReviews] = useState<Review[]>([]);
@@ -797,7 +818,163 @@ export default function ProfileHubPage() {
               </div>
             </div>
 
-            {/* 1C. RESTORED "NEXT HORIZONS" SKILL & SPORTS RECOMMENDATION DRAWER */}
+            {/* 1C. ENROLLED SKILLS (COGNITIVE & CREATIVE TRACKS) */}
+            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
+                      COGNITIVE & CREATIVE TRACKS
+                    </span>
+                    <span className="text-xs font-semibold text-slate-400">
+                      Mental, Technical & Architecture Tracks
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-heading font-black text-slate-900 mt-1">
+                    Enrolled Skills Workspace
+                  </h3>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEnrollModalProps({ excludeSports: true });
+                    setShowEnrollModal(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-sky-50 hover:bg-sky-100 text-sky-700 rounded-xl text-xs font-bold border border-sky-200 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Enroll New Skill</span>
+                </button>
+              </div>
+
+              {enrolledSkills.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <p className="text-xs font-semibold text-slate-600">No cognitive skills enrolled yet.</p>
+                  <p className="text-[11px] text-slate-400">Enroll in programming, design, chess, or scientific tracks.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {enrolledSkills.map((sk: any) => (
+                    <div
+                      key={sk.id}
+                      className="p-5 rounded-2xl border border-slate-200 hover:border-sky-400 bg-white hover:shadow-md transition-all space-y-3 group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-sky-600 bg-sky-50 px-2 py-0.5 rounded-md">
+                            {sk.domainCategory || 'Cognitive'}
+                          </span>
+                          <h4 className="text-sm font-bold text-slate-900 mt-1 group-hover:text-sky-700 transition-colors">
+                            {sk.title}
+                          </h4>
+                          {sk.subTitle && (
+                            <p className="text-[11px] text-slate-500 line-clamp-1">{sk.subTitle}</p>
+                          )}
+                        </div>
+                        <span className="text-xs font-black font-mono text-sky-600 bg-sky-50 px-2 py-0.5 rounded-lg shrink-0">
+                          {sk.progress}%
+                        </span>
+                      </div>
+
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-sky-500 rounded-full transition-all duration-300"
+                          style={{ width: `${sk.progress}%` }}
+                        />
+                      </div>
+
+                      <Link
+                        href={`/skills?id=${sk.id}`}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-sky-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-sky-600"
+                      >
+                        <span>Open Skill Studio →</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 1D. ENROLLED SPORTS (ATHLETIC & PHYSICAL TRACKS) */}
+            <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                      ATHLETIC & PHYSICAL TRACKS
+                    </span>
+                    <span className="text-xs font-semibold text-slate-400">
+                      Physical Drills, Multi-Day Calendar & Daily Nutrition
+                    </span>
+                  </div>
+                  <h3 className="text-lg font-heading font-black text-slate-900 mt-1">
+                    Enrolled Sports Workspace
+                  </h3>
+                </div>
+
+                <button
+                  onClick={() => {
+                    setEnrollModalProps({ restrictToDomain: 'Athletics' });
+                    setShowEnrollModal(true);
+                  }}
+                  className="px-3.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-xl text-xs font-bold border border-emerald-200 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>Enroll Sport</span>
+                </button>
+              </div>
+
+              {enrolledSports.length === 0 ? (
+                <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 space-y-2">
+                  <p className="text-xs font-semibold text-slate-600">No athletic sports enrolled yet.</p>
+                  <p className="text-[11px] text-slate-400">Enroll in cricket, football, swimming, sprint, or basketball.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {enrolledSports.map((sp: any) => (
+                    <div
+                      key={sp.id}
+                      className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-500 bg-white hover:shadow-md transition-all space-y-3 group"
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md">
+                            Athletics
+                          </span>
+                          <h4 className="text-sm font-bold text-slate-900 mt-1 group-hover:text-emerald-700 transition-colors">
+                            {sp.title}
+                          </h4>
+                          {sp.subTitle && (
+                            <p className="text-[11px] text-slate-500 line-clamp-1">{sp.subTitle}</p>
+                          )}
+                        </div>
+                        <span className="text-xs font-black font-mono text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg shrink-0">
+                          {sp.progress}%
+                        </span>
+                      </div>
+
+                      <div className="w-full h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-emerald-600 rounded-full transition-all duration-300"
+                          style={{ width: `${sp.progress}%` }}
+                        />
+                      </div>
+
+                      <Link
+                        href={`/sports?id=${sp.id}`}
+                        className="w-full py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-emerald-600"
+                      >
+                        <span>Open Sports Studio →</span>
+                        <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* 1E. RESTORED "NEXT HORIZONS" SKILL & SPORTS RECOMMENDATION DRAWER */}
             <div className="p-6 md:p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
                 <div>
@@ -1421,6 +1598,14 @@ export default function ProfileHubPage() {
             </div>
           </div>
         )}
+
+        {/* BOTTOM SECTION: AUTHENTIC REVIEWS & FEEDBACK ENGINE */}
+        <ProfileReviews
+          userId={activeProfileId || 'default-profile'}
+          userName={profile.name}
+          userAvatar={profile.avatarUrl}
+          enrolledSkills={telemetry?.enrolledWorkspaces || []}
+        />
       </main>
 
       {/* ENROLL MODAL */}
@@ -1439,7 +1624,13 @@ export default function ProfileHubPage() {
           setShowEnrollModal(false);
           setEnrollModalProps({});
           if (newTrack?.id) {
-            router.push(`/workspace/${newTrack.id}`);
+            const isSport = (newTrack.domainCategory || '').toLowerCase() === 'athletics' ||
+              ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'basketball'].some((s: string) => (newTrack.title || '').toLowerCase().includes(s));
+            if (isSport) {
+              router.push(`/sports?id=${newTrack.id}`);
+            } else {
+              router.push(`/skills?id=${newTrack.id}`);
+            }
           }
         }}
       />

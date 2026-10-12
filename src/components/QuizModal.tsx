@@ -467,18 +467,18 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
                           key={optId}
                           type="button"
                           onClick={() => handleSelectOption(q.id, optId)}
-                          className={`w-full text-left p-3 rounded-xl border text-xs transition-all flex items-start gap-3 ${
+                          className={`w-full text-left p-3.5 rounded-xl border text-xs transition-all flex items-start gap-3 cursor-pointer ${
                             isSelected
-                              ? 'bg-cyan-950/40 border-cyan-400 text-foreground shadow-[0_0_15px_rgba(6,182,212,0.2)]'
-                              : 'bg-slate-900/50 border-slate-800 text-muted-foreground hover:border-slate-700'
+                              ? 'bg-cyan-950/60 border-cyan-400 text-white shadow-[0_0_15px_rgba(6,182,212,0.25)] font-medium'
+                              : 'bg-slate-900 border-slate-700/80 text-slate-200 hover:text-white hover:border-slate-500 hover:bg-slate-850'
                           }`}
                         >
-                          <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 border ${
-                            isSelected ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'border-slate-700 text-muted-foreground'
+                          <span className={`w-6 h-6 rounded-lg flex items-center justify-center text-[11px] font-bold shrink-0 border ${
+                            isSelected ? 'bg-cyan-400 text-slate-950 border-cyan-400' : 'bg-slate-800 border-slate-700 text-slate-300'
                           }`}>
                             {optId}
                           </span>
-                          <span className="pt-0.5">{optText}</span>
+                          <span className="pt-0.5 text-xs text-slate-200 leading-snug">{optText}</span>
                         </button>
                       );
                     })}

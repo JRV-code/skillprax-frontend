@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { 
   Activity, Play, Pause, RotateCcw, Flag, Clock, 
   CheckCircle2, Plus, ArrowRight, Zap, Target, 
@@ -12,6 +12,8 @@ import {
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
+import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
+import { SocraticQuizModal } from '@/components/SocraticQuizModal';
 import { SportDrill, SportWorkoutPlan } from '@/types';
 
 const PRESET_WORKOUT_PLANS: Record<string, Record<string, SportDrill[]>> = {
@@ -230,10 +232,20 @@ const PRESET_WORKOUT_PLANS: Record<string, Record<string, SportDrill[]>> = {
 
 export default function SportsHubPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const querySportId = searchParams.get('id');
+
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [sportsTracks, setSportsTracks] = useState<any[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
+
+  // Active Sport Track & Workspace Studio States
+  const [selectedSportId, setSelectedSportId] = useState<string | null>(querySportId);
+  const [activeWorkspace, setActiveWorkspace] = useState<any | null>(null);
+  const [loadingActiveWorkspace, setLoadingActiveWorkspace] = useState<boolean>(false);
+  const [activeStepIndex, setActiveStepIndex] = useState<number>(0);
+  const [showQuizModal, setShowQuizModal] = useState<boolean>(false);
 
   // Stopwatch Engine States
   const [timerRunning, setTimerRunning] = useState<boolean>(false);
@@ -263,6 +275,20 @@ export default function SportsHubPage() {
     loadSportsData(storedId);
   }, []);
 
+  useEffect(() => {
+    if (querySportId) {
+      setSelectedSportId(querySportId);
+    }
+  }, [querySportId]);
+
+  useEffect(() => {
+    if (selectedSportId) {
+      loadActiveWorkspace(selectedSportId);
+    } else if (sportsTracks.length > 0) {
+      setSelectedSportId(sportsTracks[0].id);
+    }
+  }, [selectedSportId, sportsTracks]);
+
   async function loadSportsData(profileId: string) {
     try {
       setLoading(true);
@@ -271,7 +297,8 @@ export default function SportsHubPage() {
         const data = await res.json();
         const allTracks = data.enrolledWorkspaces || [];
         const sportsOnly = allTracks.filter(
-          (w: any) => w.domainCategory === 'Athletics' || w.domain === 'Athletics'
+          (w: any) => w.domainCategory === 'Athletics' || w.domain === 'Athletics' ||
+            ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'basketball'].some(s => (w.title || '').toLowerCase().includes(s))
         );
         setSportsTracks(sportsOnly);
       }
@@ -281,6 +308,88 @@ export default function SportsHubPage() {
       setLoading(false);
     }
   }
+
+  async function loadActiveWorkspace(workspaceId: string) {
+    try {
+      setLoadingActiveWorkspace(true);
+      const res = await fetch(`/api/workspaces/${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        const ws = data.workspace || data;
+        setActiveWorkspace(ws);
+        const steps = ws.steps || [];
+        const firstActive = steps.findIndex((s: any) => s.status !== 'PASSED');
+        setActiveStepIndex(firstActive >= 0 ? firstActive : 0);
+      }
+    } catch (err) {
+      console.error('Failed to load active sport workspace:', err);
+    } finally {
+      setLoadingActiveWorkspace(false);
+    }
+  }
+
+  const handlePracticeDayComplete = (completedDays: number) => {
+    if (!activeWorkspace) return;
+    setActiveWorkspace((prev: any) => {
+      if (!prev) return prev;
+      const updatedSteps = (prev.steps || []).map((s: any, idx: number) => {
+        if (idx === activeStepIndex) {
+          return { ...s, practiceDaysCompleted: completedDays };
+        }
+        return s;
+      });
+      return { ...prev, steps: updatedSteps };
+    });
+  };
+
+  const handleAdvanceStep = () => {
+    if (!activeWorkspace) return;
+    const steps = activeWorkspace.steps || [];
+    if (activeStepIndex < steps.length - 1) {
+      setActiveStepIndex(activeStepIndex + 1);
+    }
+  };
+
+  const handleQuizPassed = (score: number) => {
+    if (!activeWorkspace) return;
+    setActiveWorkspace((prev: any) => {
+      if (!prev) return prev;
+      const updatedSteps = (prev.steps || []).map((s: any, idx: number) => {
+        if (idx === activeStepIndex) {
+          return { ...s, status: 'PASSED', quizPassed: true, quizScore: score };
+        }
+        if (idx === activeStepIndex + 1 && (s.status === 'LOCKED' || s.status === 'STUDY_UNGENERATED')) {
+          return { ...s, status: 'IN_PROGRESS' };
+        }
+        return s;
+      });
+      return { ...prev, steps: updatedSteps };
+    });
+  };
+
+  const activeStep = activeWorkspace?.steps?.[activeStepIndex] || null;
+  const activeQuizQuestions = React.useMemo(() => {
+    if (!activeStep) return [];
+    const blueprintRaw = activeStep.quizBlueprint;
+    let questions = Array.isArray(blueprintRaw)
+      ? blueprintRaw
+      : typeof blueprintRaw === 'string'
+      ? JSON.parse(blueprintRaw || '[]')
+      : [];
+
+    return questions.map((q: any) => ({
+      id: q.id || q.questionId,
+      question: q.question || q.scenario,
+      options: Array.isArray(q.options)
+        ? q.options.map((opt: any) => typeof opt === 'string' ? opt : opt.text)
+        : [],
+      correctOptionIndex: typeof q.correctOptionIndex === 'number'
+        ? q.correctOptionIndex
+        : (q.correctOptionId ? ['A', 'B', 'C', 'D'].indexOf(String(q.correctOptionId).toUpperCase()) : 0),
+      correctOptionId: q.correctOptionId || 'A',
+      explanation: q.explanation || 'Validated biomechanical and athletic comprehension.',
+    }));
+  }, [activeStep]);
 
   // Stopwatch Logic
   const handleStartTimer = () => {
@@ -445,11 +554,11 @@ export default function SportsHubPage() {
 
         <div className="flex items-center gap-3">
           <Link
-            href="/workspace"
+            href="/skills"
             className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold flex items-center gap-1.5 transition-colors"
           >
             <BookOpen className="w-3.5 h-3.5 text-blue-600" />
-            <span className="hidden sm:inline">Academic Skills</span>
+            <span className="hidden sm:inline">Cognitive Skills</span>
           </Link>
           <Link
             href="/profile"
@@ -490,6 +599,60 @@ export default function SportsHubPage() {
             <span>Enroll New Sport Track</span>
           </button>
         </div>
+
+        {/* ACTIVE SPORT TRACK: MULTI-DAY CALENDAR & NUTRITION ENGINE */}
+        {activeWorkspace && activeStep && (
+          <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                    ATHLETIC PRACTICE CALENDAR & DUAL-GATE PROGRESSION
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    {activeWorkspace.title} • Milestone {activeStepIndex + 1} of {activeWorkspace.steps?.length || 5}
+                  </span>
+                </div>
+                <h2 className="text-xl font-black text-slate-900 mt-1">
+                  {activeStep.title}
+                </h2>
+              </div>
+
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(activeWorkspace.steps || []).map((s: any, idx: number) => (
+                  <button
+                    key={idx}
+                    onClick={() => setActiveStepIndex(idx)}
+                    className={`w-8 h-8 rounded-xl text-xs font-bold font-mono transition-all cursor-pointer flex items-center justify-center ${
+                      activeStepIndex === idx
+                        ? 'bg-emerald-600 text-white shadow-sm ring-2 ring-emerald-300'
+                        : s.status === 'PASSED'
+                        ? 'bg-emerald-100 text-emerald-800'
+                        : 'bg-slate-100 text-slate-500 hover:bg-slate-200'
+                    }`}
+                  >
+                    {idx + 1}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <SportsStepTracker
+              skillId={activeStep.id || activeWorkspace.id}
+              stepNumber={activeStepIndex + 1}
+              stepTitle={activeStep.title}
+              skillCategory="physical"
+              requiredPracticeDays={activeStep.requiredPracticeDays || 3}
+              practiceDaysCompleted={activeStep.practiceDaysCompleted || 0}
+              quizPassed={activeStep.quizPassed || activeStep.status === 'PASSED'}
+              quizScore={activeStep.quizScore || (activeStep.status === 'PASSED' ? 85 : null)}
+              dailyDietPlan={activeStep.dailyDietPlan}
+              onPracticeDayComplete={handlePracticeDayComplete}
+              onAdvanceStep={handleAdvanceStep}
+              onOpenQuiz={() => setShowQuizModal(true)}
+            />
+          </div>
+        )}
 
         {/* SECTION 1: INTERACTIVE PRACTICE STOPWATCH & TIMER */}
         <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
@@ -840,19 +1003,33 @@ export default function SportsHubPage() {
                     />
                   </div>
 
-                  <Link
-                    href={`/workspace/${track.id}`}
-                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-emerald-600"
+                  <button
+                    onClick={() => {
+                      setSelectedSportId(track.id);
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm group-hover:bg-emerald-600 cursor-pointer"
                   >
                     <span>Launch Sports Studio ➔</span>
                     <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </Link>
+                  </button>
                 </div>
               ))}
             </div>
           )}
         </div>
       </main>
+
+      {/* SOCRATIC QUIZ MODAL */}
+      <SocraticQuizModal
+        isOpen={showQuizModal}
+        onClose={() => setShowQuizModal(false)}
+        questions={activeQuizQuestions}
+        stepId={activeStep?.id}
+        stepTitle={activeStep?.title}
+        stepNumber={activeStepIndex + 1}
+        onPassed={handleQuizPassed}
+      />
 
       {/* ENROLL MODAL (RESTRICTED TO ATHLETICS) */}
       <EnrollSkillModal
@@ -862,7 +1039,8 @@ export default function SportsHubPage() {
         onEnroll={(newTrack) => {
           setShowEnrollModal(false);
           if (newTrack?.id) {
-            router.push(`/workspace/${newTrack.id}`);
+            setSelectedSportId(newTrack.id);
+            loadSportsData(activeProfileId || 'default-profile');
           }
         }}
       />
