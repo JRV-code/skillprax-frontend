@@ -102,7 +102,7 @@ export default function AbandonTrackModal({
     setErrorMessage("");
 
     try {
-      const res = await fetch(`${API_BASE_URL}/api/workspaces/${workspaceId}`, {
+      const res = await fetch(`/api/workspaces/${workspaceId}`, {
         method: "DELETE",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

@@ -26,7 +26,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
       setError(null);
       setPasscode('');
       setConfirmPasscode('');
-      fetch(`${API_BASE}/api/admin/status`)
+      fetch('/api/admin/status')
         .then((res) => res.json())
         .then((data) => {
           setIsConfigured(Boolean(data.isConfigured));
@@ -37,7 +37,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
           setChecking(false);
         });
     }
-  }, [isOpen, API_BASE]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -54,7 +54,7 @@ export function AdminGateModal({ isOpen, onClose }: AdminGateModalProps) {
     const endpoint = isConfigured ? '/api/admin/verify' : '/api/admin/setup';
 
     try {
-      const res = await fetch(`${API_BASE}${endpoint}`, {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ passcode }),

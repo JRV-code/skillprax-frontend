@@ -2,17 +2,14 @@
 
 import { useEffect } from 'react';
 
-const API_BASE =
-  process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com';
-
 export function useActivityHeartbeat() {
   useEffect(() => {
     const sendPing = () => {
-      if (document.visibilityState === 'visible') {
-        fetch(`${API_BASE}/api/activity/heartbeat`, {
+      if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
+        fetch('/api/activity/heartbeat', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({}),
+          body: JSON.stringify({ timestamp: Date.now() }),
         }).catch(() => {
           // Silent — never crash the UI over a missed heartbeat
         });
