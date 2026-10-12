@@ -81,6 +81,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [email, setEmail] = useState(userProfile.email || '');
   const [gender, setGender] = useState<string>(userProfile.gender || 'Prefer not to say');
   const [age, setAge] = useState((userProfile.age || 18).toString());
+  const [dateOfBirth, setDateOfBirth] = useState<string>((userProfile as any).dateOfBirth || (userProfile as any).date_of_birth || '');
+  const [guardianName, setGuardianName] = useState<string>((userProfile as any).guardianName || (userProfile as any).guardian_name || '');
+  const [guardianPhone, setGuardianPhone] = useState<string>((userProfile as any).guardianPhone || (userProfile as any).guardian_phone || '');
+  const [guardianEmail, setGuardianEmail] = useState<string>((userProfile as any).guardianEmail || (userProfile as any).guardian_email || '');
   
   // Profession states
   const initialProfBase = PROFESSION_OPTIONS.includes(userProfile.profession || '')
@@ -115,6 +119,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
 
   if (!isOpen || !mounted) return null;
 
+  const computedAge = dateOfBirth 
+    ? Math.floor((Date.now() - new Date(dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    : parseInt(age, 10) || null;
+  const isMinor = computedAge !== null && computedAge < 18;
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setValidationError(null);
@@ -125,6 +134,10 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
     }
     if (!gender) {
       setValidationError('Please select your Gender identity.');
+      return;
+    }
+    if (isMinor && (!guardianName.trim() || !guardianPhone.trim())) {
+      setValidationError('Athletes under 18 require Guardian Name and Phone Number.');
       return;
     }
     if (selectedProfession === 'Other' && !customProfession.trim()) {
@@ -146,7 +159,11 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       name: name.trim(),
       email: email.trim() || undefined,
       gender,
-      age: parseInt(age, 10) || userProfile.age,
+      age: computedAge !== null ? computedAge : parseInt(age, 10) || userProfile.age,
+      dateOfBirth: dateOfBirth || undefined,
+      guardianName: isMinor ? guardianName.trim() : undefined,
+      guardianPhone: isMinor ? guardianPhone.trim() : undefined,
+      guardianEmail: isMinor ? guardianEmail.trim() : undefined,
       profession: finalProfession,
       educationBoard: selectedProfession === 'Student' ? educationBoard.trim() : userProfile.educationBoard,
       grade: selectedProfession === 'Student' ? grade.trim() : userProfile.grade,
@@ -315,13 +332,13 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
             </div>
           </div>
 
-          {/* Demographics: Gender & Age */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            <div className="sm:col-span-2 space-y-1.5">
+          {/* Demographics: Gender, Date of Birth & Dynamic Age */}
+          <div className="grid grid-cols-1 sm:grid-cols-12 gap-4">
+            <div className="sm:col-span-6 space-y-1.5">
               <label className="block text-xs font-semibold text-slate-700">
                 Gender Identity (Mandatory) *
               </label>
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              <div className="grid grid-cols-2 gap-2">
                 {GENDER_OPTIONS.map((g) => (
                   <button
                     key={g}
@@ -339,21 +356,90 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">
-                Age
+            <div className="sm:col-span-4 space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Date of Birth (Mandatory) *
               </label>
               <input
-                type="number"
-                min="8"
-                max="99"
-                value={age}
-                onChange={(e) => setAge(e.target.value)}
+                type="date"
+                name="dateOfBirth"
+                max={new Date().toISOString().split('T')[0]}
+                value={dateOfBirth}
+                onChange={(e) => {
+                  setDateOfBirth(e.target.value);
+                  if (e.target.value) {
+                    const diff = Math.floor((Date.now() - new Date(e.target.value).getTime()) / (365.25 * 24 * 60 * 60 * 1000));
+                    setAge(String(diff));
+                  }
+                }}
                 required
-                className="w-full px-3.5 py-2.5 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-900"
+                className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white font-medium text-slate-900"
               />
             </div>
+
+            <div className="sm:col-span-2 space-y-1.5">
+              <label className="block text-xs font-semibold text-slate-700">
+                Age
+              </label>
+              <div className="w-full px-3.5 py-2 text-xs rounded-xl border border-slate-200 bg-slate-50 font-bold text-slate-800 text-center">
+                {computedAge !== null ? `${computedAge} yrs` : 'Select DOB'}
+              </div>
+            </div>
           </div>
+
+          {/* Conditional Minor Protection Gate */}
+          {isMinor && (
+            <div className="p-4 bg-amber-50/80 border border-amber-200/90 rounded-2xl space-y-3 animate-fade-in">
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 bg-amber-100 px-2 py-0.5 rounded border border-amber-300">
+                  MINOR PROTECTION GATE (AGE &lt; 18)
+                </span>
+                <span className="text-xs text-amber-900 font-semibold">
+                  Guardian authorization required for minor athletes
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    Guardian Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={guardianName}
+                    onChange={(e) => setGuardianName(e.target.value)}
+                    placeholder="Parent / Guardian Name"
+                    required={isMinor}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    Guardian Phone *
+                  </label>
+                  <input
+                    type="tel"
+                    value={guardianPhone}
+                    onChange={(e) => setGuardianPhone(e.target.value)}
+                    placeholder="+91 98765 43210"
+                    required={isMinor}
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 bg-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold text-amber-900 mb-1">
+                    Guardian Email
+                  </label>
+                  <input
+                    type="email"
+                    value={guardianEmail}
+                    onChange={(e) => setGuardianEmail(e.target.value)}
+                    placeholder="guardian@example.com"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 focus:ring-2 focus:ring-amber-500 bg-white"
+                  />
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Dynamic Profession Field */}
           <div className="space-y-3 p-4 bg-slate-50/70 rounded-2xl border border-slate-200/80">

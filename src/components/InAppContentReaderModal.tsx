@@ -39,6 +39,11 @@ export interface InAppContentReaderModalProps {
 const LANGUAGES: Array<{ code: SupportedLanguage; label: string; native: string }> = [
   { code: 'en', label: 'English (Default)', native: 'English' },
   { code: 'hi', label: 'Hindi (हिन्दी)', native: 'हिन्दी' },
+  { code: 'gu', label: 'Gujarati (ગુજરાતી)', native: 'ગુજરાતી' },
+  { code: 'mr', label: 'Marathi (मराठी)', native: 'मराठी' },
+  { code: 'kn', label: 'Kannada (ಕನ್ನಡ)', native: 'ಕನ್ನಡ' },
+  { code: 'ta', label: 'Tamil (தமிழ்)', native: 'தமிழ்' },
+  { code: 'te', label: 'Telugu (తెలుగు)', native: 'తెలుగు' },
   { code: 'fr', label: 'French (Français)', native: 'Français' },
   { code: 'es', label: 'Spanish (Español)', native: 'Español' },
   { code: 'de', label: 'German (Deutsch)', native: 'Deutsch' },
@@ -74,73 +79,55 @@ export const InAppContentReaderModal: React.FC<InAppContentReaderModalProps> = (
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Fallbacks
+  // Pedagogical document grounding
   const rawPrinciple =
     corePrinciple ||
     takeaway ||
-    `Mastering ${title} requires an axiomatic understanding of its operational constraints and procedural mechanics.`;
+    `Mastering ${title} requires an in-depth understanding of its core mechanics, structural foundation, and operational execution.`;
   const rawMechanics =
     mechanics && mechanics.length > 0
       ? mechanics
       : [
-          'Establish foundational boundary conditions and verify prerequisites.',
-          'Execute the operational sequence in deterministic order without omitting validation steps.',
-          'Measure state variance against benchmark reference metrics.',
+          'Verify foundational conditions and calibrate initial technique parameters.',
+          'Execute the primary movement or syntactical sequence with controlled rhythm.',
+          'Measure performance metrics against verified benchmark criteria.',
         ];
   const rawTraps =
     commonTraps && commonTraps.length > 0
       ? commonTraps
       : [
-          'Conflating nominal operation with steady-state equilibrium.',
-          'Ignoring edge boundary cases when scaling throughput.',
-          'Over-relying on heuristics instead of first-principles verification.',
+          'Premature acceleration before establishing stable mechanics.',
+          'Ignoring diagnostic checkpoints and feedback indicators.',
+          'Failing to isolate and correct minor form or execution errors early.',
         ];
 
-  // Default rich canonical document if none passed
+  // Dynamic pedagogical documentation matching the 4 sections
   const rawMarkdown =
     fullContentMarkdown ||
-    `# ${title} — Comprehensive Pedagogical Documentation
+    `# ${title}
 
-## 1. Axiomatic Core Principles
+## 1. Core Mechanics & Theoretical Foundation
 ${rawPrinciple}
 
-In academic and industrial contexts, rigorous execution depends on validating assumptions before committing state mutations. Always verify preconditions, invariants, and expected outcomes before advancing.
+Structured deliberate practice requires solidifying the biomechanical or conceptual baseline before progressing to high-intensity or edge-case execution.
 
 ---
 
-## 2. Step-by-Step Execution Mechanics
+## 2. Step-by-Step Technical Execution
 ${rawMechanics.map((m, i) => `${i + 1}. **Phase ${i + 1}**: ${m}`).join('\n')}
 
-### Implementation Protocol:
-\`\`\`typescript
-// Canonical Deterministic Execution Pattern
-interface ExecutionState {
-  initialized: boolean;
-  metrics: number[];
-  status: 'IDLE' | 'PROCESSING' | 'VERIFIED';
-}
+---
 
-function verifySequence(input: ExecutionState): boolean {
-  if (!input.initialized) throw new Error("Prerequisites unmet");
-  return input.metrics.every(m => m >= 0.70); // 70% threshold
-}
-\`\`\`
+## 3. Common Errors, Diagnostic Checkpoints & Traps
+${rawTraps.map((t, i) => `* **Diagnostic Checkpoint ${i + 1}**: ${t}`).join('\n')}
 
 ---
 
-## 3. High-Impact Edge Cases & Distractor Traps
-${rawTraps.map((t, i) => `* **Trap ${i + 1}**: ${t}`).join('\n')}
-
-> **Important Diagnostic Note**: 
-> Failure cases predominantly occur when developers assume default arguments or bypass input sanitization. Always construct assertions around boundary limits.
-
----
-
-## 4. Synthesis & Key Takeaway
+## 4. Benchmark Verification Protocols
 ${takeaway || rawPrinciple}
 
-* **Self-Check Question**: Does your implementation sustain reliability under unexpected variance?
-* **Verification**: Cross-reference against unit benchmarks and Socratic challenge questions in the evaluation gate.
+* **Self-Audit**: Verify consistency across multiple repetitions under steady conditions.
+* **Milestone Readiness**: Achieve 70%+ on the end-of-step Socratic evaluation gate.
 `;
 
   useEffect(() => {

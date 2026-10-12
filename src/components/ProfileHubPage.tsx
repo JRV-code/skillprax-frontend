@@ -304,10 +304,10 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
         {
           id: 'm1',
           stepNumber: 1,
-          title: 'Axiomatic Foundations',
-          description: 'Core concepts and boundary rules',
+          title: 'Core Fundamentals & Mechanics',
+          description: 'Core concepts and foundational principles',
           status: 'active',
-          acus: ['ACU-101: Baseline verification', 'ACU-102: Fundamental axioms'],
+          acus: ['ACU-101: Baseline verification', 'ACU-102: Mechanics audit'],
         },
         {
           id: 'm2',

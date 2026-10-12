@@ -49,7 +49,16 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
   const [customProfession, setCustomProfession] = useState('');
   const [educationBoard, setEducationBoard] = useState('CBSE');
   const [grade, setGrade] = useState('Class 12');
-  const [age, setAge] = useState('18');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [guardianName, setGuardianName] = useState('');
+  const [guardianPhone, setGuardianPhone] = useState('');
+  const [guardianEmail, setGuardianEmail] = useState('');
+
+  // Dynamically compute current age from date of birth
+  const calculatedAge = dateOfBirth
+    ? Math.floor((Date.now() - new Date(dateOfBirth).getTime()) / (365.25 * 24 * 60 * 60 * 1000))
+    : null;
+  const isMinor = calculatedAge !== null && calculatedAge < 18;
 
   // Single Account Lookup State
   const [lookupQuery, setLookupQuery] = useState('');
@@ -147,6 +156,16 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
       return;
     }
 
+    if (!dateOfBirth) {
+      setFormError('Please select your Date of Birth.');
+      return;
+    }
+
+    if (isMinor && (!guardianName.trim() || !guardianPhone.trim() || !guardianEmail.trim())) {
+      setFormError('Guardian details (Name, Phone, Email) are mandatory for learners under 18 years of age.');
+      return;
+    }
+
     const finalProfession = selectedProfession === 'Other'
       ? customProfession.trim()
       : selectedProfession === 'Student'
@@ -166,6 +185,11 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
           avatarUrl: avatarUrl || undefined,
           gender,
           profession: finalProfession,
+          dateOfBirth,
+          age: calculatedAge,
+          guardianName: isMinor ? guardianName.trim() : undefined,
+          guardianPhone: isMinor ? guardianPhone.trim() : undefined,
+          guardianEmail: isMinor ? guardianEmail.trim() : undefined,
           studentDetails: selectedProfession === 'Student' ? { educationBoard, grade } : undefined,
           googleToken: googleToken || undefined,
         }),
@@ -390,6 +414,78 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
                     }`}
                   />
                 </div>
+
+                {/* Date of Birth (Mandatory) & Dynamic Age Calculation */}
+                <div>
+                  <label className="text-xs font-bold text-slate-700 flex items-center justify-between mb-1">
+                    <span>Date of Birth <span className="text-rose-500">*</span></span>
+                    {calculatedAge !== null && (
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        isMinor ? 'bg-amber-100 text-amber-800 border border-amber-300' : 'bg-emerald-100 text-emerald-800'
+                      }`}>
+                        Age: {calculatedAge} yrs {isMinor ? '(Minor Protection Gate Active)' : ''}
+                      </span>
+                    )}
+                  </label>
+                  <input
+                    type="date"
+                    name="dateOfBirth"
+                    required
+                    max={new Date().toISOString().split('T')[0]}
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    className="w-full px-3.5 py-2.5 rounded-xl border border-slate-300 bg-white text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-mono"
+                  />
+                </div>
+
+                {/* Mandatory Guardian Fields if Age < 18 */}
+                {isMinor && (
+                  <div className="p-3.5 bg-amber-50/80 border border-amber-200/90 rounded-2xl space-y-2.5 animate-fade-in">
+                    <div className="flex items-center gap-1.5 text-amber-900 font-bold text-xs">
+                      <ShieldCheck className="w-4 h-4 text-amber-600" />
+                      <span>Mandatory Guardian Details (Minor Under 18)</span>
+                    </div>
+                    <p className="text-[11px] text-amber-800 leading-relaxed">
+                      Athletes under 18 require registered guardian contact for athletic scouting and physical safety verification.
+                    </p>
+
+                    <div>
+                      <label className="text-[10px] font-bold uppercase text-slate-600">Guardian Name *</label>
+                      <input
+                        type="text"
+                        required
+                        value={guardianName}
+                        onChange={(e) => setGuardianName(e.target.value)}
+                        placeholder="e.g. Sanjay Patel"
+                        className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-600">Guardian Phone *</label>
+                        <input
+                          type="tel"
+                          required
+                          value={guardianPhone}
+                          onChange={(e) => setGuardianPhone(e.target.value)}
+                          placeholder="+91 98250 12345"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900 font-mono"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase text-slate-600">Guardian Email *</label>
+                        <input
+                          type="email"
+                          required
+                          value={guardianEmail}
+                          onChange={(e) => setGuardianEmail(e.target.value)}
+                          placeholder="guardian@example.com"
+                          className="w-full px-3 py-1.5 rounded-lg border border-slate-300 bg-white text-xs text-slate-900"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Gender (Mandatory) */}
                 <div>

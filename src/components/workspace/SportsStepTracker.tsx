@@ -9,6 +9,9 @@ import {
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 
+import { DrillCard } from '../sports/DrillCard';
+import { SportDrill } from '@/types';
+
 export interface DailyDietPlan {
   breakfast?: string;
   preWorkout?: string;
@@ -30,6 +33,7 @@ export interface SportsStepTrackerProps {
   quizPassed?: boolean;
   quizScore?: number | null;
   dailyDietPlan?: DailyDietPlan | null;
+  drills?: SportDrill[];
   onPracticeDayComplete?: (completedDays: number) => void;
   onAdvanceStep?: () => void;
   onOpenQuiz?: () => void;
@@ -45,6 +49,7 @@ export const SportsStepTracker: React.FC<SportsStepTrackerProps> = ({
   quizPassed = false,
   quizScore = null,
   dailyDietPlan = null,
+  drills,
   onPracticeDayComplete,
   onAdvanceStep,
   onOpenQuiz,
@@ -296,68 +301,101 @@ export const SportsStepTracker: React.FC<SportsStepTrackerProps> = ({
         </div>
       </div>
 
-      {/* SECTION 4.2: ACTIVE DRILL STOPWATCH & SESSION LOGGER */}
-      <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-lg flex flex-col md:flex-row items-center justify-between gap-5">
-        <div className="space-y-1 text-center md:text-left">
-          <div className="flex items-center justify-center md:justify-start gap-2">
-            <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
-              Day {activeDay} Focus Session
-            </span>
-            <span className="text-xs text-slate-400">Biomechanics & Repetition Drill</span>
-          </div>
-          <h4 className="text-sm font-bold text-slate-100">
-            Perform scheduled practice drills with precision pacing
-          </h4>
-        </div>
-
-        <div className="flex items-center gap-4">
-          {/* Stopwatch display */}
-          <div className="flex items-center gap-2.5 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
-            <Clock className="w-4 h-4 text-emerald-400" />
-            <span className="font-mono text-xl font-black text-emerald-400 tracking-wider">
-              {formatTime(timerSeconds)}
-            </span>
-            <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
-              <button
-                type="button"
-                onClick={() => setIsTimerRunning((r) => !r)}
-                className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer"
-                title={isTimerRunning ? 'Pause' : 'Start'}
-              >
-                {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsTimerRunning(false);
-                  setTimerSeconds(0);
-                }}
-                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
-                title="Reset"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-              </button>
+      {/* SECTION 4.2: EMBEDDED IN-CARD DRILLS & COUNTDOWN STOPWATCH */}
+      {drills && drills.length > 0 ? (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+            <div className="space-y-0.5">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
+                Day {activeDay} Focus Session
+              </span>
+              <h4 className="text-sm font-bold text-slate-800">
+                Scheduled Practice Drills with In-Card Countdown Stopwatch
+              </h4>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-slate-500 bg-slate-100 px-2.5 py-1 rounded-full">
+                {drills.filter((d) => d.completed).length} of {drills.length} Drills Done
+              </span>
             </div>
           </div>
 
-          {/* Complete Day Session Button */}
-          <button
-            type="button"
-            disabled={isSubmittingDay || completedDays >= requiredPracticeDays}
-            onClick={handleCompleteCurrentDay}
-            className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer shrink-0"
-          >
-            <CheckCircle2 className="w-4 h-4" />
-            <span>
-              {isSubmittingDay
-                ? 'Logging...'
-                : completedDays >= requiredPracticeDays
-                  ? 'All Days Logged ✓'
-                  : `Log Day ${activeDay} Complete`}
-            </span>
-          </button>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {drills.map((drill) => (
+              <DrillCard
+                key={drill.id}
+                drill={drill}
+                stepNumber={stepNumber}
+                onComplete={() => {
+                  handleCompleteCurrentDay();
+                }}
+              />
+            ))}
+          </div>
         </div>
-      </div>
+      ) : (
+        <div className="p-5 bg-slate-900 text-white rounded-2xl border border-slate-800 shadow-lg flex flex-col md:flex-row items-center justify-between gap-5">
+          <div className="space-y-1 text-center md:text-left">
+            <div className="flex items-center justify-center md:justify-start gap-2">
+              <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/60 px-2 py-0.5 rounded border border-emerald-500/30">
+                Day {activeDay} Focus Session
+              </span>
+              <span className="text-xs text-slate-400">Biomechanics & Repetition Drill</span>
+            </div>
+            <h4 className="text-sm font-bold text-slate-100">
+              Perform scheduled practice drills with precision pacing
+            </h4>
+          </div>
+
+          <div className="flex items-center gap-4">
+            {/* Stopwatch display */}
+            <div className="flex items-center gap-2.5 bg-slate-950 px-4 py-2 rounded-xl border border-slate-800">
+              <Clock className="w-4 h-4 text-emerald-400" />
+              <span className="font-mono text-xl font-black text-emerald-400 tracking-wider">
+                {formatTime(timerSeconds)}
+              </span>
+              <div className="flex items-center gap-1 pl-2 border-l border-slate-800">
+                <button
+                  type="button"
+                  onClick={() => setIsTimerRunning((r) => !r)}
+                  className="p-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white transition-all cursor-pointer"
+                  title={isTimerRunning ? 'Pause' : 'Start'}
+                >
+                  {isTimerRunning ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsTimerRunning(false);
+                    setTimerSeconds(0);
+                  }}
+                  className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 transition-all cursor-pointer"
+                  title="Reset"
+                >
+                  <RotateCcw className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Complete Day Session Button */}
+            <button
+              type="button"
+              disabled={isSubmittingDay || completedDays >= requiredPracticeDays}
+              onClick={handleCompleteCurrentDay}
+              className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-black flex items-center gap-2 shadow-md transition-all cursor-pointer shrink-0"
+            >
+              <CheckCircle2 className="w-4 h-4" />
+              <span>
+                {isSubmittingDay
+                  ? 'Logging...'
+                  : completedDays >= requiredPracticeDays
+                    ? 'All Days Logged ✓'
+                    : `Log Day ${activeDay} Complete`}
+              </span>
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* SECTION 4.3: ATHLETIC FUELING & NUTRITION ENGINE INTEGRATION */}
       {dailyDietPlan && (

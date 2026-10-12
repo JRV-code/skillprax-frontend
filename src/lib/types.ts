@@ -39,10 +39,15 @@ export interface UserProfile {
   currentStreak?: number;
   longestStreak?: number;
   lastActiveDate?: string;
+  dateOfBirth?: string;
+  date_of_birth?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
   xp?: number;
 }
 
-export type SupportedLanguage = 'en' | 'hi' | 'fr' | 'es' | 'de';
+export type SupportedLanguage = 'en' | 'hi' | 'gu' | 'mr' | 'kn' | 'ta' | 'te' | 'fr' | 'es' | 'de';
 
 export interface Review {
   id: string;
@@ -60,7 +65,13 @@ export interface SportDrill {
   id: string;
   title: string;
   durationMinutes: number;
-  focusPoints: string[];
+  durationSeconds?: number;
+  objective?: string;
+  biomechanicalFocus?: string;
+  instructions?: string[] | string;
+  recommendedSets?: string;
+  intensityLevel?: 'Low' | 'Medium' | 'High' | string;
+  focusPoints?: string[];
   completed: boolean;
 }
 

@@ -378,7 +378,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         isOpen: true,
         title: title || 'Targeted Concept Clarification',
         sourceUrl: url,
-        corePrinciple: takeaway || 'Review the core axiomatic principle to clear up the diagnosed misconception.',
+        corePrinciple: takeaway || 'Review the core foundational mechanics to clear up the diagnosed misconception.',
       });
       return;
     }

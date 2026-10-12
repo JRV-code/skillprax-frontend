@@ -139,17 +139,17 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       const fallbackNodes: FlowchartNode[] = [
         {
           id: 'node-1',
-          label: 'Step 1: Axiomatic Foundations',
-          subLabel: 'Core Physical & Syntactic Axioms',
+          label: 'Step 1: Core Fundamentals & Stance',
+          subLabel: 'Core Mechanics & First Principles',
           status: activeStepIndex > 1 ? 'completed' : 'active',
           x: 80,
           y: 110,
           width: 210,
           height: 85,
           tier: 1,
-          objectives: ['Master base formulas and boundary conditions', 'Verify prerequisite principles'],
-          acus: ['ACU-101: Axiomatic boundary verification', 'ACU-102: Consistency audit'],
-          aiSummary: 'Axiomatic baseline established.',
+          objectives: ['Master fundamental principles and initial posture', 'Verify prerequisite safety and mechanics'],
+          acus: ['ACU-101: Foundation mechanics verification', 'ACU-102: Execution audit'],
+          aiSummary: 'Core fundamental baseline established.',
         },
         {
           id: 'node-2',

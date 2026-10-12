@@ -8,6 +8,7 @@ import {
   Building2, Inbox, ArrowLeft, Activity, Flame, ChevronRight 
 } from 'lucide-react';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
+import { LanguageSelector } from '@/components/LanguageSelector';
 
 interface SportsNavigationHeaderProps {
   activeRole?: 'athlete' | 'club';
@@ -95,6 +96,8 @@ export const SportsNavigationHeader: React.FC<SportsNavigationHeaderProps> = ({
                 <span>Club Portal</span>
               </button>
             </div>
+
+            <LanguageSelector />
 
             <Link
               href="/skills"
