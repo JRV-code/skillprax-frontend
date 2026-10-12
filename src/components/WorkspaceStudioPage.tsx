@@ -9,7 +9,9 @@ import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
 import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
+import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
 import {
+  Activity,
   GitBranch,
   BookOpen,
   Zap,
@@ -202,7 +204,9 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     const dCat = currentTrack.domainCategory || (rawWorkspace as any)?.domainCategory || (rawWorkspace as any)?.category || '';
     const dName = (currentTrack as any)?.domain || (rawWorkspace as any)?.domain || '';
     const sCat = (rawWorkspace as any)?.skill_category || '';
-    return dCat === 'Athletics' || dName === 'Athletics' || sCat === 'physical';
+    const title = (currentTrack.title || (rawWorkspace as any)?.title || '').toLowerCase();
+    const isSportTitle = ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'badminton', 'basketball', 'sprint', 'athletics'].some(s => title.includes(s));
+    return dCat === 'Athletics' || dName === 'Athletics' || sCat === 'physical' || isSportTitle;
   }, [currentTrack, rawWorkspace]);
 
   const viewingStepAcus: { id: string; title: string; description: string }[] = useMemo(() => {
@@ -356,6 +360,127 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   };
 
   const [fetchedResources, setFetchedResources] = useState<StudyResource[]>([]);
+  const [physicalDrills, setPhysicalDrills] = useState<any[]>([]);
+  const [loadingDrills, setLoadingDrills] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!isPhysical) return;
+
+    let isMounted = true;
+    async function loadDrills() {
+      try {
+        setLoadingDrills(true);
+        const res = await fetch('/api/sports/drills/generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sportName: currentTrack.title || 'Athletics',
+            stepNumber: viewingStepNum,
+            stepTitle: viewingStepTitle,
+          }),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.drills) && data.drills.length > 0 && isMounted) {
+            setPhysicalDrills(
+              data.drills.map((d: any, idx: number) => ({
+                id: d.id || `drill-${viewingStepNum}-${idx + 1}`,
+                title: d.title || `${currentTrack.title} Step ${viewingStepNum} Drill ${idx + 1}`,
+                durationMinutes: d.durationMinutes || 12,
+                technicalFocusPoints: Array.isArray(d.instructions) && d.instructions.length > 0
+                  ? d.instructions.slice(0, 3)
+                  : Array.isArray(d.focusPoints) && d.focusPoints.length > 0
+                  ? d.focusPoints.slice(0, 3)
+                  : [
+                      'Maintain low center of gravity and athletic alignment',
+                      'Execute fluid kinetic energy transfer through core levers',
+                      'Decelerate smoothly at end range without joint locking',
+                    ],
+                isCompleted: Boolean(d.completed),
+              }))
+            );
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Drill fetch error:', err);
+      } finally {
+        if (isMounted) setLoadingDrills(false);
+      }
+
+      if (isMounted) {
+        setPhysicalDrills([
+          {
+            id: `drill-${viewingStepNum}-1`,
+            title: `${currentTrack.title} Step ${viewingStepNum} — Foundational Mechanical Stance`,
+            durationMinutes: 10,
+            technicalFocusPoints: [
+              'Feet shoulder-width apart, knees unlocked and active',
+              'Core firmly engaged to stabilize rotational torque',
+              'Rhythmic nasal breathing to manage heart-rate spikes',
+            ],
+            isCompleted: false,
+          },
+          {
+            id: `drill-${viewingStepNum}-2`,
+            title: `${currentTrack.title} Step ${viewingStepNum} — Dynamic Kinetic Sequencing`,
+            durationMinutes: 15,
+            technicalFocusPoints: [
+              'Initiate acceleration burst from lower kinetic chain',
+              'Follow through clean line toward target coordinate',
+              'Execute 8 reps per set with 45s recovery intervals',
+            ],
+            isCompleted: false,
+          },
+          {
+            id: `drill-${viewingStepNum}-3`,
+            title: `${currentTrack.title} Step ${viewingStepNum} — Fatigue Resistance Pressure Test`,
+            durationMinutes: 12,
+            technicalFocusPoints: [
+              'Maintain postural precision under elevated heart rate',
+              'Track and eliminate mechanical form breakdown cues',
+              'Conclude with 3-minute tissue mobility cooldown',
+            ],
+            isCompleted: false,
+          },
+        ]);
+      }
+    }
+
+    loadDrills();
+    return () => {
+      isMounted = false;
+    };
+  }, [isPhysical, viewingStepNum, viewingStepTitle, currentTrack.title]);
+
+  const handlePhysicalDrillComplete = async (drillTitle: string) => {
+    setPhysicalDrills((prev) =>
+      prev.map((d) => (d.title === drillTitle ? { ...d, isCompleted: true } : d))
+    );
+
+    try {
+      const res = await fetch('/api/sports/drills/complete-day', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          skillId: currentTrack.id,
+          stepNumber: viewingStepNum,
+          drillTitle,
+          userId: typeof window !== 'undefined' ? localStorage.getItem('skillprax_active_profile_id') || 'default-profile' : 'default-profile',
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (viewingStepObj) {
+          viewingStepObj.practiceDaysCompleted = data.practiceDaysCompleted;
+          viewingStepObj.practice_days_completed = data.practiceDaysCompleted;
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to sync complete-day API:', err);
+    }
+  };
 
   const handleSynthesizeMaterials = async () => {
     setIsSynthesizing(true);
@@ -1103,6 +1228,44 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                               </div>
                             </div>
                           ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}
+                  {isPhysical && physicalDrills.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t border-slate-100">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                            <Activity className="w-5 h-5"/>
+                          </span>
+                          <div>
+                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                              Step {viewingStepNum}: Practical Execution Drills
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Execute these physical biomechanical drills to build muscle memory before attempting the milestone gate.
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                          {physicalDrills.filter((d) => d.isCompleted).length} of {physicalDrills.length} Drills Completed
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                        {physicalDrills.map((drill, idx) => (
+                          <DrillCardWithTimer
+                            key={drill.id || idx}
+                            drillNumber={idx + 1}
+                            title={drill.title}
+                            durationMinutes={drill.durationMinutes}
+                            technicalFocusPoints={drill.technicalFocusPoints}
+                            isCompleted={drill.isCompleted}
+                            onDrillComplete={handlePhysicalDrillComplete}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
