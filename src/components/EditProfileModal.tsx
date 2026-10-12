@@ -3,9 +3,26 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  X, Check, Camera, Clock, Bell, Sparkles, ChevronUp, ChevronDown, User, Mail, GraduationCap 
+  X, Check, Camera, Clock, Bell, Sparkles, ChevronUp, ChevronDown, User, Mail, GraduationCap,
+  Apple, HeartPulse, Globe
 } from 'lucide-react';
 import { UserProfile } from '@/types';
+
+const DIETARY_OPTIONS = ['Vegetarian', 'Non-Vegetarian', 'Eggetarian', 'Vegan', 'Jain'];
+const MEDICAL_CHIPS = [
+  'None / Fully Fit',
+  'Asthma / Respiratory Strain',
+  'Knee / ACL Sensitivity',
+  'Lower Back Strain',
+  'High Blood Pressure',
+];
+const LANGUAGE_OPTIONS = [
+  { code: 'en', label: 'English (Default)' },
+  { code: 'hi', label: 'Hindi (हिन्दी)' },
+  { code: 'fr', label: 'French (Français)' },
+  { code: 'es', label: 'Spanish (Español)' },
+  { code: 'de', label: 'German (Deutsch)' },
+];
 
 export interface EditProfileModalProps {
   isOpen: boolean;
@@ -79,6 +96,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
   const [grade, setGrade] = useState(userProfile.grade || 'Class 12');
 
   const [avatarUrl, setAvatarUrl] = useState(userProfile.avatarUrl || AVATAR_PRESETS[0].url);
+  const [dietaryPreference, setDietaryPreference] = useState<string>(userProfile.dietaryPreference || 'Vegetarian');
+  const [medicalConditions, setMedicalConditions] = useState<string>(userProfile.medicalConditions || 'None');
+  const [preferredLanguage, setPreferredLanguage] = useState<string>(userProfile.preferredLanguage || 'en');
   const [targetHours, setTargetHours] = useState(userProfile.targetHours || 1);
   const [targetMinutes, setTargetMinutes] = useState(userProfile.targetMinutes || 50);
   const [reminderTime, setReminderTime] = useState(userProfile.dailyReminderTime || '20:30');
@@ -131,6 +151,9 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
       educationBoard: selectedProfession === 'Student' ? educationBoard.trim() : userProfile.educationBoard,
       grade: selectedProfession === 'Student' ? grade.trim() : userProfile.grade,
       avatarUrl: avatarUrl || userProfile.avatarUrl,
+      dietaryPreference,
+      medicalConditions,
+      preferredLanguage: preferredLanguage as any,
       targetHours: Math.max(0, Math.min(24, targetHours)),
       targetMinutes: Math.max(0, Math.min(59, targetMinutes)),
       dailyReminderTime: reminderTime,
@@ -408,6 +431,97 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({
                 />
               </div>
             )}
+          </div>
+
+          {/* Dietary Preference & Athletic Fueling */}
+          <div className="p-4 rounded-2xl bg-amber-50/50 border border-amber-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                <Apple className="w-4 h-4 text-amber-600" />
+                <span>Dietary Preference (Sports Fueling)</span>
+              </label>
+              <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-2 py-0.5 rounded">
+                {dietaryPreference}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {DIETARY_OPTIONS.map((d) => (
+                <button
+                  key={d}
+                  type="button"
+                  onClick={() => setDietaryPreference(d)}
+                  className={`py-2 px-2 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer ${
+                    dietaryPreference === d
+                      ? 'border-amber-500 bg-amber-500 text-white shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {d}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Medical & Physical Conditions Gating */}
+          <div className="p-4 rounded-2xl bg-rose-50/40 border border-rose-200/80 space-y-3">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-bold text-rose-950 uppercase tracking-wider flex items-center gap-1.5">
+                <HeartPulse className="w-4 h-4 text-rose-600" />
+                <span>Medical & Physical Advisories (AI Gating)</span>
+              </label>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {MEDICAL_CHIPS.map((chip) => (
+                <button
+                  key={chip}
+                  type="button"
+                  onClick={() => setMedicalConditions(chip)}
+                  className={`px-2.5 py-1 rounded-lg text-[11px] font-semibold border transition-all cursor-pointer ${
+                    medicalConditions === chip
+                      ? 'bg-rose-600 text-white border-rose-600 shadow-xs'
+                      : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                  }`}
+                >
+                  {chip}
+                </button>
+              ))}
+            </div>
+            <div>
+              <label className="block text-[11px] font-medium text-slate-600 mb-1">
+                Custom Injuries or Advisories
+              </label>
+              <input
+                type="text"
+                value={medicalConditions}
+                onChange={(e) => setMedicalConditions(e.target.value)}
+                placeholder="e.g. Mild Knee Sensitivity, Asthma, None / Fully Fit"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 focus:outline-none focus:ring-2 focus:ring-rose-400 bg-white text-slate-900"
+              />
+            </div>
+          </div>
+
+          {/* Preferred Language for Curriculum */}
+          <div className="p-4 rounded-2xl bg-sky-50/50 border border-sky-200/80 space-y-2">
+            <label className="block text-xs font-bold text-sky-950 uppercase tracking-wider flex items-center gap-1.5">
+              <Globe className="w-4 h-4 text-sky-600" />
+              <span>Preferred Pedagogical Language</span>
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2">
+              {LANGUAGE_OPTIONS.map((lang) => (
+                <button
+                  key={lang.code}
+                  type="button"
+                  onClick={() => setPreferredLanguage(lang.code)}
+                  className={`py-1.5 px-2 rounded-xl text-xs font-semibold border transition-all text-center cursor-pointer ${
+                    preferredLanguage === lang.code
+                      ? 'border-sky-600 bg-sky-600 text-white shadow-xs'
+                      : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                  }`}
+                >
+                  {lang.label.split(' ')[0]}
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Daily Study Target */}

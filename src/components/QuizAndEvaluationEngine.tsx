@@ -305,8 +305,8 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       const missedIds = data.failedQuestionIds || [];
       setFailedQuestionIds(missedIds);
 
-      // Unfreeze next milestone in database and trigger celebration if >= 70%
-      if (score >= 70) {
+      // Unfreeze next milestone in database and trigger celebration if >= 75%
+      if (score >= 75) {
         try {
           if (typeof window !== 'undefined') {
             confetti({
@@ -335,18 +335,18 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         }
       }
 
-      // 70% Mastery Threshold & Tri-Branch Decision Gate:
+      // Strict 75% Mastery Threshold & Tri-Branch Decision Gate:
       if (score === 100) {
         // BRANCH 2: 100% Grandmaster Pass
         setEngineState('PASSED_GRANDMASTER');
         onRemediationStateChange?.(false);
         onStepPassed(score, { ...data, isGrandmaster: true, bonusXp: 1000 });
-      } else if (score >= 70) {
-        // BRANCH 1: 70%–99% Mastery Achieved with Dual-Choice Gate
+      } else if (score >= 75) {
+        // BRANCH 1: 75%–99% Mastery Achieved with Dual-Choice Gate
         setEngineState('PASSED_DUAL_CHOICE');
         onRemediationStateChange?.(false);
       } else {
-        // BRANCH 3: < 70% Socratic Remediation Required
+        // BRANCH 3: < 75% Socratic Remediation Required
         setPrescription(data.diagnosticPrescription || null);
         setReviewedResources({});
         setEngineState('TARGETED_REMEDIATION');
@@ -427,7 +427,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                 {stepTitle} Evaluation Gate
               </h3>
               <p className="text-xs md:text-sm text-slate-600 leading-relaxed max-w-xl mx-auto">
-                Evaluates your mastery across {acus.length || 'core'} assessable concept units with 8–12 scenario-grounded challenges. Passing threshold is 70% mastery.
+                Evaluates your mastery across {acus.length || 'core'} assessable concept units with 8–12 scenario-grounded challenges. Passing threshold is 75% mastery.
               </p>
             </div>
 
@@ -444,7 +444,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
               <div className="p-3.5 rounded-2xl bg-slate-50/80 border border-slate-200/80 flex items-center gap-3">
                 <div className="w-9 h-9 rounded-xl bg-sky-100 text-sky-700 flex items-center justify-center font-bold text-xs shrink-0">
-                  70%
+                  75%
                 </div>
                 <div>
                   <div className="text-xs font-heading font-bold text-slate-900">Passing Threshold</div>
@@ -507,7 +507,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
                   {isPerfectionMode ? '🎯 Targeted Perfection Drill (100% Mode)' : isRetestMode ? 'Adaptive Retest Active' : `Evaluation • Milestone ${stepIndex}`}
                 </span>
                 <span className="text-xs font-bold text-slate-500">
-                  Passing Threshold: <span className="text-emerald-700 font-extrabold">70% Mastery</span>
+                  Passing Threshold: <span className="text-emerald-700 font-extrabold">75% Mastery</span>
                 </span>
               </div>
               <h4 className="text-base font-heading font-bold text-slate-900 mt-1">{stepTitle}</h4>
@@ -684,7 +684,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         <div className="view-transition-enter p-12 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/80 shadow-xl text-center space-y-3">
           <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
           <h4 className="text-base font-heading font-bold text-slate-900">
-            Diagnosing Mental Models & Verifying Mastery Against 70% Threshold...
+            Diagnosing Mental Models & Verifying Mastery Against 75% Threshold...
           </h4>
           <p className="text-xs text-slate-500">
             Synthesizing item-by-item diagnostic feedback via Groq and Tavily.
@@ -692,7 +692,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         </div>
       )}
 
-      {/* --- BRANCH 1: PASSED (70%–99%) DUAL-CHOICE PROGRESSION GATE --- */}
+      {/* --- BRANCH 1: PASSED (75%–99%) DUAL-CHOICE PROGRESSION GATE --- */}
       {engineState === 'PASSED_DUAL_CHOICE' && (
         <div className="view-transition-enter p-8 md:p-10 bg-white/95 backdrop-blur-md border border-emerald-300 rounded-3xl text-center shadow-xl space-y-6 relative overflow-hidden">
           <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/25">
@@ -701,13 +701,13 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
           <div className="space-y-2">
             <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3.5 py-1 rounded-full border border-emerald-200 inline-block">
-              Milestone Cleared (Passing Threshold ≥ 70%)
+              Milestone Cleared (Passing Threshold ≥ 75%)
             </span>
             <h3 className="text-2xl md:text-3xl font-heading font-extrabold text-slate-900">
               Mastery Verified!
             </h3>
             <p className="text-xs md:text-sm text-slate-600 max-w-lg mx-auto leading-relaxed">
-              You achieved {lastScore}%, exceeding the 70% passing threshold. Milestone {stepIndex + 1} is now unlocked! Choose whether to advance immediately or sharpen your accuracy for 100% Grandmaster status.
+              You achieved {lastScore}%, exceeding the 75% passing threshold. Milestone {stepIndex + 1} is now unlocked! Choose whether to advance immediately or sharpen your accuracy for 100% Grandmaster status.
             </p>
           </div>
 
@@ -816,7 +816,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         </div>
       )}
 
-      {/* --- BRANCH 3: TARGETED REMEDIATION GATE (SCORE < 70%) --- */}
+      {/* --- BRANCH 3: TARGETED REMEDIATION GATE (SCORE < 75%) --- */}
       {engineState === 'TARGETED_REMEDIATION' && prescription && (
         <div className="view-transition-enter space-y-6">
           {/* Header Banner */}
@@ -836,7 +836,7 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
               </p>
             </div>
             <span className="text-xs font-bold text-amber-900 bg-white/90 px-3.5 py-2 rounded-xl border border-amber-200 shadow-xs shrink-0 self-start md:self-center">
-              Passing Threshold: 70% Mastery
+              Passing Threshold: 75% Mastery
             </span>
           </div>
 

@@ -32,6 +32,14 @@ export interface UserProfile {
   maxFreezes?: number;
   skillsCompleted?: number;
   studyCadence?: any[];
+  dietaryPreference?: 'Vegetarian' | 'Non-Vegetarian' | 'Eggetarian' | 'Vegan' | 'Jain' | string;
+  medicalConditions?: string;
+  preferredLanguage?: SupportedLanguage;
+  totalSkillsCompleted?: number;
+  currentStreak?: number;
+  longestStreak?: number;
+  lastActiveDate?: string;
+  xp?: number;
 }
 
 export type SupportedLanguage = 'en' | 'hi' | 'fr' | 'es' | 'de';

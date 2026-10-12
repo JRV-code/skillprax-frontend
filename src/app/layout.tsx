@@ -22,6 +22,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link rel="preconnect" href="https://www.youtube.com" />
+        <link rel="preconnect" href="https://www.google.com" />
+        <link rel="dns-prefetch" href="https://i.ytimg.com" />
+      </head>
       <body className={`${plusJakartaSans.variable} bg-transparent text-foreground min-h-screen font-sans antialiased selection:bg-primary/20 selection:text-primary`}>
         {/* Zero-Cut Seamless Looping Video Background Engine */}
         <CinematicVideoBackground src="/background-motion.mp4" poster="/background-poster.jpg" />

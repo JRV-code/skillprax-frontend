@@ -171,7 +171,7 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
       const resultData = await res.json();
       setEvaluation(resultData);
 
-      if (resultData.passed || (resultData.score && resultData.score >= 70)) {
+      if (resultData.passed || (resultData.score && resultData.score >= 75)) {
         try {
           if (typeof window !== 'undefined') {
             confetti({
@@ -191,7 +191,7 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
               userId: storedProfileId,
               skillId: stepId,
               milestoneOrder: 1,
-              scorePercentage: resultData.score || 70,
+              scorePercentage: resultData.score || 75,
             }),
           });
         } catch (e) {
@@ -353,7 +353,7 @@ export function QuizModal({ isOpen, onClose, stepId, onPassed }: QuizModalProps)
                 <p className="text-xs text-muted-foreground mt-1">
                   {evaluation.passed
                     ? 'Demonstrated mastery over all step ACUs.'
-                    : 'Score below 80% passing threshold. Targeted weakness analysis is available.'}
+                    : 'Score below 75% passing threshold. Targeted weakness analysis is available.'}
                 </p>
               </div>
               <div className="text-right">

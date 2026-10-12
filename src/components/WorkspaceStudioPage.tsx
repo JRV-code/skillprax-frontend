@@ -8,6 +8,7 @@ import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
 import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
+import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import {
   GitBranch,
   BookOpen,
@@ -195,6 +196,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
   // Check if learner is in Retrospective Review Mode
   const isReviewMode = viewingStepIndex < activeStepIndex && viewingStepObj?.status === 'PASSED';
+
+  // Check if active skill has physical/athletic dual-gate requirements
+  const isPhysical = useMemo(() => {
+    const dCat = currentTrack.domainCategory || (rawWorkspace as any)?.domainCategory || (rawWorkspace as any)?.category || '';
+    const dName = (currentTrack as any)?.domain || (rawWorkspace as any)?.domain || '';
+    const sCat = (rawWorkspace as any)?.skill_category || '';
+    return dCat === 'Athletics' || dName === 'Athletics' || sCat === 'physical';
+  }, [currentTrack, rawWorkspace]);
 
   const viewingStepAcus: { id: string; title: string; description: string }[] = useMemo(() => {
     if (viewingStepObj?.acus && Array.isArray(viewingStepObj.acus) && viewingStepObj.acus.length > 0) {
@@ -870,6 +879,30 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-6"
             >
+              {/* DUAL-GATE PRACTICE CALENDAR FOR PHYSICAL / ATHLETIC SKILLS */}
+              {isPhysical && (
+                <SportsStepTracker
+                  skillId={currentTrack.id}
+                  stepNumber={viewingStepNum}
+                  stepTitle={viewingStepTitle}
+                  skillCategory="physical"
+                  requiredPracticeDays={viewingStepObj?.requiredPracticeDays || viewingStepObj?.required_practice_days || 3}
+                  practiceDaysCompleted={viewingStepObj?.practiceDaysCompleted || viewingStepObj?.practice_days_completed || 0}
+                  quizPassed={viewingStepObj?.quizPassed || viewingStepObj?.quiz_passed || (viewingStepObj?.status === 'PASSED')}
+                  quizScore={viewingStepObj?.quizScore || viewingStepObj?.quiz_score || (viewingStepObj?.status === 'PASSED' ? 85 : null)}
+                  dailyDietPlan={viewingStepObj?.dailyDietPlan || viewingStepObj?.daily_diet_plan || null}
+                  onPracticeDayComplete={(days) => {
+                    if (viewingStepObj) {
+                      viewingStepObj.practiceDaysCompleted = days;
+                      viewingStepObj.practice_days_completed = days;
+                    }
+                  }}
+                  onAdvanceStep={() => {
+                    handleStepPassed(100);
+                  }}
+                  onOpenQuiz={() => setActiveTab('evaluation')}
+                />
+              )}
               {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
               {(!activeStepResources || activeStepResources.length === 0) && !isSynthesizing && (
                 <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-4">
@@ -1087,7 +1120,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                       Materials Mastered? Take the Socratic Competency Check
                     </h4>
                     <p className="text-xs text-emerald-800">
-                      Passing threshold is 70%. Score 100% or take the perfection drill to earn Grandmaster XP.
+                      Passing threshold is 75%. Score 100% or take the perfection drill to earn Grandmaster XP.
                     </p>
                   </div>
                 </div>

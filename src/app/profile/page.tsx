@@ -7,7 +7,8 @@ import {
   Flame, Shield, Edit3, Plus, ArrowRight, Play, 
   Award, Settings, RefreshCw, Star, Trash2, Edit2, 
   Bell, Clock, Activity, CheckCircle2, AlertCircle, 
-  Lock, Mail, User, Sparkles, Calendar, Check, Send
+  Lock, Mail, User, Sparkles, Calendar, Check, Send,
+  Apple, HeartPulse, Globe
 } from 'lucide-react';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
@@ -15,6 +16,7 @@ import { EditProfileModal } from '@/components/EditProfileModal';
 import { CinematicVideoBackground } from '@/components/CinematicVideoBackground';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
+import { useAuthStore } from '@/store/useAuthStore';
 
 function isProfileComplete(profile: any): boolean {
   if (!profile) return false;
@@ -410,21 +412,23 @@ export default function ProfileHubPage() {
           </div>
         )}
 
-        {/* ACTIVE WORKSPACE SPOTLIGHT CARD (MODULE 4) */}
+        {/* ACTIVE WORKSPACE SPOTLIGHT CARD (MODULE 4 & SECTION 2) */}
         {(() => {
           const primaryWorkspace = enrolledWorkspaces[0];
           const activeSkillTitle = primaryWorkspace?.title || 'Distributed Systems & Cloud Architecture';
+          const totalPlannedSteps = primaryWorkspace?.totalPlannedSteps || 6;
           const activeStageIndex = primaryWorkspace ? (primaryWorkspace.passedStepsCount || 0) + 1 : 2;
           const activeStageName = primaryWorkspace?.subTitle || 'Advanced Architectures';
+          const progressPercent = Math.min(100, Math.round((activeStageIndex / totalPlannedSteps) * 100));
 
           return (
             <div className="backdrop-blur-xl bg-gradient-to-r from-sky-950 via-slate-900 to-indigo-950 text-white rounded-3xl p-6 md:p-8 shadow-2xl border border-sky-500/30 flex flex-col md:flex-row items-center justify-between gap-6 relative overflow-hidden">
               <div className="absolute -right-16 -top-16 w-64 h-64 bg-sky-500/10 rounded-full blur-3xl pointer-events-none" />
               
-              <div className="flex items-center gap-5 relative z-10">
-                {/* Animated Hovering 3D TaskBot Widget with soft bobbing float physics */}
+              <div className="flex items-center gap-5 relative z-10 w-full md:w-auto">
+                {/* Animated Hovering 3D TaskBot Widget with continuous floating bob */}
                 <motion.div
-                  animate={{ y: [-8, 8, -8], rotate: [-2, 2, -2] }}
+                  animate={{ y: [0, -6, 0] }}
                   transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="relative shrink-0"
                 >
@@ -449,31 +453,78 @@ export default function ProfileHubPage() {
                     <span className="text-[10px] font-mono font-black uppercase tracking-wider text-sky-300 bg-sky-950/80 border border-sky-500/40 px-2.5 py-0.5 rounded-md">
                       ACTIVE WORKSPACE SPOTLIGHT
                     </span>
-                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2 py-0.5 rounded-md">
-                      Current Stage: Level {activeStageIndex} - {activeStageName}
+                    <span className="text-[10px] font-mono font-bold text-emerald-400 bg-emerald-950/80 border border-emerald-500/40 px-2.5 py-0.5 rounded-md">
+                      Current Stage: Step {activeStageIndex} of {totalPlannedSteps} ({activeStageName})
                     </span>
                   </div>
                   <h2 className="text-xl md:text-2xl font-heading font-black tracking-tight text-white">
                     {activeSkillTitle}
                   </h2>
-                  <p className="text-xs text-sky-200/80 max-w-lg leading-relaxed">
-                    Autonomous Socratic trajectory loaded. Review living flowchart nodes, launch in-app media player, or verify mastery.
-                  </p>
+                  
+                  {/* Progress Radial & Step indicator */}
+                  <div className="flex items-center gap-3 pt-1">
+                    <div className="relative w-9 h-9 flex items-center justify-center shrink-0">
+                      <svg className="w-full h-full -rotate-90" viewBox="0 0 36 36">
+                        <path className="text-slate-800" strokeWidth="3" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                        <path className="text-emerald-400" strokeDasharray={`${progressPercent}, 100`} strokeWidth="3" strokeLinecap="round" stroke="currentColor" fill="none" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+                      </svg>
+                      <span className="absolute text-[9px] font-bold font-mono text-emerald-300">{progressPercent}%</span>
+                    </div>
+                    <p className="text-xs text-sky-200/80 leading-snug">
+                      Step {activeStageIndex} of {totalPlannedSteps} • Autonomous Socratic trajectory loaded.
+                    </p>
+                  </div>
                 </div>
               </div>
 
-              <div className="shrink-0 relative z-10 w-full md:w-auto">
+              <div className="shrink-0 relative z-10 w-full md:w-auto flex flex-col sm:flex-row items-center gap-2.5">
                 <Link
-                  href="/workspace"
-                  className="w-full md:w-auto px-6 py-3.5 rounded-xl bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                  href={primaryWorkspace?.id ? `/workspace?skillId=${primaryWorkspace.id}` : '/workspace'}
+                  className="w-full sm:w-auto px-5 py-3 rounded-xl bg-gradient-to-r from-sky-500 via-blue-500 to-indigo-600 hover:from-sky-400 hover:to-indigo-500 text-white font-heading font-black text-xs uppercase tracking-wider shadow-lg shadow-sky-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
                 >
-                  <span>Enter Learning Studio ➔</span>
+                  <span>Continue in Workspace →</span>
                   <ArrowRight className="w-4 h-4" />
+                </Link>
+                <Link
+                  href="/workspace?action=new"
+                  className="w-full sm:w-auto px-4 py-3 rounded-xl bg-white/10 hover:bg-white/20 text-white font-heading font-bold text-xs uppercase tracking-wider border border-white/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5 text-sky-300" />
+                  <span>Enroll in New Skill / Sport</span>
                 </Link>
               </div>
             </div>
           );
         })()}
+
+        {/* DIETARY & MEDICAL CONDITION BADGES (SECTION 2) */}
+        <div className="p-4 md:p-5 bg-white/80 backdrop-blur-md rounded-3xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2.5">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider font-mono mr-1">
+              Health & Fueling Badges:
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-300/80 rounded-xl text-xs font-bold text-amber-900 shadow-xs">
+              <Apple className="w-3.5 h-3.5 text-amber-600" />
+              <span>Diet: {profile.dietaryPreference || 'Vegetarian'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-rose-50 border border-rose-300/80 rounded-xl text-xs font-bold text-rose-900 shadow-xs">
+              <HeartPulse className="w-3.5 h-3.5 text-rose-600" />
+              <span>Medical: {profile.medicalConditions || 'None / Fully Fit'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-300/80 rounded-xl text-xs font-bold text-sky-900 shadow-xs">
+              <Globe className="w-3.5 h-3.5 text-sky-600" />
+              <span>Language: {String(profile.preferredLanguage || 'en').toUpperCase()}</span>
+            </span>
+          </div>
+
+          <button
+            onClick={() => setShowEditProfileModal(true)}
+            className="px-3.5 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-bold rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+          >
+            <Edit2 className="w-3.5 h-3.5 text-slate-500" />
+            <span>Update Health & Diet</span>
+          </button>
+        </div>
 
         {/* HERO DEMOGRAPHICS BANNER */}
         <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
@@ -628,7 +679,12 @@ export default function ProfileHubPage() {
                   <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-amber-900 bg-amber-100 px-2.5 py-0.5 rounded-md">
                     ATTENDANCE STREAK
                   </span>
-                  <Flame className="w-5 h-5 text-amber-500 animate-pulse fill-amber-500" />
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1] }}
+                    transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
+                  >
+                    <Flame className="w-5 h-5 text-amber-500 animate-pulse fill-amber-500" />
+                  </motion.div>
                 </div>
                 <div>
                   <div className="flex items-baseline gap-2">
@@ -702,7 +758,12 @@ export default function ProfileHubPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                    <Award className="w-4 h-4 text-amber-500" />
+                    <motion.div
+                      animate={{ rotate: [-5, 5, -5] }}
+                      transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut' }}
+                    >
+                      <Award className="w-5 h-5 text-amber-500" />
+                    </motion.div>
                     <span>Earned Pedagogical Badges & Accolades</span>
                   </h3>
                   <p className="text-xs text-slate-500">
@@ -721,16 +782,17 @@ export default function ProfileHubPage() {
                   { name: 'Flame Keeper', desc: 'Maintained 7+ day active study streak', icon: '🔥', color: 'from-rose-500 to-orange-500' },
                   { name: 'System Architect', desc: 'Completed multi-milestone synthesis', icon: '🏛️', color: 'from-emerald-500 to-teal-600' },
                 ].map((badge, bIdx) => (
-                  <div
+                  <motion.div
                     key={bIdx}
-                    className="p-4 rounded-2xl border border-slate-200/80 bg-slate-50/50 hover:bg-white hover:shadow-md transition-all text-center space-y-2 group"
+                    whileHover={{ y: -3, scale: 1.02 }}
+                    className="p-4 rounded-2xl border border-amber-200/80 bg-gradient-to-b from-white to-amber-50/30 hover:border-amber-400 shadow-xs hover:shadow-md hover:shadow-amber-500/10 transition-all text-center space-y-2 group"
                   >
-                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${badge.color} text-white text-2xl flex items-center justify-center mx-auto shadow-md group-hover:scale-105 transition-transform`}>
+                    <div className={`w-12 h-12 rounded-2xl bg-gradient-to-tr ${badge.color} text-white text-2xl flex items-center justify-center mx-auto shadow-md border border-white/60 group-hover:scale-105 transition-transform`}>
                       {badge.icon}
                     </div>
                     <div className="text-xs font-bold text-slate-900">{badge.name}</div>
                     <div className="text-[10px] text-slate-500 leading-snug">{badge.desc}</div>
-                  </div>
+                  </motion.div>
                 ))}
               </div>
             </div>

@@ -132,7 +132,10 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
             rel: 0,
             modestbranding: 1,
             enablejsapi: 1,
-            origin: window.location.origin,
+            origin: typeof window !== 'undefined' ? window.location.origin : '',
+            playsinline: 1,
+            iv_load_policy: 3, // Disable annotations
+            fs: 1,
           },
           events: {
             onReady: (event: any) => {
@@ -225,10 +228,11 @@ export const InAppYouTubePlayerModal: React.FC<InAppYouTubePlayerModalProps> = (
           />
 
           <motion.div
-            initial={{ opacity: 0, scale: 0.94, y: 16 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.94, y: 16 }}
+            initial={{ opacity: 0, scale: 0.96 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.96 }}
             transition={{ type: 'spring', damping: 26, stiffness: 320 }}
+            style={{ transform: 'translateZ(0)' }}
             className={`relative z-10 w-full ${
               isTheater ? 'max-w-6xl' : 'max-w-4xl'
             } bg-slate-900 rounded-3xl border border-slate-700/80 shadow-2xl overflow-hidden flex flex-col text-white transition-all duration-300`}
