@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { UserProfile, SkillTrack, DayCadence } from '@/types';
-import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { BrandLogo } from '@/components/common/BrandLogo';
 import {
   Flame,
   Shield,
@@ -382,12 +382,9 @@ export const ProfileHubPage: React.FC<ProfileHubPageProps> = ({
 
       <header className="sticky top-0 z-40 bg-white/90 backdrop-blur-md border-b border-slate-200/90 px-4 md:px-8 py-3.5 flex items-center justify-between shadow-2xs">
         <div className="flex items-center gap-3">
-          <SkillpraxLogo
-            size="sm"
-            animate={true}
-            glow={true}
-            onClick={() => onNavigate('landing')}
-          />
+          <div onClick={() => onNavigate('landing')} className="cursor-pointer">
+            <BrandLogo size="sm" href="" />
+          </div>
           <div className="h-5 w-px bg-slate-200" />
           <div className="flex items-center gap-2">
             <span className="text-[11px] font-mono font-bold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-800 border border-emerald-200">

@@ -263,7 +263,7 @@ export const QuizInterspaceModal: React.FC<QuizInterspaceModalProps> = ({
                   QUIZ INTERSPACE
                 </span>
                 <span className="text-xs font-semibold text-slate-500">
-                  {currentTrack?.title || 'Skillprax Track'} • {nodeTitle || 'Active Milestone'}
+                  {currentTrack?.title || 'SKILL-TRACK'} • {nodeTitle || 'Active Milestone'}
                 </span>
               </div>
               <h2 className="text-lg font-heading font-bold text-slate-900">

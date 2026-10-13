@@ -10,9 +10,12 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SKILL-TRACK | Autonomous Competency Learning Platform",
-  description: "Closed-loop pedagogical engine and skill RPG HUD",
-  icons: { icon: "/logo.png" },
+  title: 'SKILL-TRACK | Autonomous Cognitive & Athletic Studio',
+  description: 'Master cognitive disciplines, track physical athletic drills, discover local verified clubs, and achieve verified milestones.',
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

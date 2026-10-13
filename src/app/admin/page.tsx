@@ -8,7 +8,7 @@ import {
   Building2, Truck, DollarSign, Percent, Clock, Check, X,
   ShieldAlert, Award, FileText, ChevronRight
 } from 'lucide-react';
-import { SkillpraxLogo } from '@/components/SkillpraxLogo';
+import { BrandLogo } from '@/components/common/BrandLogo';
 
 export default function AdminPage() {
   const [authStatus, setAuthStatus] = useState<{ initialized: boolean } | null>(null);
@@ -561,7 +561,7 @@ export default function AdminPage() {
             <span>Back to App</span>
           </Link>
           <div className="h-4 w-[1px] bg-slate-200" />
-          <SkillpraxLogo />
+          <BrandLogo size="sm" />
           <span className="text-xs font-mono font-bold bg-slate-900 text-emerald-400 px-2 py-0.5 rounded">
             ADMIN CONSOLE
           </span>

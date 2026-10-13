@@ -272,7 +272,7 @@ export function UnifiedAuthModal({
         return;
       }
 
-      setSuccessNotice(data.isNewUser ? 'Account created! Welcome to Skillprax.' : 'Welcome back! Signed in successfully.');
+      setSuccessNotice(data.isNewUser ? 'Account created! Welcome to SKILL-TRACK.' : 'Welcome back! Signed in successfully.');
 
       setTimeout(() => {
         if (onSuccess) onSuccess(activeUser);
@@ -323,7 +323,7 @@ export function UnifiedAuthModal({
       }
 
       setPasswordSuccess(true);
-      setSuccessNotice('Password saved successfully! Entering Skillprax...');
+      setSuccessNotice('Password saved successfully! Entering SKILL-TRACK...');
 
       setTimeout(() => {
         if (onSuccess && loggedInUser) {
@@ -395,8 +395,8 @@ export function UnifiedAuthModal({
               >
                 {/* Header */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex justify-center mb-3">
-                    <BrandLogo size="md" showWordmark={true} />
+                  <div className="flex justify-center mb-4">
+                    <BrandLogo size="lg" />
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-bold tracking-wider uppercase mb-2">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
@@ -551,7 +551,7 @@ export function UnifiedAuthModal({
                 ) : (
                   <div className="py-2.5 px-3 rounded-2xl bg-slate-50 border border-slate-200/70 text-slate-500 text-[11px] text-center flex items-center justify-center gap-1.5">
                     <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
-                    <span>Universal credentials verified securely by Skillprax</span>
+                    <span>Universal credentials verified securely by SKILL-TRACK</span>
                   </div>
                 )}
 
@@ -570,8 +570,8 @@ export function UnifiedAuthModal({
               >
                 {/* Header */}
                 <div className="text-center mb-6">
-                  <div className="inline-flex justify-center mb-3">
-                    <BrandLogo size="md" showWordmark={true} />
+                  <div className="flex justify-center mb-4">
+                    <BrandLogo size="lg" />
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-bold tracking-wider uppercase mb-2">
                     <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />

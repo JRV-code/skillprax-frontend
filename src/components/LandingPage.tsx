@@ -792,10 +792,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           initial={{ scale: 0.8, opacity: 0, y: -10 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
-          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 border border-emerald-200/90 text-emerald-800 text-xs sm:text-sm font-semibold tracking-wide shadow-md shadow-emerald-500/10 mb-6"
+          className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-white/95 border border-sky-200/90 text-sky-800 text-xs sm:text-sm font-semibold tracking-wide shadow-md shadow-sky-500/10 mb-6"
         >
-          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
-          <span>✦ Dynamic Socratic Curriculum • Resource Bounded</span>
+          <span className="w-2.5 h-2.5 rounded-full bg-[#0284C7] animate-ping" />
+          <span>SKILL-TRACK ENGINE • Autonomous Cognitive & Athletic Studio</span>
         </motion.div>
 
         <motion.div
@@ -804,7 +804,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
           className="relative my-2 sm:my-4 flex items-center justify-center"
         >
-          <BrandLogo size="lg" showWordmark={true} />
+          <BrandLogo size="lg" />
         </motion.div>
 
         <motion.div
@@ -814,7 +814,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           className="space-y-4 max-w-2xl mt-4"
         >
           <h1 className="text-3xl sm:text-5xl md:text-6xl font-heading font-extrabold text-slate-900 tracking-tight leading-tight">
-            Skillprax: Autonomous Mastery Engine
+            SKILL-TRACK: Autonomous Mastery Engine
           </h1>
           <p className="text-sm sm:text-base text-slate-600 leading-relaxed max-w-xl mx-auto">
             Dynamic competency roadmaps synthesized with active graph visualization, strict in-app video media playback, and diagnostic Socratic gates.
