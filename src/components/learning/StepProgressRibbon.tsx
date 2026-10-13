@@ -119,17 +119,22 @@ export const StepProgressRibbon: React.FC<StepProgressRibbonProps> = ({
                   )}
                 </motion.div>
 
-                <span
-                  className={`mt-2 text-[11px] font-heading font-semibold transition-colors ${
-                    isCurrent
-                      ? 'text-emerald-700 font-bold'
-                      : isCompleted
-                      ? 'text-slate-700'
-                      : 'text-slate-400'
-                  }`}
-                >
-                  Step {st.stepIndex}
-                </span>
+                <div className="mt-2 text-center max-w-[120px]">
+                  <span
+                    className={`block text-[11px] font-heading font-semibold transition-colors ${
+                      isCurrent
+                        ? 'text-emerald-700 font-bold'
+                        : isCompleted
+                        ? 'text-slate-700'
+                        : 'text-slate-400'
+                    }`}
+                  >
+                    Step {st.stepIndex}
+                  </span>
+                  <span className="block text-[10px] text-slate-500 font-medium truncate max-w-[110px]" title={st.title}>
+                    {st.title}
+                  </span>
+                </div>
               </button>
             );
           })}
