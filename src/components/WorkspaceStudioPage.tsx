@@ -17,7 +17,9 @@ import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
 import { TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
 import { InAppLecturePlayer } from '@/components/workspace/InAppLecturePlayer';
+import { InAppLectureTheater } from '@/components/workspace/InAppLectureTheater';
 import { TopicDocumentationSection, TopicItem as DocTopicItem } from '@/components/workspace/TopicDocumentationSection';
+import { ExternalTopicWebLinks, TopicDoc } from '@/components/workspace/ExternalTopicWebLinks';
 import { StepFlowchartStepper, StepNode } from '@/components/workspace/StepFlowchartStepper';
 import {
   Activity,
@@ -819,15 +821,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     return vId ? { videoId: vId, videoTitle: vTitle } : null;
   }, [viewingStepObj, studyBookResources, viewingStepTitle]);
 
-  const lectureVideoToPlay = useMemo(() => {
-    if (currentLectureVideo) return currentLectureVideo;
-    const fallbackIds = ['dQw4w9WgXcQ', 'jNQXAC9IVRw', 'rfscVS0vtbw', '8aGhZQkoFbQ', 'PkZNo7MFNFg'];
-    const fallbackId = fallbackIds[(viewingStepNum - 1) % fallbackIds.length];
-    return {
-      videoId: fallbackId,
-      videoTitle: `${viewingStepTitle} — In-App Lecture & Code Walkthrough`,
-    };
-  }, [currentLectureVideo, viewingStepNum, viewingStepTitle]);
+  const lectureVideoToPlay = currentLectureVideo;
 
   const formattedTopicList: DocTopicItem[] = useMemo(() => {
     if (Array.isArray(viewingStepObj?.topics) && viewingStepObj.topics.length > 0) {
@@ -937,6 +931,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       },
     ];
   }, [viewingStepObj?.topics, currentTopicMap, currentChapters, studyBookResources, currentTrack.title, viewingStepNum, viewingStepTitle]);
+
+  const externalTopicDocs: TopicDoc[] = useMemo(() => {
+    return formattedTopicList.map((t) => ({
+      topicId: t.topicId,
+      title: t.title,
+      externalUrl: t.externalUrl,
+      sourceDomain: t.sourceDomain,
+      coreObjective: (t as any).coreObjective || t.pedagogicalGuide?.howToLearn || `Master the principles of ${t.title}`,
+    }));
+  }, [formattedTopicList]);
 
   const handleOpenPlayer = (videoId: string, title?: string, channel?: string, focusNote?: string) => {
     setActiveYouTubeModal({
@@ -1443,15 +1447,22 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 onSelectStep={(stepNum) => setViewingStepIndex(stepNum)}
               />
 
-              {/* MODULE 1: IN-APP YOUTUBE THEATER ENGINE */}
-              <InAppLecturePlayer
-                videoId={lectureVideoToPlay.videoId}
-                videoTitle={lectureVideoToPlay.videoTitle}
-                stepNumber={viewingStepNum}
-              />
+              {/* MODULE 2: IN-APP LECTURE THEATER (Direct Embedded Stream) */}
+              {lectureVideoToPlay ? (
+                <InAppLectureTheater
+                  videoId={lectureVideoToPlay.videoId}
+                  videoTitle={lectureVideoToPlay.videoTitle}
+                  stepNumber={viewingStepNum}
+                />
+              ) : (
+                <div className="w-full bg-slate-900 rounded-3xl p-8 border border-slate-800 text-center text-slate-400 mb-8">
+                  <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
+                  <p className="text-xs font-semibold">Sourcing authentic educational lecture for Step {viewingStepNum}...</p>
+                </div>
+              )}
 
-              {/* MODULE 2: CURATED TOPIC DOCUMENTATION & STUDY GUIDES */}
-              <TopicDocumentationSection topics={formattedTopicList} />
+              {/* MODULE 3: DIRECT EXTERNAL TOPIC DOCUMENTATION (Clean Links to Original Sites) */}
+              <ExternalTopicWebLinks topics={externalTopicDocs} />
 
               {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
               {(!activeStepResources || activeStepResources.length === 0) && currentChapters.length === 0 && !isSynthesizing && (
