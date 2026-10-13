@@ -19,7 +19,7 @@ import { TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
 import { InAppLecturePlayer } from '@/components/workspace/InAppLecturePlayer';
 import { InAppLectureTheater } from '@/components/workspace/InAppLectureTheater';
 import { TopicDocumentationSection, TopicItem as DocTopicItem } from '@/components/workspace/TopicDocumentationSection';
-import { ExternalTopicWebLinks, TopicDoc } from '@/components/workspace/ExternalTopicWebLinks';
+import { ExternalTopicWebLinks, TopicDoc, isVideoUrl } from '@/components/workspace/ExternalTopicWebLinks';
 import { StepFlowchartStepper, StepNode } from '@/components/workspace/StepFlowchartStepper';
 import {
   Activity,
@@ -826,7 +826,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   const formattedTopicList: DocTopicItem[] = useMemo(() => {
     if (Array.isArray(viewingStepObj?.topics) && viewingStepObj.topics.length > 0) {
       return viewingStepObj.topics.map((t: any, idx: number) => {
-        const rawUrl = t.externalUrl || t.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(currentTrack.title || 'Technical Documentation')}`;
+        let rawUrl = t.externalUrl || t.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(currentTrack.title || 'Technical Documentation')}`;
+        if (isVideoUrl(rawUrl)) {
+          rawUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(t.title || currentTrack.title)}`;
+        }
         let domain = t.sourceDomain || 'Official Documentation';
         try {
           domain = new URL(rawUrl).hostname.replace(/^(www\.)/, '');
@@ -848,7 +851,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     if (currentTopicMap && currentTopicMap.length > 0) {
       return currentTopicMap.map((t: any, idx: number) => {
         const matchedRes = studyBookResources.find((r) => r.topicKey === t.key || r.id === t.key);
-        const extUrl = matchedRes?.url && matchedRes.url !== '#' ? matchedRes.url : `https://en.wikipedia.org/wiki/${encodeURIComponent(currentTrack.title || t.title)}`;
+        let extUrl = matchedRes?.url && matchedRes.url !== '#' ? matchedRes.url : `https://en.wikipedia.org/wiki/${encodeURIComponent(currentTrack.title || t.title)}`;
+        if (isVideoUrl(extUrl)) {
+          extUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(t.title || currentTrack.title)}`;
+        }
         let domain = 'Official Reference';
         try { domain = new URL(extUrl).hostname.replace(/^(www\.)/, ''); } catch (_) {}
         return {
@@ -868,7 +874,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     const docChapters = currentChapters.filter((c) => c.resource?.url && c.resource.url !== '#' && c.resource.type !== 'VIDEO');
     if (docChapters.length > 0) {
       return docChapters.map((c, idx) => {
-        const extUrl = c.resource?.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(c.title)}`;
+        let extUrl = c.resource?.url || `https://en.wikipedia.org/wiki/${encodeURIComponent(c.title)}`;
+        if (isVideoUrl(extUrl)) {
+          extUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(c.title || currentTrack.title)}`;
+        }
         let domain = 'Official Reference';
         try { domain = new URL(extUrl).hostname.replace(/^(www\.)/, ''); } catch (_) {}
         return {
@@ -1462,7 +1471,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               )}
 
               {/* MODULE 3: DIRECT EXTERNAL TOPIC DOCUMENTATION (Clean Links to Original Sites) */}
-              <ExternalTopicWebLinks topics={externalTopicDocs} />
+              <ExternalTopicWebLinks topics={externalTopicDocs} stepNumber={viewingStepNum} />
 
               {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
               {(!activeStepResources || activeStepResources.length === 0) && currentChapters.length === 0 && !isSynthesizing && (

@@ -20,6 +20,11 @@ export interface TopicDocumentationSectionProps {
   topics: TopicItem[];
 }
 
+export function isVideoUrl(url: string): boolean {
+  if (!url) return false;
+  return /youtube\.com|youtu\.be|vimeo\.com|dailymotion\.com|tiktok\.com/i.test(url);
+}
+
 export const TopicDocumentationSection: React.FC<TopicDocumentationSectionProps> = ({ topics }) => {
   if (!topics || topics.length === 0) return null;
 
@@ -40,36 +45,44 @@ export const TopicDocumentationSection: React.FC<TopicDocumentationSectionProps>
       </div>
 
       <div className="grid grid-cols-1 gap-5">
-        {topics.map((topic, index) => (
-          <div
-            key={topic.topicId || index}
-            className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all"
-          >
-            {/* Top Bar: Topic Name & Direct External Link */}
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
-              <div className="flex items-center gap-3">
-                <span className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
-                  {index + 1}
-                </span>
-                <div>
-                  <h4 className="text-base font-bold text-slate-900">{topic.title}</h4>
-                  <span className="text-[11px] text-slate-400 font-medium">
-                    Verified Source: {topic.sourceDomain || 'Official Resource'}
-                  </span>
-                </div>
-              </div>
+        {topics.map((topic, index) => {
+          let safeUrl = topic.externalUrl;
+          let safeDomain = topic.sourceDomain || 'Official Resource';
+          if (isVideoUrl(safeUrl)) {
+            safeUrl = `https://en.wikipedia.org/wiki/${encodeURIComponent(topic.title)}`;
+            safeDomain = 'wikipedia.org';
+          }
 
-              {/* Direct Website Opener */}
-              <a
-                href={topic.externalUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-sm w-fit shrink-0 cursor-pointer"
-              >
-                <span>Open Original Website</span>
-                <ExternalLink className="w-3.5 h-3.5" />
-              </a>
-            </div>
+          return (
+            <div
+              key={topic.topicId || index}
+              className="p-6 rounded-3xl bg-white border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all"
+            >
+              {/* Top Bar: Topic Name & Direct External Link */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+                <div className="flex items-center gap-3">
+                  <span className="w-8 h-8 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center font-bold text-xs shrink-0">
+                    {index + 1}
+                  </span>
+                  <div>
+                    <h4 className="text-base font-bold text-slate-900">{topic.title}</h4>
+                    <span className="text-[11px] text-slate-400 font-medium">
+                      Verified Source: {safeDomain}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Direct Website Opener */}
+                <a
+                  href={safeUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-sm w-fit shrink-0 cursor-pointer"
+                >
+                  <span>Open Original Website</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
 
             {/* Pedagogical Reading Guidance */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-5 text-xs">
@@ -137,7 +150,8 @@ export const TopicDocumentationSection: React.FC<TopicDocumentationSectionProps>
               )}
             </div>
           </div>
-        ))}
+        );
+      })}
       </div>
     </div>
   );
