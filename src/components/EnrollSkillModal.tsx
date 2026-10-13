@@ -71,26 +71,6 @@ const DOMAINS: Array<{
   },
 ];
 
-// Dynamic keyword-to-pills index
-const KEYWORD_SUGGESTIONS: Record<string, string[]> = {
-  cricket: ['Fast Bowling', 'Wrist Spin', 'Top-Order Batting', 'Wicketkeeping', 'Power Hitting', 'Slip Catching'],
-  football: ['Tight Space Dribbling', 'Striker Finishing', 'Goalkeeping Reflexes', 'Midfield Playmaking', 'Zone Pressing'],
-  soccer: ['Tight Space Dribbling', 'Striker Finishing', 'Goalkeeping Reflexes', 'Midfield Playmaking'],
-  piano: ['Sight Reading', 'Jazz Chords & Voicings', 'Classical Scales', 'Finger Independence', 'Arpeggio Velocity'],
-  guitar: ['Fingerstyle Picking', 'Barre Chords', 'Pentatonic Soloing', 'Rhythm Comping', 'Sweep Picking'],
-  chess: ['Opening Preparation', 'Tactical Calculation', 'Endgame Conversion', 'Positional Pawn Structures'],
-  web: ['Next.js App Router', 'React Server Components', 'State Management & Zustand', 'Tailwind Design Systems'],
-  react: ['Hooks & Lifecycle Architecture', 'Server Actions', 'Concurrent Rendering', 'Optimistic UI Updates'],
-  python: ['Data Structures & Typing', 'FastAPI Microservices', 'AsyncIO Concurrency', 'Pandas Vectorization'],
-  chemistry: ['Organic Reaction Mechanisms', 'Thermodynamics & Equilibrium', 'Coordination Compounds', 'Stereochemistry'],
-  physics: ['Rotational Mechanics', 'Electromagnetic Induction', 'Quantum Foundations', 'Wave Optics'],
-  biology: ['Molecular Genetics', 'Cellular Respiration', 'Immunology & Antibodies', 'Neurobiology'],
-  sprint: ['Start Block Acceleration', 'Max Velocity Biomechanics', 'Drive Phase Mechanics', 'Plyometric Elasticity'],
-  athletics: ['Sprint Acceleration', 'Aerobic Threshold', 'Explosive Power', 'Agility Footwork'],
-  basketball: ['Pull-Up Jump Shooting', 'Pick-and-Roll Execution', 'Perimeter On-Ball Defense', 'Finishing Through Contact'],
-  tennis: ['Topspin Forehand', 'Kick Serve Mechanics', 'Baseline Footwork', 'Net Volley Control'],
-};
-
 const MASTERY_LEVELS = [
   'Beginner',
   'Intermediate',
@@ -153,29 +133,50 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
     if (initialSubGenre) setSubGenre(initialSubGenre);
   }, [initialTitle, initialDomain, initialSubGenre, isOpen]);
 
-  // Compute dynamic suggestion pills based on title input and domain
-  const contextualPills = useMemo(() => {
-    const titleLower = customTitle.toLowerCase();
-    for (const [key, pills] of Object.entries(KEYWORD_SUGGESTIONS)) {
-      if (titleLower.includes(key)) {
-        return pills;
+  const [subgenreSuggestions, setSubgenreSuggestions] = useState<string[]>([]);
+  const [isLoadingSubgenres, setIsLoadingSubgenres] = useState<boolean>(false);
+  const [subgenreError, setSubgenreError] = useState<string | null>(null);
+
+  // Dynamic Sub-Genre Engine: Debounce 600ms, min 3 chars, AbortController
+  useEffect(() => {
+    const trimmed = customTitle.trim();
+    if (trimmed.length < 3) {
+      setSubgenreSuggestions([]);
+      setIsLoadingSubgenres(false);
+      setSubgenreError(null);
+      return;
+    }
+
+    const controller = new AbortController();
+    setIsLoadingSubgenres(true);
+    setSubgenreError(null);
+
+    const timer = setTimeout(async () => {
+      try {
+        const res = await fetch('/api/skills/suggest-subgenres', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ skill: trimmed }),
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error('Could not load suggestions');
+        const data = await res.json();
+        setSubgenreSuggestions(Array.isArray(data.subgenres) ? data.subgenres : []);
+      } catch (err: any) {
+        if (err.name !== 'AbortError') {
+          setSubgenreSuggestions([]);
+          setSubgenreError('Unable to fetch suggestions. Please type your sub-genre below.');
+        }
+      } finally {
+        setIsLoadingSubgenres(false);
       }
-    }
-    // Fallback based on selected domain
-    switch (selectedDomainId) {
-      case 'Athletics':
-        return ['Agility & Footwork', 'Reaction Velocity', 'Biomechanical Stride', 'Core Stabilization'];
-      case 'Science':
-        return ['Theoretical Axioms', 'Empirical Derivation', 'Boundary Case Analysis', 'Laboratory Protocols'];
-      case 'Art':
-        return ['Perspective & Framing', 'Color Harmony & Values', 'Anatomy Dynamics', 'Render Finishing'];
-      case 'Homemaking':
-        return ['Nutritional Thermodynamics', 'Spatial Micro-Order', 'Resource Allocation', 'Batch Preparation'];
-      case 'Cognitive Logic':
-      default:
-        return ['Algorithmic Efficiency', 'State Decoupling', 'Edge Case Invariants', 'Fault Tolerance'];
-    }
-  }, [customTitle, selectedDomainId]);
+    }, 600);
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [customTitle]);
 
   // Strict Validation Check
   const validationStatus = useMemo(() => {
@@ -389,25 +390,42 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
               </div>
 
               {/* Dynamic suggestion chips */}
-              <div className="flex flex-wrap gap-1.5">
-                {contextualPills.map((pill) => {
-                  const isPillActive = subGenre.toLowerCase() === pill.toLowerCase();
-                  return (
-                    <button
-                      type="button"
-                      key={pill}
-                      onClick={() => setSubGenre(isPillActive ? '' : pill)}
-                      className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
-                        isPillActive
-                          ? 'bg-amber-500 text-white shadow-xs'
-                          : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
-                      }`}
-                    >
-                      {pill}
-                    </button>
-                  );
-                })}
-              </div>
+              {isLoadingSubgenres && (
+                <div className="flex flex-wrap gap-1.5 animate-pulse">
+                  <div className="h-6 w-24 bg-slate-200 rounded-full" />
+                  <div className="h-6 w-32 bg-slate-200 rounded-full" />
+                  <div className="h-6 w-28 bg-slate-200 rounded-full" />
+                  <div className="h-6 w-20 bg-slate-200 rounded-full" />
+                </div>
+              )}
+
+              {!isLoadingSubgenres && subgenreSuggestions.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {subgenreSuggestions.map((pill) => {
+                    const isPillActive = subGenre.toLowerCase() === pill.toLowerCase();
+                    return (
+                      <button
+                        type="button"
+                        key={pill}
+                        onClick={() => setSubGenre(isPillActive ? '' : pill)}
+                        className={`px-3 py-1 rounded-full text-xs font-semibold transition-all cursor-pointer ${
+                          isPillActive
+                            ? 'bg-amber-500 text-white shadow-xs'
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200/60'
+                        }`}
+                      >
+                        {pill}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+
+              {subgenreError && (
+                <p className="text-[11px] text-amber-600 font-medium">
+                  {subgenreError}
+                </p>
+              )}
 
               <input
                 type="text"

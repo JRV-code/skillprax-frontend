@@ -10,6 +10,9 @@ import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
 import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
+import { StepApproachBrief, ApproachBrief } from '@/components/workspace/StepApproachBrief';
+import { StudyBook, TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
+import { warmUpYouTube } from '@/components/InAppYouTubePlayerModal';
 import {
   Activity,
   GitBranch,
@@ -246,24 +249,36 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     videoId: string | null;
     title: string;
     channelOrAuthor: string;
+    focusNote?: string;
     takeaway: string;
+    embeddable?: boolean;
   }>({
     isOpen: false,
     videoId: null,
     title: '',
     channelOrAuthor: '',
     takeaway: '',
+    embeddable: true,
   });
 
   const [activeReaderModal, setActiveReaderModal] = useState<{
     isOpen: boolean;
     title: string;
+    documentId?: string;
     sourceUrl: string;
     sourceBadge: string;
+    sourceType?: string;
     takeaway: string;
     corePrinciple: string;
     mechanics: string[];
     commonTraps: string[];
+    fullContentMarkdown?: string;
+    documentationQuadrants?: any;
+    documentationMarkdown?: string;
+    documentationSourceUrl?: string;
+    focusNote?: string;
+    initialTopicKey?: string;
+    topicMap?: TopicItem[];
   }>({
     isOpen: false,
     title: '',
@@ -274,6 +289,19 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     mechanics: [],
     commonTraps: [],
   });
+
+  // Step Guide and Study Book State Map (Keyed strictly by Step ID)
+  interface StepGuideState {
+    stepId: string;
+    difficultyTier?: string;
+    approachViewedAt?: string | null;
+    resources: any[];
+    document?: any;
+    topicMap: TopicItem[];
+    approachBrief: ApproachBrief | null;
+  }
+  const [stepGuides, setStepGuides] = useState<Record<string, StepGuideState>>({});
+  const [isGeneratingApproach, setIsGeneratingApproach] = useState<boolean>(false);
 
   const handleNodeClick = (node: FlowchartNode) => {
     if (node.status === 'locked') {
@@ -359,7 +387,36 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     setNodes((prev) => [...prev, newNode]);
   };
 
-  const [fetchedResources, setFetchedResources] = useState<StudyResource[]>([]);
+  // Fetch Step Guide with Study Book & Game Plan strictly keyed by stepId (no shared cache)
+  const fetchStepGuide = useCallback(async (stepId: string) => {
+    if (!stepId) return;
+    try {
+      const res = await fetch(`/api/steps/${stepId}/guide`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        setStepGuides((prev) => ({
+          ...prev,
+          [stepId]: {
+            stepId: data.stepId || stepId,
+            difficultyTier: data.difficultyTier,
+            approachViewedAt: data.approachViewedAt,
+            resources: Array.isArray(data.resources) ? data.resources : [],
+            document: data.document,
+            topicMap: Array.isArray(data.topicMap) ? data.topicMap : [],
+            approachBrief: data.approachBrief || null,
+          },
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to fetch guide for step:', stepId, err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (viewingStepId) {
+      fetchStepGuide(viewingStepId);
+    }
+  }, [viewingStepId, fetchStepGuide]);
   const [physicalDrills, setPhysicalDrills] = useState<any[]>([]);
   const [loadingDrills, setLoadingDrills] = useState<boolean>(false);
 
@@ -497,21 +554,18 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
       if (res.ok) {
         const data = await res.json();
-        const returnedRes: any[] = data.resources || [];
-        if (returnedRes.length > 0) {
-          const mapped: StudyResource[] = returnedRes.map((r: any, idx: number) => ({
-            id: `res-${idx}`,
-            type: (r.url && (r.url.includes('youtube.com') || r.url.includes('youtu.be'))) ? 'youtube' : 'doc',
-            title: r.title || 'Curated Resource',
-            subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
-            url: r.url || '#',
-            durationOrPages: r.type === 'VIDEO' ? 'YouTube Tutorial' : 'Documentation',
-            viewsOrCitation: r.platform || 'Verified Study Resource',
-            verified: true,
-            organization: 'SKILL-TRACK Verified',
-          }));
-          setFetchedResources(mapped);
-        }
+        setStepGuides((prev) => ({
+          ...prev,
+          [viewingStepId]: {
+            stepId: viewingStepId,
+            difficultyTier: data.tier || data.step?.difficultyTier,
+            approachViewedAt: data.step?.approachViewedAt,
+            resources: Array.isArray(data.resources) ? data.resources : [],
+            document: data.document,
+            topicMap: Array.isArray(data.topicMap) ? data.topicMap : [],
+            approachBrief: data.approachBrief || null,
+          },
+        }));
       }
     } catch (err) {
       console.error('Failed to synthesize resources:', err);
@@ -520,34 +574,144 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }
   };
 
-  // Resources for the current viewing step
-  const activeStepResources: StudyResource[] = useMemo(() => {
-    if (fetchedResources && fetchedResources.length > 0) {
-      return fetchedResources;
-    }
-    const dbRes = viewingStepObj?.resources;
-    let rawArr: any[] = [];
-    if (Array.isArray(dbRes)) {
-      rawArr = dbRes;
-    } else if (typeof dbRes === 'string') {
-      try { rawArr = JSON.parse(dbRes); } catch (_) { rawArr = []; }
-    }
-
-    if (rawArr.length > 0) {
-      return rawArr.map((r: any, idx: number) => ({
-        id: r.id || `res-${idx}`,
-        type: r.type === 'VIDEO' || r.type === 'youtube' || (r.url && (r.url.includes('youtube.com') || r.url.includes('youtu.be'))) ? 'youtube' : 'doc',
-        title: r.title || 'Curated Resource',
-        subtitle: r.takeaway || r.subtitle || r.studyGuidance || 'Verified Study Resource',
-        url: r.url || '#',
-        durationOrPages: r.type === 'VIDEO' ? 'YouTube Tutorial' : 'Documentation',
-        viewsOrCitation: r.platform || 'Verified Study Resource',
-        verified: true,
-        organization: 'SKILL-TRACK Verified',
+  const handleApproachViewed = async () => {
+    try {
+      await fetch(`/api/steps/${viewingStepId}/approach-viewed`, { method: 'POST' });
+      setStepGuides((prev) => ({
+        ...prev,
+        [viewingStepId]: {
+          ...(prev[viewingStepId] || { stepId: viewingStepId, topicMap: [], resources: [], approachBrief: null }),
+          approachViewedAt: new Date().toISOString(),
+        },
       }));
+    } catch (_) {}
+  };
+
+  const handleGenerateApproach = async () => {
+    setIsGeneratingApproach(true);
+    try {
+      const res = await fetch(`/api/steps/${viewingStepId}/approach`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setStepGuides((prev) => ({
+          ...prev,
+          [viewingStepId]: {
+            ...(prev[viewingStepId] || { stepId: viewingStepId, topicMap: [], resources: [] }),
+            approachBrief: data.approachBrief,
+            approachViewedAt: data.approachViewedAt || null,
+          },
+        }));
+      }
+    } catch (err) {
+      console.warn('Failed to generate approach brief:', err);
+    } finally {
+      setIsGeneratingApproach(false);
     }
-    return [];
-  }, [fetchedResources, viewingStepObj]);
+  };
+
+  const handleRetryTopic = async (topicKey: string) => {
+    try {
+      const res = await fetch(`/api/steps/${viewingStepId}/topics/${topicKey}/retry`, { method: 'POST' });
+      if (res.ok) {
+        await fetchStepGuide(viewingStepId);
+      }
+    } catch (err) {
+      console.warn('Failed to retry topic:', err);
+    }
+  };
+
+  const handleReplaceResource = async (resourceId: string) => {
+    try {
+      const res = await fetch(`/api/resources/${resourceId}/replace`, { method: 'POST' });
+      if (res.ok) {
+        await fetchStepGuide(viewingStepId);
+      }
+    } catch (err) {
+      console.warn('Failed to replace resource:', err);
+    }
+  };
+
+  // Current step's scoped guide and resources (zero leakage across steps)
+  const currentGuide = stepGuides[viewingStepId];
+  const currentTopicMap: TopicItem[] = currentGuide?.topicMap || [];
+  const currentApproachBrief = currentGuide?.approachBrief || null;
+  const currentApproachViewedAt = currentGuide?.approachViewedAt || viewingStepObj?.approachViewedAt || null;
+  const currentDifficultyTier = currentGuide?.difficultyTier || viewingStepObj?.difficultyTier || 'FOUNDATIONS';
+  const hasGuideMarkdown = Boolean(currentGuide?.document?.markdown);
+
+  const studyBookResources: ResourceItem[] = useMemo(() => {
+    const raw = (currentGuide?.resources && currentGuide.resources.length > 0)
+      ? currentGuide.resources
+      : (viewingStepObj?.resources ? (Array.isArray(viewingStepObj.resources) ? viewingStepObj.resources : []) : []);
+
+    return raw.map((r: any, idx: number) => {
+      const vId = r.videoId || extractYouTubeId(r.url);
+      const isVideo = r.type === 'VIDEO' || r.type === 'video' || Boolean(vId);
+      return {
+        id: r.id || `res-${idx}`,
+        type: isVideo ? 'video' : 'doc',
+        title: r.title || 'Curated Study Resource',
+        url: r.url || '#',
+        videoId: vId,
+        channelName: r.channelName || r.platform || null,
+        embeddable: r.embeddable !== false,
+        topicKey: r.topicKey || null,
+        focusNote: r.focusNote || r.takeaway || r.subtitle || null,
+        snippet: r.snippet || null,
+        linkStatus: r.linkStatus || 'UNCHECKED',
+        checkedAt: r.checkedAt,
+        sourceType: r.sourceType,
+      };
+    });
+  }, [currentGuide?.resources, viewingStepObj?.resources]);
+
+  const activeStepResources: StudyResource[] = useMemo(() => {
+    return studyBookResources.map((r, idx) => ({
+      id: r.id || `res-${idx}`,
+      type: r.type === 'video' ? 'youtube' : 'doc',
+      title: r.title,
+      subtitle: r.focusNote || 'Verified Study Resource',
+      url: r.url,
+      durationOrPages: r.type === 'video' ? 'YouTube Tutorial' : 'Documentation',
+      viewsOrCitation: r.channelName || 'SKILL-TRACK Verified',
+      verified: r.linkStatus === 'VERIFIED',
+      organization: 'SKILL-TRACK Verified',
+    }));
+  }, [studyBookResources]);
+
+  const handleOpenReader = (chapterTopicKey?: string, viewMode?: 'summary' | 'full') => {
+    const doc = currentGuide?.document;
+    setActiveReaderModal({
+      isOpen: true,
+      title: viewingStepTitle,
+      documentId: doc?.id,
+      sourceUrl: doc?.sourceUrl || '#',
+      sourceBadge: doc?.sourceType === 'WIKIPEDIA' ? 'Wikipedia Pedagogy' : 'Verified Pedagogy',
+      sourceType: doc?.sourceType || 'TAVILY',
+      corePrinciple: doc?.quadrants?.principle || undefined,
+      mechanics: Array.isArray(doc?.quadrants?.mechanics) ? doc.quadrants.mechanics : undefined,
+      commonTraps: Array.isArray(doc?.quadrants?.traps) ? doc.quadrants.traps : undefined,
+      takeaway: doc?.quadrants?.principle || undefined,
+      fullContentMarkdown: doc?.markdown || '',
+      documentationQuadrants: doc?.quadrants || {},
+      documentationMarkdown: doc?.markdown || '',
+      documentationSourceUrl: doc?.sourceUrl || '#',
+      initialTopicKey: chapterTopicKey,
+      topicMap: currentTopicMap,
+    });
+  };
+
+  const handleOpenPlayer = (videoId: string, title?: string, channel?: string, focusNote?: string) => {
+    setActiveYouTubeModal({
+      isOpen: true,
+      videoId,
+      title: title || viewingStepTitle,
+      channelOrAuthor: channel || 'Curated Video Tutorial',
+      focusNote: focusNote || undefined,
+      takeaway: focusNote || 'Focus on the mechanics and execution demonstrated.',
+      embeddable: true,
+    });
+  };
 
   return (
     <motion.div
@@ -1068,176 +1232,38 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
               )}
 
-              {/* DYNAMIC RESOURCES (CLEAN ICON CARDS — ZERO THUMBNAILS) */}
-              {activeStepResources && activeStepResources.length > 0 && !isSynthesizing && (
-                <>
-                  <div className="p-6 md:p-8 rounded-3xl bg-white border border-slate-200/90 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-                        <h3 className="text-lg font-heading font-extrabold text-slate-900">
-                          Authoritative Curriculum Resources
-                        </h3>
-                      </div>
-                      <p className="text-xs text-slate-600 max-w-xl">
-                        Curated directly from verified web search for "{viewingStepTitle}". Videos open in-app; documentation opens in 4-quadrant reader.
-                      </p>
-                    </div>
+              {/* CURRICULUM STUDY BOOK & PRE-STUDY GAME PLAN (MODULE D & E) */}
+              {(studyBookResources.length > 0 || currentTopicMap.length > 0) && !isSynthesizing && (
+                <div className="space-y-6">
+                  {/* MODULE E: THE PRE-STUDY GAME PLAN (FIRST CARD BEFORE ANY RESOURCE) */}
+                  <StepApproachBrief
+                    stepId={viewingStepId}
+                    stepTitle={viewingStepTitle}
+                    tier={currentDifficultyTier}
+                    approachBrief={currentApproachBrief}
+                    approachViewedAt={currentApproachViewedAt}
+                    onApproachViewed={handleApproachViewed}
+                    onGenerateApproach={handleGenerateApproach}
+                    isGenerating={isGeneratingApproach}
+                  />
 
-                    <button
-                      onClick={handleSynthesizeMaterials}
-                      disabled={isSynthesizing}
-                      className="px-4 py-2 rounded-xl text-xs font-semibold text-emerald-800 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-all flex items-center gap-1.5 cursor-pointer shrink-0"
-                    >
-                      <RotateCcw className={`w-3.5 h-3.5 ${isSynthesizing ? 'animate-spin' : ''}`} />
-                      <span>Re-sync Resources</span>
-                    </button>
-                  </div>
-
-                  {/* VIDEOS SECTION (CLEAN ICON CARDS TRIGGERING InAppYouTubePlayerModal) */}
-                  {activeStepResources.filter((r) => r.type === 'youtube').length > 0 && (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                        <Video className="w-4 h-4 text-red-500" />
-                        <span>Verified Visual & Video Walkthroughs (In-App Player)</span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {activeStepResources
-                          .filter((r) => r.type === 'youtube')
-                          .map((res) => {
-                            const vId = extractYouTubeId(res.url);
-
-                            return (
-                              <div
-                                key={res.id}
-                                onClick={() => {
-                                  setActiveYouTubeModal({
-                                    isOpen: true,
-                                    videoId: vId || 'dQw4w9WgXcQ',
-                                    title: res.title,
-                                    channelOrAuthor: res.viewsOrCitation || 'Verified YouTube Tutorial',
-                                    takeaway: res.subtitle || 'Focus on the mechanics and execution demonstrated in this tutorial.',
-                                  });
-                                }}
-                                className="bg-white/95 rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-red-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group hover:scale-[1.01]"
-                              >
-                                <div className="space-y-3">
-                                  <div className="flex items-center justify-between">
-                                    <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-red-50 text-red-700 border border-red-200/80 flex items-center gap-1.5">
-                                      <Video className="w-3.5 h-3.5 text-red-600 fill-current" />
-                                      <span>YOUTUBE TUTORIAL</span>
-                                    </span>
-                                    <span className="text-[11px] font-mono text-slate-400 font-medium">In-App Player</span>
-                                  </div>
-
-                                  <div className="flex items-start gap-3">
-                                    <div className="w-10 h-10 rounded-xl bg-red-50 border border-red-200 text-red-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                                      <Youtube className="w-5 h-5" />
-                                    </div>
-                                    <div>
-                                      <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-red-700 transition-colors leading-snug">
-                                        {res.title}
-                                      </h5>
-                                      <p className="text-xs text-slate-600 leading-relaxed mt-1 line-clamp-2">
-                                        {res.subtitle}
-                                      </p>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-red-700">
-                                  <span className="text-slate-500 font-mono text-[11px]">{res.durationOrPages || 'Tutorial Video'}</span>
-                                  <div className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                    <span>Play in App</span>
-                                    <ChevronRight className="w-3.5 h-3.5" />
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* DOCUMENTATION SECTION (CLEAN ICON CARDS TRIGGERING InAppContentReaderModal) */}
-                  {activeStepResources.filter((r) => r.type === 'doc').length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <h4 className="text-xs font-heading font-bold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-                        <BookOpen className="w-4 h-4 text-sky-500" />
-                        <span>Canonical Technical Documentation (4-Quadrant Reader)</span>
-                      </h4>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        {activeStepResources
-                          .filter((r) => r.type === 'doc')
-                          .map((doc) => (
-                            <div
-                              key={doc.id}
-                              onClick={() => {
-                                const stepAny = viewingStepObj as any;
-                                const docAny = doc as any;
-                                const quadrants = stepAny?.documentation_quadrants || docAny.quadrants || {};
-                                const markdown = stepAny?.documentation_markdown || docAny.markdown || '';
-                                const docSourceUrl = stepAny?.documentation_source_url || doc.url || '#';
-                                const q1Text = quadrants.q1?.content || quadrants.corePrinciple || doc.subtitle || '';
-                                const q2List = Array.isArray(quadrants.q2?.bullets) ? quadrants.q2.bullets : (Array.isArray(quadrants.mechanics) ? quadrants.mechanics : []);
-                                const q3List = Array.isArray(quadrants.q3?.bullets) ? quadrants.q3.bullets : (Array.isArray(quadrants.commonTraps) ? quadrants.commonTraps : []);
-                                const q4Text = quadrants.q4?.summary || quadrants.takeaway || doc.subtitle || '';
-
-                                setActiveReaderModal({
-                                  isOpen: true,
-                                  title: doc.title,
-                                  sourceUrl: docSourceUrl,
-                                  sourceBadge: 'Verified Documentation',
-                                  takeaway: q4Text,
-                                  corePrinciple: q1Text,
-                                  mechanics: q2List,
-                                  commonTraps: q3List,
-                                  fullContentMarkdown: markdown,
-                                  documentationQuadrants: quadrants,
-                                  documentationMarkdown: markdown,
-                                  documentationSourceUrl: docSourceUrl,
-                                } as any);
-                              }}
-                              className="bg-white/95 rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group hover:scale-[1.01]"
-                            >
-                              <div className="space-y-3">
-                                <div className="flex items-center justify-between">
-                                  <span className="px-2.5 py-1 rounded-md text-[10px] font-mono font-bold bg-sky-50 text-sky-700 border border-sky-200/80 flex items-center gap-1.5">
-                                    <BookOpen className="w-3.5 h-3.5 text-sky-600" />
-                                    <span>DOCUMENTATION</span>
-                                  </span>
-                                  <span className="text-[11px] font-mono text-slate-400 font-medium">4-Quadrant Reader</span>
-                                </div>
-
-                                <div className="flex items-start gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-sky-50 border border-sky-200 text-sky-600 flex items-center justify-center shrink-0 mt-0.5 group-hover:scale-110 transition-transform">
-                                    <FileText className="w-5 h-5" />
-                                  </div>
-                                  <div>
-                                    <h5 className="text-sm font-heading font-bold text-slate-900 group-hover:text-sky-700 transition-colors leading-snug">
-                                      {doc.title}
-                                    </h5>
-                                    <p className="text-xs text-slate-600 leading-relaxed mt-1 line-clamp-2">
-                                      {doc.subtitle}
-                                    </p>
-                                  </div>
-                                </div>
-                              </div>
-
-                              <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-sky-700">
-                                <span className="text-slate-500 font-mono text-[11px]">{doc.viewsOrCitation || 'Verified Doc'}</span>
-                                <div className="flex items-center gap-1 group-hover:translate-x-1 transition-transform">
-                                  <span>Read in App</span>
-                                  <ChevronRight className="w-3.5 h-3.5" />
-                                </div>
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-                  )}
+                  {/* MODULE D: THE BOOK — TOPIC MAP AND VERIFIED RESOURCE CARDS */}
+                  <StudyBook
+                    stepId={viewingStepId}
+                    stepTitle={viewingStepTitle}
+                    stepIndex={viewingStepNum}
+                    topicMap={currentTopicMap}
+                    resources={studyBookResources}
+                    hasGuideMarkdown={hasGuideMarkdown}
+                    onOpenReader={handleOpenReader}
+                    onOpenPlayer={handleOpenPlayer}
+                    onWarmUpYouTube={warmUpYouTube}
+                    onStartEvaluation={() => setActiveTab('evaluation')}
+                    onRetryTopic={handleRetryTopic}
+                    onReplaceResource={handleReplaceResource}
+                  />
+                </div>
+              )}
 
                   {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}
                   {isPhysical && physicalDrills.length > 0 && (
@@ -1276,8 +1302,6 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                       </div>
                     </div>
                   )}
-                </>
-              )}
 
               {/* Ready for Quiz Prompt Banner */}
               <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1436,23 +1460,30 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         videoId={activeYouTubeModal.videoId}
         videoTitle={activeYouTubeModal.title}
         channelOrAuthor={activeYouTubeModal.channelOrAuthor}
+        focusNote={activeYouTubeModal.focusNote}
         takeaway={activeYouTubeModal.takeaway}
+        embeddable={activeYouTubeModal.embeddable !== false}
       />
 
       <InAppContentReaderModal
         isOpen={activeReaderModal.isOpen}
         onClose={() => setActiveReaderModal((prev) => ({ ...prev, isOpen: false }))}
         title={activeReaderModal.title}
+        documentId={activeReaderModal.documentId}
         sourceUrl={activeReaderModal.sourceUrl}
         sourceBadge={activeReaderModal.sourceBadge}
+        sourceType={activeReaderModal.sourceType}
         takeaway={activeReaderModal.takeaway}
         corePrinciple={activeReaderModal.corePrinciple}
         mechanics={activeReaderModal.mechanics}
         commonTraps={activeReaderModal.commonTraps}
-        fullContentMarkdown={(activeReaderModal as any).fullContentMarkdown}
-        documentationQuadrants={(activeReaderModal as any).documentationQuadrants}
-        documentationMarkdown={(activeReaderModal as any).documentationMarkdown}
-        documentationSourceUrl={(activeReaderModal as any).documentationSourceUrl}
+        fullContentMarkdown={activeReaderModal.fullContentMarkdown}
+        documentationQuadrants={activeReaderModal.documentationQuadrants}
+        documentationMarkdown={activeReaderModal.documentationMarkdown}
+        documentationSourceUrl={activeReaderModal.documentationSourceUrl}
+        focusNote={activeReaderModal.focusNote}
+        initialTopicKey={activeReaderModal.initialTopicKey}
+        topicMap={activeReaderModal.topicMap}
       />
 
       <AIEngineSelectorModal

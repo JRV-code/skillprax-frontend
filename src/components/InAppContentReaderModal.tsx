@@ -13,20 +13,35 @@ import {
   Sparkles,
   FileText,
   RotateCw,
-  Layers,
   ChevronDown,
   Copy,
   Check,
+  Compass,
+  ArrowRight,
+  ListTree,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { SupportedLanguage } from '@/types';
+
+export interface TopicChapterItem {
+  key: string;
+  order?: number;
+  title: string;
+  covers?: string;
+  minutes?: number;
+  chapterMarkdown?: string | null;
+}
 
 export interface InAppContentReaderModalProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
+  documentId?: string;
   sourceUrl?: string;
   sourceBadge?: string;
+  sourceType?: string;
   corePrinciple?: string;
   mechanics?: string[];
   commonTraps?: string[];
@@ -37,6 +52,9 @@ export interface InAppContentReaderModalProps {
   documentationSourceUrl?: string;
   contentId?: string;
   defaultLanguage?: SupportedLanguage;
+  focusNote?: string;
+  initialTopicKey?: string;
+  topicMap?: TopicChapterItem[];
 }
 
 const LANGUAGES: Array<{ code: SupportedLanguage; label: string; native: string }> = [
@@ -52,12 +70,34 @@ const LANGUAGES: Array<{ code: SupportedLanguage; label: string; native: string 
   { code: 'de', label: 'German (Deutsch)', native: 'Deutsch' },
 ];
 
+const DEFAULT_UI_LABELS: Record<string, string> = {
+  summaryCards: 'Summary Cards',
+  fullGuide: 'Full Guide',
+  toc: 'Table of Contents',
+  verifiedSource: 'Verified Reference Link',
+  readWholeGuide: 'Read the whole guide',
+  gamePlan: 'Milestone Game Plan',
+  gotIt: 'Got it — show me the chapters',
+  howToStudy: 'How to study this milestone',
+  mistakesToAvoid: 'Mistakes to avoid',
+  selfCheck: 'Ungraded Self-Check',
+  revealHint: 'Reveal Hint',
+  linkBrokenReplace: 'Link broken? Replace',
+  findLinkForTopic: 'Find a link for this topic',
+  verifiedBadge: 'Verified',
+  readGamePlanFirst: 'Read the game plan first',
+  focusForResource: 'Focus for this resource',
+  generateQuiz: 'Generate Socratic Evaluation',
+};
+
 export const InAppContentReaderModal: React.FC<InAppContentReaderModalProps> = ({
   isOpen,
   onClose,
   title,
+  documentId,
   sourceUrl = '#',
   sourceBadge = 'Verified Pedagogy',
+  sourceType = 'TAVILY',
   corePrinciple,
   mechanics,
   commonTraps,
@@ -68,103 +108,132 @@ export const InAppContentReaderModal: React.FC<InAppContentReaderModalProps> = (
   documentationSourceUrl,
   contentId,
   defaultLanguage = 'en',
+  focusNote,
+  initialTopicKey,
+  topicMap = [],
 }) => {
   const [mounted, setMounted] = useState(false);
   const [selectedLanguage, setSelectedLanguage] = useState<SupportedLanguage>(defaultLanguage);
   const [showLanguageDropdown, setShowLanguageDropdown] = useState(false);
   const [isTranslating, setIsTranslating] = useState(false);
-  const [readerView, setReaderView] = useState<'summary' | 'full'>('summary');
+  const [translationError, setTranslationError] = useState<string | null>(null);
+  const [readerView, setReaderView] = useState<'summary' | 'full'>('full');
   const [scrollProgress, setScrollProgress] = useState(0);
-  const [copiedCodeIndex, setCopiedCodeIndex] = useState<number | null>(null);
+  const [copiedCodeText, setCopiedCodeText] = useState<string | null>(null);
+  const [activeTopicList, setActiveTopicList] = useState<TopicChapterItem[]>(topicMap);
+  const [uiLabels, setUiLabels] = useState<Record<string, string>>(DEFAULT_UI_LABELS);
 
-  // Content states
-  const [translatedPrinciple, setTranslatedPrinciple] = useState<string>('');
-  const [translatedMechanics, setTranslatedMechanics] = useState<string[]>([]);
-  const [translatedTraps, setTranslatedTraps] = useState<string[]>([]);
-  const [translatedMarkdown, setTranslatedMarkdown] = useState<string>('');
+  // Dynamic fetched doc state
+  const [activeDocMarkdown, setActiveDocMarkdown] = useState<string>('');
+  const [activeSourceUrl, setActiveSourceUrl] = useState<string>(documentationSourceUrl || sourceUrl || '#');
+  const [activeSourceType, setActiveSourceType] = useState<string>(sourceType);
+
+  // Content states for translated/active quadrants
+  const [displayPrinciple, setDisplayPrinciple] = useState<string>('');
+  const [displayMechanics, setDisplayMechanics] = useState<string[]>([]);
+  const [displayTraps, setDisplayTraps] = useState<string[]>([]);
+  const [displayMarkdown, setDisplayMarkdown] = useState<string>('');
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Pedagogical document grounding directly from API extraction
-  const qObj = (documentationQuadrants && typeof documentationQuadrants === 'object') ? documentationQuadrants : {};
-  const activeSourceUrl = documentationSourceUrl || sourceUrl || qObj.q4?.source || '#';
-
-  const rawPrinciple =
-    qObj.q1?.content ||
-    qObj.corePrinciple ||
-    corePrinciple ||
-    takeaway ||
-    `Mastering ${title} requires an in-depth understanding of its core mechanics, structural foundation, and operational execution.`;
-
-  const rawMechanics: string[] =
-    (Array.isArray(qObj.q2?.bullets) && qObj.q2.bullets.length > 0)
-      ? qObj.q2.bullets
-      : (Array.isArray(qObj.mechanics) && qObj.mechanics.length > 0)
-      ? qObj.mechanics
-      : (mechanics && mechanics.length > 0)
-      ? mechanics
-      : [];
-
-  const rawTraps: string[] =
-    (Array.isArray(qObj.q3?.bullets) && qObj.q3.bullets.length > 0)
-      ? qObj.q3.bullets
-      : (Array.isArray(qObj.commonTraps) && qObj.commonTraps.length > 0)
-      ? qObj.commonTraps
-      : (commonTraps && commonTraps.length > 0)
-      ? commonTraps
-      : [];
-
-  const rawTakeaway =
-    qObj.q4?.summary ||
-    qObj.takeaway ||
-    takeaway ||
-    rawPrinciple;
-
-  // Dynamic pedagogical documentation matching the 4 sections
-  const rawMarkdown =
-    documentationMarkdown ||
-    fullContentMarkdown ||
-    `# ${title}
-
-## 1. Technical Principles & Foundations
-${rawPrinciple}
-
----
-
-## 2. Step-by-Step Biomechanical / Practical Execution
-${rawMechanics.map((m, i) => `${i + 1}. **Phase ${i + 1}**: ${m}`).join('\n\n')}
-
----
-
-## 3. High-Impact Traps, Common Errors & Form Checkpoints
-${rawTraps.map((t, i) => `* **Diagnostic Checkpoint ${i + 1}**: ${t}`).join('\n\n')}
-
----
-
-## 4. Benchmark Verification Protocols & Drills
-${rawTakeaway}
-`;
-
   useEffect(() => {
     setMounted(true);
+  }, []);
 
-    const savedLang = localStorage.getItem('skillprax_preferred_lang') as SupportedLanguage | null;
-    if (savedLang && LANGUAGES.some((l) => l.code === savedLang)) {
-      setSelectedLanguage(savedLang);
+  // Initialize content on open or prop changes
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const savedLang = (localStorage.getItem('skillprax_preferred_lang') as SupportedLanguage) || defaultLanguage;
+    setSelectedLanguage(savedLang);
+
+    const qObj = (documentationQuadrants && typeof documentationQuadrants === 'object') ? documentationQuadrants : {};
+    const initPrinciple =
+      qObj.principle ||
+      qObj.q1?.content ||
+      qObj.corePrinciple ||
+      corePrinciple ||
+      takeaway ||
+      `Mastering ${title} requires an in-depth understanding of its core mechanics, structural foundation, and operational execution.`;
+
+    const initMechanics: string[] =
+      (Array.isArray(qObj.mechanics) && qObj.mechanics.length > 0)
+        ? qObj.mechanics
+        : (Array.isArray(qObj.q2?.bullets) && qObj.q2.bullets.length > 0)
+        ? qObj.q2.bullets
+        : (mechanics && mechanics.length > 0)
+        ? mechanics
+        : [];
+
+    const initTraps: string[] =
+      (Array.isArray(qObj.traps) && qObj.traps.length > 0)
+        ? qObj.traps
+        : (Array.isArray(qObj.q3?.bullets) && qObj.q3.bullets.length > 0)
+        ? qObj.q3.bullets
+        : (commonTraps && commonTraps.length > 0)
+        ? commonTraps
+        : [];
+
+    const initMd =
+      documentationMarkdown ||
+      fullContentMarkdown ||
+      `# ${title}\n\n## Technical Foundations\n\n${initPrinciple}\n\n## Practical Execution\n\n${initMechanics.map((m, i) => `${i + 1}. ${m}`).join('\n\n')}\n\n## Traps & Misconceptions\n\n${initTraps.map((t) => `- ${t}`).join('\n\n')}`;
+
+    setDisplayPrinciple(initPrinciple);
+    setDisplayMechanics(initMechanics);
+    setDisplayTraps(initTraps);
+    setDisplayMarkdown(initMd);
+    setActiveDocMarkdown(initMd);
+    setActiveTopicList(topicMap);
+    setActiveSourceUrl(documentationSourceUrl || sourceUrl || '#');
+    setActiveSourceType(sourceType);
+
+    // If documentId provided, fetch fresh doc from API
+    if (documentId) {
+      fetch(`/api/content/${documentId}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .then((doc) => {
+          if (doc) {
+            if (doc.sourceUrl) setActiveSourceUrl(doc.sourceUrl);
+            if (doc.sourceType) setActiveSourceType(doc.sourceType);
+            if (doc.markdown) {
+              setDisplayMarkdown(doc.markdown);
+              setActiveDocMarkdown(doc.markdown);
+            }
+            if (doc.quadrants) {
+              if (doc.quadrants.principle) setDisplayPrinciple(doc.quadrants.principle);
+              if (Array.isArray(doc.quadrants.mechanics)) setDisplayMechanics(doc.quadrants.mechanics);
+              if (Array.isArray(doc.quadrants.traps)) setDisplayTraps(doc.quadrants.traps);
+            }
+            if (Array.isArray(doc.topicMap) && doc.topicMap.length > 0) {
+              setActiveTopicList(doc.topicMap);
+            }
+          }
+        })
+        .catch(() => {});
     }
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
     };
-    if (isOpen) {
-      window.addEventListener('keydown', handleKeyDown);
-      document.body.style.overflow = 'hidden';
+    window.addEventListener('keydown', handleKeyDown);
+    document.body.style.overflow = 'hidden';
+
+    // Auto-scroll to initial topic if specified
+    if (initialTopicKey) {
+      setTimeout(() => {
+        const el = document.getElementById(`chapter-${initialTopicKey}`);
+        if (el && scrollContainerRef.current) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 350);
     }
+
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       document.body.style.overflow = 'unset';
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, documentId, initialTopicKey, title]);
 
   const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
     const target = e.currentTarget;
@@ -179,218 +248,133 @@ ${rawTakeaway}
     setSelectedLanguage(lang);
     setShowLanguageDropdown(false);
     localStorage.setItem('skillprax_preferred_lang', lang);
+    setTranslationError(null);
 
     if (lang === 'en') {
-      setTranslatedPrinciple('');
-      setTranslatedMechanics([]);
-      setTranslatedTraps([]);
-      setTranslatedMarkdown('');
+      setDisplayMarkdown(activeDocMarkdown);
+      setUiLabels(DEFAULT_UI_LABELS);
       return;
     }
 
     setIsTranslating(true);
     try {
-      const activeContentId = contentId || `doc-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`;
-      const payload = {
-        contentId: activeContentId,
-        targetLanguage: lang,
-        quadrants: {
-          corePrinciple: rawPrinciple,
-          mechanics: rawMechanics,
-          commonTraps: rawTraps,
-          takeaway: takeaway || rawPrinciple,
-        },
-        fullContentMarkdown: rawMarkdown,
-      };
+      if (documentId) {
+        const res = await fetch(`/api/content/${documentId}/translate`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ languageCode: lang }),
+        });
 
-      const res = await fetch('/api/content/translate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.translatedQuadrants) {
-          if (data.translatedQuadrants.corePrinciple) setTranslatedPrinciple(data.translatedQuadrants.corePrinciple);
-          if (Array.isArray(data.translatedQuadrants.mechanics)) setTranslatedMechanics(data.translatedQuadrants.mechanics);
-          if (Array.isArray(data.translatedQuadrants.commonTraps)) setTranslatedTraps(data.translatedQuadrants.commonTraps);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.markdown) setDisplayMarkdown(data.markdown);
+          if (data.quadrants) {
+            if (data.quadrants.principle) setDisplayPrinciple(data.quadrants.principle);
+            if (Array.isArray(data.quadrants.mechanics)) setDisplayMechanics(data.quadrants.mechanics);
+            if (Array.isArray(data.quadrants.traps)) setDisplayTraps(data.quadrants.traps);
+          }
+          if (Array.isArray(data.topicMap)) setActiveTopicList(data.topicMap);
+          if (data.uiStrings) setUiLabels({ ...DEFAULT_UI_LABELS, ...data.uiStrings });
+        } else {
+          setTranslationError('Translation service unavailable. Preserving English guide.');
         }
-        if (data.translatedMarkdown) {
-          setTranslatedMarkdown(data.translatedMarkdown);
+      } else {
+        // Fallback translation endpoint
+        const payload = {
+          contentId: contentId || `doc-${title.toLowerCase().replace(/[^a-z0-9]/g, '-')}`,
+          targetLanguage: lang,
+          quadrants: {
+            principle: displayPrinciple,
+            mechanics: displayMechanics,
+            traps: displayTraps,
+          },
+          fullContentMarkdown: activeDocMarkdown,
+        };
+
+        const res = await fetch('/api/content/translate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          if (data.translatedMarkdown) setDisplayMarkdown(data.translatedMarkdown);
+          if (data.translatedQuadrants) {
+            if (data.translatedQuadrants.principle) setDisplayPrinciple(data.translatedQuadrants.principle);
+            if (Array.isArray(data.translatedQuadrants.mechanics)) setDisplayMechanics(data.translatedQuadrants.mechanics);
+            if (Array.isArray(data.translatedQuadrants.traps)) setDisplayTraps(data.translatedQuadrants.traps);
+          }
         }
       }
     } catch (err) {
-      console.warn('Pedagogical translation failed; preserving default:', err);
+      setTranslationError('Translation failed. Showing original English guide.');
     } finally {
       setIsTranslating(false);
     }
   };
 
-  const handleCopyCode = (text: string, index: number) => {
-    navigator.clipboard.writeText(text);
-    setCopiedCodeIndex(index);
-    setTimeout(() => setCopiedCodeIndex(null), 2000);
+  const handleCopyCode = (codeText: string) => {
+    navigator.clipboard.writeText(codeText);
+    setCopiedCodeText(codeText);
+    setTimeout(() => setCopiedCodeText(null), 2000);
+  };
+
+  const scrollToChapter = (topicKey: string) => {
+    const el = document.getElementById(`chapter-${topicKey}`);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
   };
 
   if (!mounted) return null;
-
-  const displayPrinciple = translatedPrinciple || rawPrinciple;
-  const displayMechanics = translatedMechanics.length > 0 ? translatedMechanics : rawMechanics;
-  const displayTraps = translatedTraps.length > 0 ? translatedTraps : rawTraps;
-  const displayMarkdown = translatedMarkdown || rawMarkdown;
-
-  // Simple Markdown Renderer with Code Blocks
-  const renderMarkdownBlocks = (text: string) => {
-    const lines = text.split('\n');
-    const elements: React.ReactNode[] = [];
-    let inCodeBlock = false;
-    let codeBuffer: string[] = [];
-    let codeLang = '';
-    let blockIndex = 0;
-
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i];
-
-      if (line.startsWith('```')) {
-        if (!inCodeBlock) {
-          inCodeBlock = true;
-          codeLang = line.replace('```', '').trim() || 'typescript';
-          codeBuffer = [];
-        } else {
-          inCodeBlock = false;
-          const currentCode = codeBuffer.join('\n');
-          const currentIndex = blockIndex++;
-          elements.push(
-            <div key={`code-${i}`} className="my-4 rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md">
-              <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
-                <span className="uppercase text-[10px] font-bold text-sky-400">{codeLang}</span>
-                <button
-                  onClick={() => handleCopyCode(currentCode, currentIndex)}
-                  className="flex items-center gap-1 text-[11px] text-slate-300 hover:text-white transition-colors cursor-pointer"
-                >
-                  {copiedCodeIndex === currentIndex ? (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span className="text-emerald-400 font-semibold">Copied</span>
-                    </>
-                  ) : (
-                    <>
-                      <Copy className="w-3.5 h-3.5" />
-                      <span>Copy</span>
-                    </>
-                  )}
-                </button>
-              </div>
-              <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
-                <code>{currentCode}</code>
-              </pre>
-            </div>
-          );
-        }
-        continue;
-      }
-
-      if (inCodeBlock) {
-        codeBuffer.push(line);
-        continue;
-      }
-
-      if (line.startsWith('# ')) {
-        elements.push(
-          <h1 key={`h1-${i}`} className="text-xl md:text-2xl font-black text-slate-900 mt-6 mb-3 tracking-tight">
-            {line.replace('# ', '')}
-          </h1>
-        );
-      } else if (line.startsWith('## ')) {
-        elements.push(
-          <h2 key={`h2-${i}`} className="text-base md:text-lg font-bold text-slate-900 mt-5 mb-2 text-sky-800 flex items-center gap-2">
-            <span>{line.replace('## ', '')}</span>
-          </h2>
-        );
-      } else if (line.startsWith('### ')) {
-        elements.push(
-          <h3 key={`h3-${i}`} className="text-sm font-bold text-slate-800 mt-4 mb-1">
-            {line.replace('### ', '')}
-          </h3>
-        );
-      } else if (line.startsWith('> ')) {
-        elements.push(
-          <div key={`quote-${i}`} className="my-3 p-4 rounded-xl bg-amber-50/80 border-l-4 border-amber-500 text-xs text-amber-900 leading-relaxed font-medium">
-            {line.replace('> ', '')}
-          </div>
-        );
-      } else if (line.startsWith('* ') || line.startsWith('- ')) {
-        elements.push(
-          <li key={`li-${i}`} className="ml-5 list-disc text-xs md:text-sm text-slate-700 leading-relaxed my-1">
-            {line.replace(/^(\*|-)\s+/, '')}
-          </li>
-        );
-      } else if (line.trim().length === 0) {
-        elements.push(<div key={`sp-${i}`} className="h-2" />);
-      } else {
-        elements.push(
-          <p key={`p-${i}`} className="text-xs md:text-sm text-slate-700 leading-relaxed my-2 font-normal">
-            {line}
-          </p>
-        );
-      }
-    }
-
-    return elements;
-  };
 
   return createPortal(
     <AnimatePresence>
       {isOpen && (
         <motion.div
-          initial={{ opacity: 0, scale: 0.92, y: 20 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
-          transition={{ type: "spring", stiffness: 350, damping: 25 }}
-          className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/75 backdrop-blur-md p-0 sm:p-4"
         >
-          {/* Backdrop dismiss */}
-          <div
-            onClick={onClose}
-            className="absolute inset-0 cursor-pointer"
-          />
+          {/* Backdrop click to dismiss */}
+          <div onClick={onClose} className="absolute inset-0 cursor-pointer" />
 
-          <div
-            className="relative z-10 w-full max-w-4xl max-h-[92vh] bg-white rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col"
-          >
-            {/* Scroll Progress Bar pinned to top */}
+          {/* Full-Height Modal Container (h-dvh) */}
+          <div className="relative z-10 w-full max-w-6xl h-dvh sm:h-[92vh] bg-white sm:rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col">
+            {/* Top Reading Progress Bar */}
             <div className="w-full h-1 bg-slate-100 shrink-0">
               <div
-                className="h-full bg-gradient-to-r from-sky-500 via-emerald-500 to-amber-500 transition-all duration-150"
+                className="h-full bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 transition-all duration-150"
                 style={{ width: `${readerView === 'full' ? scrollProgress : 100}%` }}
               />
             </div>
 
-            {/* Top Modal Header */}
-            <div className="px-6 py-4 bg-slate-50/95 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="w-9 h-9 rounded-xl bg-sky-100 flex items-center justify-center text-sky-700 shadow-xs shrink-0">
+            {/* Header */}
+            <div className="px-5 py-3.5 bg-slate-50/95 border-b border-slate-200/80 flex flex-wrap items-center justify-between gap-3 shrink-0">
+              <div className="flex items-center gap-3 min-w-0">
+                <div className="w-9 h-9 rounded-xl bg-emerald-100 flex items-center justify-center text-emerald-800 shadow-xs shrink-0">
                   <BookOpen className="w-5 h-5" />
                 </div>
-                <div>
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-black uppercase tracking-wider bg-sky-50 text-sky-700 border border-sky-200/60 px-2 py-0.5 rounded-md">
+                    <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2 py-0.5 rounded-md">
                       {sourceBadge}
                     </span>
                     <span className="text-xs font-semibold text-slate-500 hidden sm:inline">
                       Pedagogical Reader
                     </span>
                   </div>
-                  <h3 className="text-sm md:text-base font-heading font-extrabold text-slate-900 line-clamp-1 mt-0.5">
+                  <h3 className="text-sm md:text-base font-heading font-extrabold text-slate-900 truncate mt-0.5">
                     {title}
                   </h3>
                 </div>
               </div>
 
-              {/* Header Actions */}
-              <div className="flex items-center gap-2">
-                {/* Segmented Control [ Summary Cards | Full Extracted Document ] */}
+              {/* Header Right Actions */}
+              <div className="flex items-center gap-2 shrink-0">
+                {/* Segmented Control [ Summary Cards | Full Guide ] */}
                 <div className="flex items-center bg-slate-200/70 p-1 rounded-xl text-xs font-bold">
                   <button
                     onClick={() => setReaderView('summary')}
@@ -400,7 +384,7 @@ ${rawTakeaway}
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Summary Cards
+                    {uiLabels.summaryCards || 'Summary Cards'}
                   </button>
                   <button
                     onClick={() => setReaderView('full')}
@@ -410,18 +394,20 @@ ${rawTakeaway}
                         : 'text-slate-600 hover:text-slate-900'
                     }`}
                   >
-                    Full Document
+                    {uiLabels.fullGuide || 'Full Guide'}
                   </button>
                 </div>
 
-                {/* Interactive Dynamic Translation Dropdown */}
+                {/* Language Picker */}
                 <div className="relative">
                   <button
-                    onClick={() => setShowLanguageDropdown((prev) => !prev)}
+                    onClick={() => setShowLanguageDropdown((p) => !p)}
                     className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer bg-white"
                   >
                     <Languages className="w-3.5 h-3.5 text-emerald-600" />
-                    <span>{LANGUAGES.find((l) => l.code === selectedLanguage)?.native || 'Language'}</span>
+                    <span className="hidden sm:inline">
+                      {LANGUAGES.find((l) => l.code === selectedLanguage)?.native || 'English'}
+                    </span>
                     <ChevronDown className="w-3 h-3 text-slate-400" />
                   </button>
 
@@ -443,19 +429,19 @@ ${rawTakeaway}
                   )}
                 </div>
 
-                {/* Original Source Button */}
+                {/* External Source Link */}
                 {activeSourceUrl && activeSourceUrl !== '#' && (
                   <button
                     onClick={() => window.open(activeSourceUrl, '_blank', 'noopener,noreferrer')}
-                    className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer bg-white"
+                    className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer bg-white"
                     title="Open external documentation source"
                   >
-                    <span>Original Source</span>
+                    <span>{uiLabels.verifiedSource || 'Source'}</span>
                     <ExternalLink className="w-3.5 h-3.5" />
                   </button>
                 )}
 
-                {/* Top-right close icon (X) */}
+                {/* Close Button */}
                 <button
                   onClick={onClose}
                   className="p-2 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 transition-all cursor-pointer"
@@ -466,122 +452,272 @@ ${rawTakeaway}
               </div>
             </div>
 
-            {/* Subtle Inner Loading Skeleton during Translation */}
+            {/* Resource Focus Strip */}
+            {focusNote && (
+              <div className="px-5 py-2.5 bg-gradient-to-r from-emerald-50 via-teal-50 to-cyan-50 border-b border-emerald-100 flex items-center gap-2.5 text-xs text-emerald-950 shrink-0">
+                <Compass className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span className="font-bold text-emerald-800 shrink-0">
+                  {uiLabels.focusForResource || 'Focus for this resource'}:
+                </span>
+                <span className="font-medium truncate">{focusNote}</span>
+              </div>
+            )}
+
+            {/* Translation Loading Bar */}
             {isTranslating && (
-              <div className="px-6 py-2.5 bg-gradient-to-r from-sky-50 to-emerald-50 border-b border-sky-100 flex items-center justify-center gap-2 text-xs font-semibold text-sky-800 animate-pulse shrink-0">
+              <div className="px-5 py-2 bg-sky-50 border-b border-sky-100 flex items-center justify-center gap-2 text-xs font-semibold text-sky-800 animate-pulse shrink-0">
                 <RotateCw className="w-3.5 h-3.5 animate-spin text-sky-600" />
                 <span>Translating pedagogical text into {LANGUAGES.find((l) => l.code === selectedLanguage)?.label}...</span>
               </div>
             )}
 
-            {/* MAIN CONTENT AREA */}
-            <div
-              ref={scrollContainerRef}
-              onScroll={handleScroll}
-              className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6 max-h-[75vh]"
-            >
-              {readerView === 'summary' ? (
-                /* 4-QUADRANT SUMMARY CARDS VIEW */
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 animate-fade-in">
-                  {/* Quadrant 1: Core Principle in 60 Seconds */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-sky-50/70 to-blue-50/40 border border-sky-100/90 shadow-xs space-y-3">
-                    <div className="flex items-center gap-2 text-sky-700">
-                      <Zap className="w-4 h-4 fill-sky-600" />
-                      <h4 className="text-xs font-black uppercase tracking-wider">
-                        Quadrant 1: Core Principle in 60 Seconds
-                      </h4>
-                    </div>
-                    <p className="text-xs md:text-sm text-slate-700 font-medium leading-relaxed">
-                      {displayPrinciple}
-                    </p>
-                  </div>
+            {/* Translation Error Notice */}
+            {translationError && (
+              <div className="px-5 py-2 bg-amber-50 border-b border-amber-100 flex items-center justify-between text-xs text-amber-800 shrink-0">
+                <span>{translationError}</span>
+                <button onClick={() => setTranslationError(null)} className="font-bold underline cursor-pointer">
+                  Dismiss
+                </button>
+              </div>
+            )}
 
-                  {/* Quadrant 2: Key Mechanics & Step-by-Step Execution */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/40 border border-emerald-100/90 shadow-xs space-y-3">
-                    <div className="flex items-center gap-2 text-emerald-800">
-                      <CheckCircle2 className="w-4 h-4" />
-                      <h4 className="text-xs font-black uppercase tracking-wider">
-                        Quadrant 2: Key Mechanics & Execution
-                      </h4>
-                    </div>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {displayMechanics.map((mech, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 shrink-0 mt-2" />
-                          <span className="leading-relaxed">{mech}</span>
-                        </li>
-                      ))}
-                    </ul>
+            {/* Body Layout: Sidebar TOC (for Full Guide on desktop) + Scrollable Content */}
+            <div className="flex-1 min-h-0 flex overflow-hidden">
+              {/* Optional Chapter Sidebar (when in Full Guide view and topics exist) */}
+              {readerView === 'full' && activeTopicList.length > 0 && (
+                <aside className="hidden lg:flex w-64 border-r border-slate-200/80 bg-slate-50/60 flex-col shrink-0 overflow-y-auto p-4 space-y-2">
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase tracking-wider text-slate-500 pb-2 border-b border-slate-200">
+                    <ListTree className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>{uiLabels.toc || 'Chapters'}</span>
                   </div>
+                  <nav className="space-y-1">
+                    {activeTopicList.map((t, idx) => (
+                      <button
+                        key={t.key}
+                        onClick={() => scrollToChapter(t.key)}
+                        className="w-full text-left p-2 rounded-xl text-xs hover:bg-white hover:text-emerald-800 hover:shadow-xs transition-all text-slate-700 flex items-start gap-2 cursor-pointer group"
+                      >
+                        <span className="font-mono text-[10px] font-bold text-slate-400 group-hover:text-emerald-600 shrink-0 mt-0.5">
+                          {idx + 1}.
+                        </span>
+                        <div className="min-w-0">
+                          <p className="font-semibold truncate text-[11px] leading-tight">{t.title}</p>
+                          {t.minutes && (
+                            <span className="text-[10px] text-slate-400 font-normal">{t.minutes} min</span>
+                          )}
+                        </div>
+                      </button>
+                    ))}
+                  </nav>
+                </aside>
+              )}
 
-                  {/* Quadrant 3: Common Traps & Edge Cases */}
-                  <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-100/90 shadow-xs space-y-3">
-                    <div className="flex items-center gap-2 text-amber-800">
-                      <AlertTriangle className="w-4 h-4" />
-                      <h4 className="text-xs font-black uppercase tracking-wider">
-                        Quadrant 3: Common Traps & Misconceptions
-                      </h4>
-                    </div>
-                    <ul className="space-y-2 text-xs md:text-sm text-slate-700">
-                      {displayTraps.map((trap, idx) => (
-                        <li key={idx} className="flex items-start gap-2">
-                          <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
-                          <span className="leading-relaxed">{trap}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-
-                  {/* Quadrant 4: Canonical Academic Reference */}
-                  <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-xs space-y-3 flex flex-col justify-between">
-                    <div>
-                      <div className="flex items-center gap-2 text-slate-700">
-                        <Sparkles className="w-4 h-4 text-emerald-600" />
+              {/* Scrollable Main Area */}
+              <div
+                ref={scrollContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto p-6 md:p-8 space-y-6"
+              >
+                {readerView === 'summary' ? (
+                  /* 4-QUADRANT SUMMARY CARDS VIEW */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+                    {/* Quadrant 1: Core Principle in 60 Seconds */}
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-emerald-50/70 to-teal-50/40 border border-emerald-100 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2 text-emerald-800">
+                        <Zap className="w-4 h-4 fill-emerald-600" />
                         <h4 className="text-xs font-black uppercase tracking-wider">
-                          Quadrant 4: Verified Encyclopedic Reference
+                          60-Second Principle
                         </h4>
                       </div>
-                      <p className="text-xs text-slate-500 mt-2 leading-relaxed">
-                        Curated directly through verified pedagogical channels. Click the badge below to inspect full markdown source documentation.
+                      <p className="text-xs md:text-sm text-slate-700 font-medium leading-relaxed">
+                        {displayPrinciple}
                       </p>
                     </div>
 
-                    <div className="mt-4 p-3 rounded-xl bg-white border border-slate-200/80 text-xs text-slate-600 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <FileText className="w-4 h-4 text-slate-400" />
-                        <span className="font-medium truncate max-w-[200px]">{title}</span>
+                    {/* Quadrant 2: Key Mechanics & Step-by-Step Execution */}
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-cyan-50/70 to-blue-50/40 border border-cyan-100 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2 text-cyan-900">
+                        <CheckCircle2 className="w-4 h-4 text-cyan-600" />
+                        <h4 className="text-xs font-black uppercase tracking-wider">
+                          Key Mechanics & Execution
+                        </h4>
                       </div>
-                      {/* IN-APP VERIFIED BADGE WIRED TO TOGGLE FULL DOCUMENT VIEW */}
-                      <button
-                        onClick={() => setReaderView('full')}
-                        className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2 py-0.5 rounded cursor-pointer transition-colors"
-                        title="Click to view full comprehensive document"
-                      >
-                        In-App Verified ➔
-                      </button>
+                      <ul className="space-y-2 text-xs md:text-sm text-slate-700">
+                        {displayMechanics.map((mech, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-500 shrink-0 mt-2" />
+                            <span className="leading-relaxed">{mech}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Quadrant 3: Common Traps & Edge Cases */}
+                    <div className="p-6 rounded-2xl bg-gradient-to-br from-amber-50/70 to-orange-50/40 border border-amber-100 shadow-xs space-y-3">
+                      <div className="flex items-center gap-2 text-amber-900">
+                        <AlertTriangle className="w-4 h-4 text-amber-600" />
+                        <h4 className="text-xs font-black uppercase tracking-wider">
+                          Traps & Edge Cases
+                        </h4>
+                      </div>
+                      <ul className="space-y-2 text-xs md:text-sm text-slate-700">
+                        {displayTraps.map((trap, idx) => (
+                          <li key={idx} className="flex items-start gap-2">
+                            <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 mt-2" />
+                            <span className="leading-relaxed">{trap}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {/* Quadrant 4: Verified Canonical Reference */}
+                    <div className="p-6 rounded-2xl bg-slate-50 border border-slate-200/90 shadow-xs space-y-3 flex flex-col justify-between">
+                      <div>
+                        <div className="flex items-center gap-2 text-slate-700">
+                          <Sparkles className="w-4 h-4 text-emerald-600" />
+                          <h4 className="text-xs font-black uppercase tracking-wider">
+                            {uiLabels.verifiedSource || 'Verified Reference Link'}
+                          </h4>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-2 leading-relaxed">
+                          Curated curriculum synthesis. Read full deep-dive chapters with fenced code blocks and technical examples.
+                        </p>
+                      </div>
+
+                      <div className="mt-4 p-3 rounded-xl bg-white border border-slate-200/80 text-xs text-slate-600 flex items-center justify-between">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
+                          <span className="font-medium truncate">{title}</span>
+                        </div>
+                        <button
+                          onClick={() => setReaderView('full')}
+                          className="text-[10px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200/80 px-2.5 py-1 rounded-lg cursor-pointer transition-colors shrink-0"
+                        >
+                          {uiLabels.fullGuide || 'Full Guide'} ➔
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ) : (
-                /* FULL EXTRACTED DOCUMENT VIEW */
-                <div className="max-w-3xl mx-auto px-4 sm:px-8 py-4 animate-fade-in space-y-2">
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-200 text-xs text-slate-500 font-mono">
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="w-4 h-4 text-sky-600" />
-                      <span>FULL EXTRACTED DOCUMENT</span>
-                    </span>
-                    <span>Scroll Depth: {Math.round(scrollProgress)}%</span>
-                  </div>
+                ) : (
+                  /* FULL EXTRACTED/WRITTEN GUIDE VIEW (Markdown + Chapters) */
+                  <div className="max-w-3xl mx-auto space-y-6">
+                    {/* Chapter anchors mapped if present */}
+                    {activeTopicList.length > 0 && (
+                      <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200/80 lg:hidden space-y-2">
+                        <p className="text-xs font-bold text-slate-600 flex items-center gap-1.5">
+                          <ListTree className="w-3.5 h-3.5 text-emerald-600" />
+                          <span>Jump to Chapter:</span>
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {activeTopicList.map((t, i) => (
+                            <button
+                              key={t.key}
+                              onClick={() => scrollToChapter(t.key)}
+                              className="text-[11px] px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:border-emerald-300 text-slate-700 hover:text-emerald-700 font-semibold cursor-pointer transition-all"
+                            >
+                              {i + 1}. {t.title}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    )}
 
-                  <div className="prose prose-slate max-w-none pt-2">
-                    {renderMarkdownBlocks(displayMarkdown)}
+                    {/* Wikipedia Attribution if applicable */}
+                    {activeSourceType === 'WIKIPEDIA' && (
+                      <div className="p-3.5 rounded-xl bg-sky-50/80 border border-sky-200/70 text-xs text-sky-900 flex items-center justify-between gap-3">
+                        <span>Text adapted from Wikipedia under Creative Commons Attribution-ShareAlike 4.0 (CC BY-SA 4.0).</span>
+                        {activeSourceUrl && activeSourceUrl !== '#' && (
+                          <a
+                            href={activeSourceUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="font-bold underline flex items-center gap-1 shrink-0"
+                          >
+                            <span>Wikipedia Article</span>
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        )}
+                      </div>
+                    )}
+
+                    {/* React Markdown Renderer */}
+                    <div className="prose prose-slate max-w-none prose-headings:font-heading prose-headings:font-bold prose-h1:text-2xl prose-h2:text-xl prose-h2:text-emerald-950 prose-h2:border-b prose-h2:border-slate-200 prose-h2:pb-2 prose-h2:mt-8 prose-h3:text-base prose-p:text-slate-700 prose-p:leading-relaxed prose-li:text-slate-700 prose-code:font-mono prose-code:text-emerald-800 prose-code:bg-emerald-50 prose-code:px-1.5 prose-code:py-0.5 prose-code:rounded">
+                      <ReactMarkdown
+                        remarkPlugins={[remarkGfm]}
+                        components={{
+                          h2({ node, children, ...props }) {
+                            // Match topic key if children matches topic title
+                            const text = String(children);
+                            const matchedTopic = activeTopicList.find((t) =>
+                              text.toLowerCase().includes(t.title.toLowerCase())
+                            );
+                            const anchorId = matchedTopic ? `chapter-${matchedTopic.key}` : undefined;
+                            return (
+                              <h2 id={anchorId} className="scroll-mt-6" {...props}>
+                                {children}
+                              </h2>
+                            );
+                          },
+                          code({ node, className, children, ...props }) {
+                            const codeString = String(children).replace(/\n$/, '');
+                            const isBlock = /language-/.test(className || '') || codeString.includes('\n');
+                            if (isBlock) {
+                              const lang = (className || '').replace('language-', '') || 'code';
+                              return (
+                                <div className="my-4 rounded-2xl bg-slate-900 border border-slate-800 overflow-hidden shadow-md not-prose">
+                                  <div className="px-4 py-2 bg-slate-950/80 border-b border-slate-800 flex items-center justify-between text-xs text-slate-400 font-mono">
+                                    <span className="uppercase text-[10px] font-bold text-emerald-400">{lang}</span>
+                                    <button
+                                      onClick={() => handleCopyCode(codeString)}
+                                      className="flex items-center gap-1 text-[11px] text-slate-300 hover:text-white transition-colors cursor-pointer"
+                                    >
+                                      {copiedCodeText === codeString ? (
+                                        <>
+                                          <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                          <span className="text-emerald-400 font-semibold">Copied</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <Copy className="w-3.5 h-3.5" />
+                                          <span>Copy</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                  <pre className="p-4 text-xs font-mono text-emerald-300 overflow-x-auto leading-relaxed">
+                                    <code>{codeString}</code>
+                                  </pre>
+                                </div>
+                              );
+                            }
+                            return (
+                              <code className={className} {...props}>
+                                {children}
+                              </code>
+                            );
+                          },
+                          blockquote({ node, children, ...props }) {
+                            return (
+                              <blockquote
+                                className="my-3 p-4 rounded-xl bg-emerald-50/70 border-l-4 border-emerald-500 text-xs md:text-sm text-emerald-950 not-italic font-medium"
+                                {...props}
+                              >
+                                {children}
+                              </blockquote>
+                            );
+                          },
+                        }}
+                      >
+                        {displayMarkdown}
+                      </ReactMarkdown>
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
+              </div>
             </div>
 
-            {/* Bottom Footer Actions */}
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between shrink-0">
+            {/* Modal Bottom Footer */}
+            <div className="px-5 py-3.5 bg-slate-50 border-t border-slate-200/80 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <span className="text-xs font-semibold text-slate-500">
                   Language: <strong>{LANGUAGES.find((l) => l.code === selectedLanguage)?.label}</strong>
@@ -589,14 +725,13 @@ ${rawTakeaway}
                 {readerView === 'summary' && (
                   <button
                     onClick={() => setReaderView('full')}
-                    className="text-xs font-bold text-sky-700 hover:text-sky-800 underline cursor-pointer"
+                    className="text-xs font-bold text-emerald-700 hover:text-emerald-800 underline cursor-pointer"
                   >
-                    Switch to Full Extracted Document ➔
+                    {uiLabels.readWholeGuide || 'Read the whole guide'} ➔
                   </button>
                 )}
               </div>
 
-              {/* "Return to Studio" Button connected strictly to onClose() */}
               <button
                 onClick={onClose}
                 className="px-5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
