@@ -1175,23 +1175,30 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                             <div
                               key={doc.id}
                               onClick={() => {
+                                const stepAny = viewingStepObj as any;
+                                const docAny = doc as any;
+                                const quadrants = stepAny?.documentation_quadrants || docAny.quadrants || {};
+                                const markdown = stepAny?.documentation_markdown || docAny.markdown || '';
+                                const docSourceUrl = stepAny?.documentation_source_url || doc.url || '#';
+                                const q1Text = quadrants.q1?.content || quadrants.corePrinciple || doc.subtitle || '';
+                                const q2List = Array.isArray(quadrants.q2?.bullets) ? quadrants.q2.bullets : (Array.isArray(quadrants.mechanics) ? quadrants.mechanics : []);
+                                const q3List = Array.isArray(quadrants.q3?.bullets) ? quadrants.q3.bullets : (Array.isArray(quadrants.commonTraps) ? quadrants.commonTraps : []);
+                                const q4Text = quadrants.q4?.summary || quadrants.takeaway || doc.subtitle || '';
+
                                 setActiveReaderModal({
                                   isOpen: true,
                                   title: doc.title,
-                                  sourceUrl: doc.url,
-                                  sourceBadge: 'Documentation',
-                                  takeaway: doc.subtitle,
-                                  corePrinciple: doc.subtitle,
-                                  mechanics: [
-                                    '1. Establish initial conditions and prerequisite parameters.',
-                                    '2. Trace step-by-step implementation in canonical order.',
-                                    '3. Cross-reference edge cases and test assertions.',
-                                  ],
-                                  commonTraps: [
-                                    'Overlooking pre-condition assertions.',
-                                    'Conflating nominal syntax with edge-case behavior.',
-                                  ],
-                                });
+                                  sourceUrl: docSourceUrl,
+                                  sourceBadge: 'Verified Documentation',
+                                  takeaway: q4Text,
+                                  corePrinciple: q1Text,
+                                  mechanics: q2List,
+                                  commonTraps: q3List,
+                                  fullContentMarkdown: markdown,
+                                  documentationQuadrants: quadrants,
+                                  documentationMarkdown: markdown,
+                                  documentationSourceUrl: docSourceUrl,
+                                } as any);
                               }}
                               className="bg-white/95 rounded-2xl p-5 border border-slate-200/90 shadow-2xs hover:border-sky-300 hover:shadow-md transition-all duration-200 flex flex-col justify-between cursor-pointer group hover:scale-[1.01]"
                             >
@@ -1442,6 +1449,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         corePrinciple={activeReaderModal.corePrinciple}
         mechanics={activeReaderModal.mechanics}
         commonTraps={activeReaderModal.commonTraps}
+        fullContentMarkdown={(activeReaderModal as any).fullContentMarkdown}
+        documentationQuadrants={(activeReaderModal as any).documentationQuadrants}
+        documentationMarkdown={(activeReaderModal as any).documentationMarkdown}
+        documentationSourceUrl={(activeReaderModal as any).documentationSourceUrl}
       />
 
       <AIEngineSelectorModal

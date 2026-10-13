@@ -32,6 +32,9 @@ export interface InAppContentReaderModalProps {
   commonTraps?: string[];
   takeaway?: string;
   fullContentMarkdown?: string;
+  documentationQuadrants?: any;
+  documentationMarkdown?: string;
+  documentationSourceUrl?: string;
   contentId?: string;
   defaultLanguage?: SupportedLanguage;
 }
@@ -60,6 +63,9 @@ export const InAppContentReaderModal: React.FC<InAppContentReaderModalProps> = (
   commonTraps,
   takeaway,
   fullContentMarkdown,
+  documentationQuadrants,
+  documentationMarkdown,
+  documentationSourceUrl,
   contentId,
   defaultLanguage = 'en',
 }) => {
@@ -79,55 +85,64 @@ export const InAppContentReaderModal: React.FC<InAppContentReaderModalProps> = (
 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
 
-  // Pedagogical document grounding
+  // Pedagogical document grounding directly from API extraction
+  const qObj = (documentationQuadrants && typeof documentationQuadrants === 'object') ? documentationQuadrants : {};
+  const activeSourceUrl = documentationSourceUrl || sourceUrl || qObj.q4?.source || '#';
+
   const rawPrinciple =
+    qObj.q1?.content ||
+    qObj.corePrinciple ||
     corePrinciple ||
     takeaway ||
     `Mastering ${title} requires an in-depth understanding of its core mechanics, structural foundation, and operational execution.`;
-  const rawMechanics =
-    mechanics && mechanics.length > 0
+
+  const rawMechanics: string[] =
+    (Array.isArray(qObj.q2?.bullets) && qObj.q2.bullets.length > 0)
+      ? qObj.q2.bullets
+      : (Array.isArray(qObj.mechanics) && qObj.mechanics.length > 0)
+      ? qObj.mechanics
+      : (mechanics && mechanics.length > 0)
       ? mechanics
-      : [
-          'Verify foundational conditions and calibrate initial technique parameters.',
-          'Execute the primary movement or syntactical sequence with controlled rhythm.',
-          'Measure performance metrics against verified benchmark criteria.',
-        ];
-  const rawTraps =
-    commonTraps && commonTraps.length > 0
+      : [];
+
+  const rawTraps: string[] =
+    (Array.isArray(qObj.q3?.bullets) && qObj.q3.bullets.length > 0)
+      ? qObj.q3.bullets
+      : (Array.isArray(qObj.commonTraps) && qObj.commonTraps.length > 0)
+      ? qObj.commonTraps
+      : (commonTraps && commonTraps.length > 0)
       ? commonTraps
-      : [
-          'Premature acceleration before establishing stable mechanics.',
-          'Ignoring diagnostic checkpoints and feedback indicators.',
-          'Failing to isolate and correct minor form or execution errors early.',
-        ];
+      : [];
+
+  const rawTakeaway =
+    qObj.q4?.summary ||
+    qObj.takeaway ||
+    takeaway ||
+    rawPrinciple;
 
   // Dynamic pedagogical documentation matching the 4 sections
   const rawMarkdown =
+    documentationMarkdown ||
     fullContentMarkdown ||
     `# ${title}
 
-## 1. Core Mechanics & Theoretical Foundation
+## 1. Technical Principles & Foundations
 ${rawPrinciple}
 
-Structured deliberate practice requires solidifying the biomechanical or conceptual baseline before progressing to high-intensity or edge-case execution.
+---
+
+## 2. Step-by-Step Biomechanical / Practical Execution
+${rawMechanics.map((m, i) => `${i + 1}. **Phase ${i + 1}**: ${m}`).join('\n\n')}
 
 ---
 
-## 2. Step-by-Step Technical Execution
-${rawMechanics.map((m, i) => `${i + 1}. **Phase ${i + 1}**: ${m}`).join('\n')}
+## 3. High-Impact Traps, Common Errors & Form Checkpoints
+${rawTraps.map((t, i) => `* **Diagnostic Checkpoint ${i + 1}**: ${t}`).join('\n\n')}
 
 ---
 
-## 3. Common Errors, Diagnostic Checkpoints & Traps
-${rawTraps.map((t, i) => `* **Diagnostic Checkpoint ${i + 1}**: ${t}`).join('\n')}
-
----
-
-## 4. Benchmark Verification Protocols
-${takeaway || rawPrinciple}
-
-* **Self-Audit**: Verify consistency across multiple repetitions under steady conditions.
-* **Milestone Readiness**: Achieve 70%+ on the end-of-step Socratic evaluation gate.
+## 4. Benchmark Verification Protocols & Drills
+${rawTakeaway}
 `;
 
   useEffect(() => {
@@ -429,9 +444,9 @@ ${takeaway || rawPrinciple}
                 </div>
 
                 {/* Original Source Button */}
-                {sourceUrl && sourceUrl !== '#' && (
+                {activeSourceUrl && activeSourceUrl !== '#' && (
                   <button
-                    onClick={() => window.open(sourceUrl, '_blank', 'noopener,noreferrer')}
+                    onClick={() => window.open(activeSourceUrl, '_blank', 'noopener,noreferrer')}
                     className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 hover:border-slate-300 text-xs font-semibold text-slate-600 hover:text-slate-900 transition-colors cursor-pointer bg-white"
                     title="Open external documentation source"
                   >
