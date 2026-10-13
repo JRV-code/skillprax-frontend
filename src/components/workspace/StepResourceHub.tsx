@@ -369,7 +369,7 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
                   Section 4: Step Milestone Evaluation Gate
                 </h4>
                 <p className="text-xs text-emerald-800">
-                  Passing threshold is 75%. Conceptually verify theoretical mechanics and kinetic principles.
+                  Passing threshold is 70%. Conceptually verify theoretical mechanics and kinetic principles.
                 </p>
               </div>
             </div>

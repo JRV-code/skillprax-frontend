@@ -7,12 +7,15 @@ import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
 import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
-import { InAppContentReaderModal } from '@/components/InAppContentReaderModal';
+import { StepProgressRibbon, RibbonStep } from '@/components/learning/StepProgressRibbon';
+import { StepApproachBrief } from '@/components/learning/StepApproachBrief';
+import { ChapterList } from '@/components/learning/ChapterList';
+import { ChapterItem, ChapterResource } from '@/components/learning/ChapterCard';
+import { ResourceGuideDrawer } from '@/components/learning/ResourceGuideDrawer';
+import { warmUpYouTube } from '@/lib/learning/youtube';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
-import { StepApproachBrief, ApproachBrief } from '@/components/workspace/StepApproachBrief';
-import { StudyBook, TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
-import { warmUpYouTube } from '@/components/InAppYouTubePlayerModal';
+import { TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
 import {
   Activity,
   GitBranch,
@@ -261,33 +264,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     embeddable: true,
   });
 
-  const [activeReaderModal, setActiveReaderModal] = useState<{
+  const [videoDrawerState, setVideoDrawerState] = useState<{
     isOpen: boolean;
-    title: string;
-    documentId?: string;
-    sourceUrl: string;
-    sourceBadge: string;
-    sourceType?: string;
-    takeaway: string;
-    corePrinciple: string;
-    mechanics: string[];
-    commonTraps: string[];
-    fullContentMarkdown?: string;
-    documentationQuadrants?: any;
-    documentationMarkdown?: string;
-    documentationSourceUrl?: string;
-    focusNote?: string;
-    initialTopicKey?: string;
-    topicMap?: TopicItem[];
+    chapter: ChapterItem | null;
+    resource: ChapterResource | null;
   }>({
     isOpen: false,
-    title: '',
-    sourceUrl: '',
-    sourceBadge: 'Documentation',
-    takeaway: '',
-    corePrinciple: '',
-    mechanics: [],
-    commonTraps: [],
+    chapter: null,
+    resource: null,
   });
 
   // Step Guide and Study Book State Map (Keyed strictly by Step ID)
@@ -295,10 +279,11 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     stepId: string;
     difficultyTier?: string;
     approachViewedAt?: string | null;
+    chapters?: ChapterItem[];
     resources: any[];
     document?: any;
     topicMap: TopicItem[];
-    approachBrief: ApproachBrief | null;
+    approachBrief: any | null;
   }
   const [stepGuides, setStepGuides] = useState<Record<string, StepGuideState>>({});
   const [isGeneratingApproach, setIsGeneratingApproach] = useState<boolean>(false);
@@ -398,8 +383,9 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           ...prev,
           [stepId]: {
             stepId: data.stepId || stepId,
-            difficultyTier: data.difficultyTier,
+            difficultyTier: data.step?.tier || data.difficultyTier,
             approachViewedAt: data.approachViewedAt,
+            chapters: Array.isArray(data.chapters) ? data.chapters : [],
             resources: Array.isArray(data.resources) ? data.resources : [],
             document: data.document,
             topicMap: Array.isArray(data.topicMap) ? data.topicMap : [],
@@ -560,6 +546,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
             stepId: viewingStepId,
             difficultyTier: data.tier || data.step?.difficultyTier,
             approachViewedAt: data.step?.approachViewedAt,
+            chapters: Array.isArray(data.chapters) ? data.chapters : [],
             resources: Array.isArray(data.resources) ? data.resources : [],
             document: data.document,
             topicMap: Array.isArray(data.topicMap) ? data.topicMap : [],
@@ -631,6 +618,17 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }
   };
 
+  const handleRetryChapter = async (chapterId: string) => {
+    try {
+      const res = await fetch(`/api/chapters/${chapterId}/retry`, { method: 'POST' });
+      if (res.ok) {
+        await fetchStepGuide(viewingStepId);
+      }
+    } catch (err) {
+      console.warn('Failed to retry chapter:', err);
+    }
+  };
+
   // Current step's scoped guide and resources (zero leakage across steps)
   const currentGuide = stepGuides[viewingStepId];
   const currentTopicMap: TopicItem[] = currentGuide?.topicMap || [];
@@ -679,27 +677,53 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }));
   }, [studyBookResources]);
 
-  const handleOpenReader = (chapterTopicKey?: string, viewMode?: 'summary' | 'full') => {
-    const doc = currentGuide?.document;
-    setActiveReaderModal({
-      isOpen: true,
-      title: viewingStepTitle,
-      documentId: doc?.id,
-      sourceUrl: doc?.sourceUrl || '#',
-      sourceBadge: doc?.sourceType === 'WIKIPEDIA' ? 'Wikipedia Pedagogy' : 'Verified Pedagogy',
-      sourceType: doc?.sourceType || 'TAVILY',
-      corePrinciple: doc?.quadrants?.principle || undefined,
-      mechanics: Array.isArray(doc?.quadrants?.mechanics) ? doc.quadrants.mechanics : undefined,
-      commonTraps: Array.isArray(doc?.quadrants?.traps) ? doc.quadrants.traps : undefined,
-      takeaway: doc?.quadrants?.principle || undefined,
-      fullContentMarkdown: doc?.markdown || '',
-      documentationQuadrants: doc?.quadrants || {},
-      documentationMarkdown: doc?.markdown || '',
-      documentationSourceUrl: doc?.sourceUrl || '#',
-      initialTopicKey: chapterTopicKey,
-      topicMap: currentTopicMap,
+  const ribbonSteps: RibbonStep[] = useMemo(() => {
+    return dbSteps.map((s: any, idx: number) => {
+      const sNum = s.stepIndex || idx + 1;
+      const isCompleted = s.status === 'PASSED' || sNum < activeStepIndex;
+      const isCurrent = sNum === viewingStepIndex;
+      const isLocked = s.status === 'LOCKED' && sNum > activeStepIndex;
+      return {
+        stepIndex: sNum,
+        title: s.title || `Milestone ${sNum}`,
+        difficultyTier: s.difficultyTier || 'FOUNDATIONS',
+        status: isCompleted ? 'COMPLETED' : isLocked ? 'LOCKED' : 'ACTIVE',
+        newConcepts: Array.isArray(s.newConcepts) ? s.newConcepts : [],
+        buildsOn: s.buildsOn || null,
+      };
     });
-  };
+  }, [dbSteps, activeStepIndex, viewingStepIndex]);
+
+  const currentChapters: ChapterItem[] = useMemo(() => {
+    if (currentGuide?.chapters && currentGuide.chapters.length > 0) {
+      return currentGuide.chapters;
+    }
+    if (studyBookResources.length > 0) {
+      return studyBookResources.map((r, idx) => ({
+        id: r.id || `ch-${idx + 1}`,
+        key: `c${idx + 1}`,
+        orderIndex: idx + 1,
+        title: r.title || `Topic ${idx + 1}`,
+        covers: r.focusNote || 'Core mechanical competencies and principles',
+        minutes: 10,
+        acuIds: [viewingStepTitle],
+        preferredType: r.type === 'video' ? 'VIDEO' : 'DOCUMENT',
+        status: r.linkStatus === 'VERIFIED' ? 'READY' : 'NO_VERIFIED_LINK',
+        resource: {
+          id: r.id,
+          type: r.type === 'video' ? 'VIDEO' : 'DOCUMENT',
+          title: r.title,
+          domain: r.channelName || (r.url && r.url !== '#' ? new URL(r.url).hostname : undefined),
+          snippet: r.snippet || undefined,
+          linkStatus: r.linkStatus || 'UNCHECKED',
+          embeddable: r.embeddable !== false,
+          videoId: r.videoId,
+          url: r.url,
+        },
+      }));
+    }
+    return [];
+  }, [currentGuide?.chapters, studyBookResources, viewingStepTitle]);
 
   const handleOpenPlayer = (videoId: string, title?: string, channel?: string, focusNote?: string) => {
     setActiveYouTubeModal({
@@ -1192,8 +1216,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   onOpenQuiz={() => setActiveTab('evaluation')}
                 />
               )}
+              {/* SECTION 1: MILESTONE PROGRESSION RIBBON */}
+              <StepProgressRibbon
+                steps={ribbonSteps}
+                currentStepIndex={viewingStepNum}
+                onSelectStep={(idx) => setViewingStepIndex(idx)}
+              />
+
               {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
-              {(!activeStepResources || activeStepResources.length === 0) && !isSynthesizing && (
+              {(!activeStepResources || activeStepResources.length === 0) && currentChapters.length === 0 && !isSynthesizing && (
                 <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-4">
                   <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200 shadow-sm">
                     <Sparkles className="w-7 h-7 text-emerald-600 animate-pulse" />
@@ -1232,10 +1263,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 </div>
               )}
 
-              {/* CURRICULUM STUDY BOOK & PRE-STUDY GAME PLAN (MODULE D & E) */}
-              {(studyBookResources.length > 0 || currentTopicMap.length > 0) && !isSynthesizing && (
+              {/* SECTION 2: CURRICULUM CHAPTERS & PRE-STUDY GAME PLAN */}
+              {(currentChapters.length > 0 || studyBookResources.length > 0) && !isSynthesizing && (
                 <div className="space-y-6">
-                  {/* MODULE E: THE PRE-STUDY GAME PLAN (FIRST CARD BEFORE ANY RESOURCE) */}
+                  {/* PRE-STUDY GAME PLAN (FIRST CARD BEFORE ANY RESOURCE) */}
                   <StepApproachBrief
                     stepId={viewingStepId}
                     stepTitle={viewingStepTitle}
@@ -1247,61 +1278,61 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     isGenerating={isGeneratingApproach}
                   />
 
-                  {/* MODULE D: THE BOOK — TOPIC MAP AND VERIFIED RESOURCE CARDS */}
-                  <StudyBook
-                    stepId={viewingStepId}
-                    stepTitle={viewingStepTitle}
-                    stepIndex={viewingStepNum}
-                    topicMap={currentTopicMap}
-                    resources={studyBookResources}
-                    hasGuideMarkdown={hasGuideMarkdown}
-                    onOpenReader={handleOpenReader}
-                    onOpenPlayer={handleOpenPlayer}
-                    onWarmUpYouTube={warmUpYouTube}
-                    onStartEvaluation={() => setActiveTab('evaluation')}
-                    onRetryTopic={handleRetryTopic}
+                  {/* CHAPTERS LIST (ONE RESOURCE PER CHAPTER, VERIFIED ONLY) */}
+                  <ChapterList
+                    chapters={currentChapters}
+                    onOpenVideo={(chapter, resource) => {
+                      setVideoDrawerState({
+                        isOpen: true,
+                        chapter,
+                        resource,
+                      });
+                    }}
                     onReplaceResource={handleReplaceResource}
+                    onRetryChapter={handleRetryChapter}
+                    currentLanguage="en"
+                    approachViewed={Boolean(currentApproachViewedAt)}
                   />
                 </div>
               )}
 
-                  {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}
-                  {isPhysical && physicalDrills.length > 0 && (
-                    <div className="space-y-4 pt-4 border-t border-slate-100">
-                      <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center gap-2">
-                          <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                            <Activity className="w-5 h-5"/>
-                          </span>
-                          <div>
-                            <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                              Step {viewingStepNum}: Practical Execution Drills
-                            </h3>
-                            <p className="text-xs text-slate-500">
-                              Execute these physical biomechanical drills to build muscle memory before attempting the milestone gate.
-                            </p>
-                          </div>
-                        </div>
-                        <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                          {physicalDrills.filter((d) => d.isCompleted).length} of {physicalDrills.length} Drills Completed
-                        </span>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                        {physicalDrills.map((drill, idx) => (
-                          <DrillCardWithTimer
-                            key={drill.id || idx}
-                            drillNumber={idx + 1}
-                            title={drill.title}
-                            durationMinutes={drill.durationMinutes}
-                            technicalFocusPoints={drill.technicalFocusPoints}
-                            isCompleted={drill.isCompleted}
-                            onDrillComplete={handlePhysicalDrillComplete}
-                          />
-                        ))}
+              {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}
+              {isPhysical && physicalDrills.length > 0 && (
+                <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
+                        <Activity className="w-5 h-5"/>
+                      </span>
+                      <div>
+                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">
+                          Step {viewingStepNum}: Practical Execution Drills
+                        </h3>
+                        <p className="text-xs text-slate-500">
+                          Execute these physical biomechanical drills to build muscle memory before attempting the milestone gate.
+                        </p>
                       </div>
                     </div>
-                  )}
+                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
+                      {physicalDrills.filter((d) => d.isCompleted).length} of {physicalDrills.length} Drills Completed
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+                    {physicalDrills.map((drill, idx) => (
+                      <DrillCardWithTimer
+                        key={drill.id || idx}
+                        drillNumber={idx + 1}
+                        title={drill.title}
+                        durationMinutes={drill.durationMinutes}
+                        technicalFocusPoints={drill.technicalFocusPoints}
+                        isCompleted={drill.isCompleted}
+                        onDrillComplete={handlePhysicalDrillComplete}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Ready for Quiz Prompt Banner */}
               <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -1314,7 +1345,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                       Materials Mastered? Take the Socratic Competency Check
                     </h4>
                     <p className="text-xs text-emerald-800">
-                      Passing threshold is 75%. Score 100% or take the perfection drill to earn Grandmaster XP.
+                      Passing threshold is 70%. Score 100% or take the perfection drill to earn Grandmaster XP.
                     </p>
                   </div>
                 </div>
@@ -1343,7 +1374,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 stepId={viewingStepId}
                 stepIndex={viewingStepNum}
                 stepTitle={viewingStepTitle}
-                acus={viewingStepAcus}
+                acus={viewingStepAcus.map((a) => a.title || a.id)}
                 onStepPassed={(score, passPayload) => {
                   handleStepPassed(score, passPayload);
                 }}
@@ -1453,7 +1484,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         )}
       </main>
 
-      {/* Standalone In-App Modals */}
+      {/* Slide-over Video Focus Drawer */}
+      <ResourceGuideDrawer
+        isOpen={videoDrawerState.isOpen}
+        onClose={() => setVideoDrawerState({ isOpen: false, chapter: null, resource: null })}
+        chapter={videoDrawerState.chapter}
+        resource={videoDrawerState.resource}
+        currentLanguage="en"
+      />
+
       <InAppYouTubePlayerModal
         isOpen={activeYouTubeModal.isOpen}
         onClose={() => setActiveYouTubeModal((prev) => ({ ...prev, isOpen: false }))}
@@ -1463,27 +1502,6 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         focusNote={activeYouTubeModal.focusNote}
         takeaway={activeYouTubeModal.takeaway}
         embeddable={activeYouTubeModal.embeddable !== false}
-      />
-
-      <InAppContentReaderModal
-        isOpen={activeReaderModal.isOpen}
-        onClose={() => setActiveReaderModal((prev) => ({ ...prev, isOpen: false }))}
-        title={activeReaderModal.title}
-        documentId={activeReaderModal.documentId}
-        sourceUrl={activeReaderModal.sourceUrl}
-        sourceBadge={activeReaderModal.sourceBadge}
-        sourceType={activeReaderModal.sourceType}
-        takeaway={activeReaderModal.takeaway}
-        corePrinciple={activeReaderModal.corePrinciple}
-        mechanics={activeReaderModal.mechanics}
-        commonTraps={activeReaderModal.commonTraps}
-        fullContentMarkdown={activeReaderModal.fullContentMarkdown}
-        documentationQuadrants={activeReaderModal.documentationQuadrants}
-        documentationMarkdown={activeReaderModal.documentationMarkdown}
-        documentationSourceUrl={activeReaderModal.documentationSourceUrl}
-        focusNote={activeReaderModal.focusNote}
-        initialTopicKey={activeReaderModal.initialTopicKey}
-        topicMap={activeReaderModal.topicMap}
       />
 
       <AIEngineSelectorModal

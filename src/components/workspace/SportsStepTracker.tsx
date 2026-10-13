@@ -534,7 +534,7 @@ export const SportsStepTracker: React.FC<SportsStepTrackerProps> = ({
               <div>
                 <div className="text-xs font-bold text-slate-900">Gate 2: Socratic Quiz Mastery</div>
                 <div className="text-[11px] text-slate-500 mt-0.5">
-                  {quizPassed ? `Passed with score of ${quizScore || 80}% (≥ 75% required)` : 'Strict 75% score required to validate biomechanics.'}
+                  {quizPassed ? `Passed with score of ${quizScore || 80}% (≥ 70% required)` : 'Strict 70% score required to validate biomechanics.'}
                 </div>
               </div>
             </div>

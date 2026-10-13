@@ -336,7 +336,7 @@ export const StepApproachBrief: React.FC<StepApproachBriefProps> = ({
                 <span>
                   Mastery Target: Score{' '}
                   <strong className="text-emerald-700 font-bold">
-                    {approachBrief.masteryTarget?.passPercent || 75}% or higher
+                    {approachBrief.masteryTarget?.passPercent || 70}% or higher
                   </strong>{' '}
                   on Socratic Evaluation to unlock next milestone.
                 </span>

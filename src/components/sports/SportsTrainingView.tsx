@@ -284,8 +284,8 @@ export function SportsTrainingView() {
         : [],
       correctOptionIndex: typeof q.correctOptionIndex === 'number'
         ? q.correctOptionIndex
-        : (q.correctOptionId ? ['A', 'B', 'C', 'D'].indexOf(String(q.correctOptionId).toUpperCase()) : 0),
-      correctOptionId: q.correctOptionId || 'A',
+        : (q.correctOptionId ? ['A', 'B', 'C', 'D'].indexOf(String(q.correctOptionId).toUpperCase()) : -1),
+      correctOptionId: q.correctOptionId || '',
       explanation: q.explanation || 'Validated biomechanical and athletic comprehension.',
     }));
   }, [activeStep]);

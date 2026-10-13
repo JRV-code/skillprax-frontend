@@ -162,7 +162,7 @@ export function SocraticQuizModal({
                     Question <strong className="text-slate-900">{currentQuestionIndex + 1}</strong> of {totalQ}
                   </span>
                   <span className="font-mono text-sky-700 font-bold bg-sky-50 px-2 py-0.5 rounded-md border border-sky-200/60">
-                    75% Mastery Required
+                    70% Mastery Required
                   </span>
                 </div>
 
@@ -287,7 +287,7 @@ export function SocraticQuizModal({
                     <p className="text-xs text-slate-600 mt-0.5">
                       {evaluationResult.passed
                         ? 'Demonstrated authentic comprehension of all step documentation mechanics.'
-                        : 'Score strictly below 75% threshold. Review step documentation and retry.'}
+                        : 'Score strictly below 70% threshold. Review step documentation and retry.'}
                     </p>
                   </div>
                 </div>
