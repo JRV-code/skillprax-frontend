@@ -45,18 +45,26 @@ export default function WorkspacePage() {
     else router.push('/profile');
   };
 
-  const handlePassEvaluation = () => {
-    if (!dbWorkspace) return;
-    setDbWorkspace((prev: any) => {
-      if (!prev) return prev;
-      const updatedSteps = (prev.steps || []).map((s: any) => {
-        if (s.status === 'IN_PROGRESS' || s.status === 'STUDY_READY' || s.status === 'EVAL_ACTIVE') {
-          return { ...s, status: 'PASSED' };
-        }
-        return s;
+  const handlePassEvaluation = async () => {
+    if (!workspaceId) return;
+    try {
+      const res = await fetch(`/api/workspaces/${workspaceId}`);
+      if (res.ok) {
+        const data = await res.json();
+        setDbWorkspace(data.workspace || data);
+      }
+    } catch (_) {
+      setDbWorkspace((prev: any) => {
+        if (!prev) return prev;
+        const updatedSteps = (prev.steps || []).map((s: any) => {
+          if (s.status === 'IN_PROGRESS' || s.status === 'STUDY_READY' || s.status === 'EVAL_ACTIVE') {
+            return { ...s, status: 'PASSED' };
+          }
+          return s;
+        });
+        return { ...prev, steps: updatedSteps };
       });
-      return { ...prev, steps: updatedSteps };
-    });
+    }
   };
 
   if (loading) {

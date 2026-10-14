@@ -156,7 +156,7 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
         const res = await fetch('/api/skills/suggest-subgenres', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ skill: trimmed }),
+          body: JSON.stringify({ skill: trimmed, domain: selectedDomainId }),
           signal: controller.signal,
         });
         if (!res.ok) throw new Error('Could not load suggestions');
@@ -176,27 +176,31 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [customTitle]);
+  }, [customTitle, selectedDomainId]);
 
-  // Strict Validation Check
+  // Strict Validation Check (1.1: domain chosen, skill >= 3, sub-genre >= 3, level chosen, time 15m-16h, experience chosen)
   const validationStatus = useMemo(() => {
-    if (!customTitle.trim()) {
-      return { valid: false, field: 'Selected Skill Name' };
+    if (!selectedDomainId) {
+      return { valid: false, field: 'Core Domain', message: 'Please select a core learning domain.' };
     }
-    if (!subGenre.trim()) {
-      return { valid: false, field: 'Target Sub-Genre' };
+    if (!customTitle.trim() || customTitle.trim().length < 3) {
+      return { valid: false, field: 'Skill Name', message: 'Skill name must be at least 3 characters.' };
+    }
+    if (!subGenre.trim() || subGenre.trim().length < 3) {
+      return { valid: false, field: 'Target Sub-Genre', message: 'Sub-genre must be at least 3 characters.' };
     }
     if (!masteryLevel) {
-      return { valid: false, field: 'Desired Mastery Level' };
+      return { valid: false, field: 'Desired Mastery Level', message: 'Please choose a desired mastery level.' };
     }
-    if (dailyHours === 0 && dailyMinutes === 0) {
-      return { valid: false, field: 'Daily Commitment Time' };
+    const totalMins = dailyHours * 60 + dailyMinutes;
+    if (totalMins < 15 || totalMins > 960) {
+      return { valid: false, field: 'Daily Commitment Time', message: 'Daily learning time must be between 15 minutes and 16 hours.' };
     }
     if (!experienceLevel) {
-      return { valid: false, field: 'Current Experience Level' };
+      return { valid: false, field: 'Current Experience Level', message: 'Please select your current experience level.' };
     }
-    return { valid: true, field: null };
-  }, [customTitle, subGenre, masteryLevel, dailyHours, dailyMinutes, experienceLevel]);
+    return { valid: true, field: null, message: null };
+  }, [selectedDomainId, customTitle, subGenre, masteryLevel, dailyHours, dailyMinutes, experienceLevel]);
 
   if (!isOpen) return null;
 
@@ -207,7 +211,7 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
     setValidationError(null);
 
     if (!validationStatus.valid) {
-      setValidationError(`Please define your ${validationStatus.field} to construct your personalized curriculum.`);
+      setValidationError(validationStatus.message || 'Please complete all fields.');
       return;
     }
 
@@ -215,25 +219,33 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
 
     try {
       const activeProfileId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
+      const totalDailyMinutes = dailyHours * 60 + dailyMinutes;
 
+      // Submit sends ALL six values
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           profileId: activeProfileId,
           title: customTitle.trim(),
+          skill: customTitle.trim(),
           domain: selectedDomainId,
           subGenre: subGenre.trim(),
           desiredMastery: masteryLevel,
+          desiredLevel: masteryLevel,
           targetGoal: `${masteryLevel} in ${subGenre.trim()}`,
           dailyHours: `${dailyHours}h ${dailyMinutes}m`,
+          dailyMinutes: totalDailyMinutes,
           experienceLevel,
+          currentExperience: experienceLevel,
           level: masteryLevel.toLowerCase(),
+          section: selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics' ? 'SPORTS' : 'SKILLS',
         }),
       });
 
       if (!res.ok) {
-        throw new Error('Skill roadmap generation failed. Check server connection.');
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'Skill roadmap generation failed. Check server connection.');
       }
 
       const data = await res.json();
@@ -244,12 +256,7 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
       }
 
       onClose();
-
-      if (selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics') {
-        router.push(`/workspace/${workspaceId}`);
-      } else {
-        router.push(`/workspace/${workspaceId}`);
-      }
+      router.push(`/workspace/${workspaceId}`);
     } catch (err: any) {
       console.error(err);
       setValidationError(err.message || 'Roadmap generation failed. Please try again.');

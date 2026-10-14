@@ -6,12 +6,10 @@ import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
 import { QuizAndEvaluationEngine } from '@/components/QuizAndEvaluationEngine';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
-import { InAppYouTubePlayerModal } from '@/components/InAppYouTubePlayerModal';
 import { StepProgressRibbon, RibbonStep } from '@/components/learning/StepProgressRibbon';
 import { StepApproachBrief } from '@/components/learning/StepApproachBrief';
 import { ChapterList } from '@/components/learning/ChapterList';
 import { ChapterItem, ChapterResource } from '@/components/learning/ChapterCard';
-import { ResourceGuideDrawer } from '@/components/learning/ResourceGuideDrawer';
 import { warmUpYouTube } from '@/lib/learning/youtube';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
@@ -21,7 +19,13 @@ import { InAppLectureTheater } from '@/components/workspace/InAppLectureTheater'
 import { TopicDocumentationSection, TopicItem as DocTopicItem } from '@/components/workspace/TopicDocumentationSection';
 import { ExternalTopicWebLinks, TopicDoc, isVideoUrl } from '@/components/workspace/ExternalTopicWebLinks';
 import { StepFlowchartStepper, StepNode } from '@/components/workspace/StepFlowchartStepper';
-import { StepResourceHub } from '@/components/workspace/StepResourceHub';
+import { PersistentPlayerHost } from '@/components/learning/video/PersistentPlayerHost';
+import { usePackStatus } from '@/hooks/learning/usePackStatus';
+import { useEngagement } from '@/hooks/learning/useEngagement';
+import { StartStepCard } from '@/components/learning/StartStepCard';
+import { PackBuildingScreen } from '@/components/learning/PackBuildingScreen';
+import { StepIntroCard } from '@/components/learning/StepIntroCard';
+import { ChapterAccordion } from '@/components/learning/ChapterAccordion';
 import {
   Activity,
   GitBranch,
@@ -293,6 +297,64 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   }
   const [stepGuides, setStepGuides] = useState<Record<string, StepGuideState>>({});
   const [isGeneratingApproach, setIsGeneratingApproach] = useState<boolean>(false);
+
+  // V4 Pack Pipeline Hooks & State
+  const {
+    locked: packLocked,
+    packStatus,
+    packStage,
+    packError,
+    retry: retryPackBuild,
+  } = usePackStatus(viewingStepId);
+
+  const [packData, setPackData] = useState<any | null>(null);
+  const [isBuildingPack, setIsBuildingPack] = useState(false);
+
+  const fetchPack = useCallback(async (stepId: string) => {
+    if (!stepId) return;
+    try {
+      const res = await fetch(`/api/steps/${stepId}/pack`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.locked) {
+          setPackData(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch pack:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (packStatus === 'READY' && viewingStepId) {
+      fetchPack(viewingStepId);
+    } else if (packStatus !== 'READY') {
+      setPackData(null);
+    }
+  }, [packStatus, viewingStepId, fetchPack]);
+
+  // Silent prefetch trigger after 20s of active reading or resource access
+  useEngagement(viewingStepId, !packLocked, packStatus === 'READY');
+
+  const handleSearchResources = async () => {
+    if (!viewingStepId) return;
+    setIsBuildingPack(true);
+    try {
+      await fetch(`/api/steps/${viewingStepId}/level-up-resources`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          stepIndex: viewingStepNum,
+          title: viewingStepTitle,
+          workspaceTitle: currentTrack.title,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to trigger pack build:', err);
+    } finally {
+      setIsBuildingPack(false);
+    }
+  };
 
   const handleNodeClick = (node: FlowchartNode) => {
     if (node.status === 'locked') {
@@ -1419,50 +1481,70 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 onSelectStep={(stepNum) => setViewingStepIndex(stepNum)}
               />
 
-              {/* UNIFIED ON-DEMAND STEP RESOURCE HUB */}
-              <StepResourceHub
-                currentStep={viewingStepNum}
-                stepTitle={viewingStepTitle}
-                skillId={currentTrack.id}
-                isPhysical={isPhysical}
-                step={viewingStepObj}
-                stepDrills={physicalDrills.map((d, i) => ({
-                  drillNumber: d.drillNumber || i + 1,
-                  title: d.title,
-                  durationMinutes: d.durationMinutes || 10,
-                  technicalFocusPoints: d.technicalFocusPoints || [],
-                  isCompleted: d.isCompleted,
-                }))}
-                onDrillComplete={(drillTitle) => {
-                  handlePhysicalDrillComplete(drillTitle);
-                }}
-                onStartQuiz={() => {
-                  setActiveTab('evaluation');
-                }}
-                onStepLoaded={(sourced) => {
-                  if (viewingStepObj) {
-                    const vId = sourced.videoId || sourced.video_id;
-                    const vTitle = sourced.videoTitle || sourced.video_title;
-                    const vUrl = sourced.videoUrl || sourced.video_url;
-                    viewingStepObj.videoId = vId;
-                    viewingStepObj.video_id = vId;
-                    viewingStepObj.videoUrl = vUrl;
-                    viewingStepObj.video_url = vUrl;
-                    viewingStepObj.videoTitle = vTitle;
-                    viewingStepObj.video_title = vTitle;
-                    viewingStepObj.videoMiniGuide = sourced.videoMiniGuide || sourced.video_mini_guide;
-                    viewingStepObj.docTitle = sourced.docTitle || sourced.doc_title;
-                    viewingStepObj.docUrl = sourced.docUrl || sourced.doc_url;
-                    viewingStepObj.docDomain = sourced.docDomain || sourced.doc_domain;
-                    viewingStepObj.docMiniGuide = sourced.docMiniGuide || sourced.doc_mini_guide;
-                    viewingStepObj.stepExplanation = sourced.stepExplanation || sourced.step_explanation;
-                    viewingStepObj.topics = sourced.topics;
-                    viewingStepObj.is_sourced = true;
-                    viewingStepObj.isSourced = true;
-                  }
-                  setSourcedStepNumbers((prev) => ({ ...prev, [viewingStepNum]: true }));
-                }}
-              />
+              {/* V4 LEARNING PACK PIPELINE */}
+              {packLocked ? (
+                <div className="p-10 rounded-3xl bg-white border border-slate-200 shadow-sm text-center space-y-4">
+                  <div className="w-12 h-12 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-400 mx-auto">
+                    <Lock className="w-6 h-6" />
+                  </div>
+                  <h3 className="text-base font-heading font-bold text-slate-900">
+                    Milestone {viewingStepNum} is Locked
+                  </h3>
+                  <p className="text-xs text-slate-500 max-w-md mx-auto">
+                    Pass the previous milestone Socratic Gate at 70% threshold to unlock this milestone's study materials.
+                  </p>
+                </div>
+              ) : packStatus === 'BUILDING' ? (
+                <PackBuildingScreen
+                  packStage={packStage}
+                  packError={packError}
+                  onRetry={retryPackBuild}
+                />
+              ) : packStatus === 'READY' && packData ? (
+                <div className="space-y-6">
+                  <StepIntroCard
+                    stepTitle={packData.title || viewingStepTitle}
+                    intro={packData.intro}
+                    isSports={isPhysical}
+                  />
+
+                  <ChapterAccordion
+                    chapters={packData.chapters || []}
+                    stepId={viewingStepId}
+                    onResourceReplaced={() => {
+                      fetchPack(viewingStepId);
+                    }}
+                  />
+
+                  {/* Proceed to Socratic Gate Action Bar */}
+                  <div className="p-6 bg-white/95 rounded-3xl border border-emerald-200/90 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+                    <div>
+                      <h4 className="text-sm font-heading font-bold text-slate-900">
+                        Ready to verify your understanding?
+                      </h4>
+                      <p className="text-xs text-slate-500">
+                        Pass the Socratic Evaluation Gate (70% threshold) to complete Milestone {viewingStepNum}.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setActiveTab('evaluation')}
+                      className="px-6 py-3 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                    >
+                      <Zap className="w-4 h-4 text-amber-300" />
+                      <span>Take Socratic Gate (70%)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <StartStepCard
+                  stepTitle={viewingStepTitle}
+                  stepIndex={viewingStepNum}
+                  difficultyTier={viewingStepObj?.difficultyTier}
+                  onSearchResources={handleSearchResources}
+                  loading={isBuildingPack}
+                />
+              )}
             </motion.div>
           )}
 
@@ -1589,25 +1671,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         )}
       </main>
 
-      {/* Slide-over Video Focus Drawer */}
-      <ResourceGuideDrawer
-        isOpen={videoDrawerState.isOpen}
-        onClose={() => setVideoDrawerState({ isOpen: false, chapter: null, resource: null })}
-        chapter={videoDrawerState.chapter}
-        resource={videoDrawerState.resource}
-        currentLanguage="en"
-      />
-
-      <InAppYouTubePlayerModal
-        isOpen={activeYouTubeModal.isOpen}
-        onClose={() => setActiveYouTubeModal((prev) => ({ ...prev, isOpen: false }))}
-        videoId={activeYouTubeModal.videoId}
-        videoTitle={activeYouTubeModal.title}
-        channelOrAuthor={activeYouTubeModal.channelOrAuthor}
-        focusNote={activeYouTubeModal.focusNote}
-        takeaway={activeYouTubeModal.takeaway}
-        embeddable={activeYouTubeModal.embeddable !== false}
-      />
+      {/* Fast Persistent YouTube Player Host */}
+      <PersistentPlayerHost />
 
       <AIEngineSelectorModal
         isOpen={showEngineModal}
