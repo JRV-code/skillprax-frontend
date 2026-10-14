@@ -28,6 +28,8 @@ const PROFESSION_OPTIONS = [
   'Other',
 ];
 
+const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
+
 function GoogleAuthButton({
   isGoogleVerified,
   onTokenSuccess,
@@ -209,7 +211,7 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
 
     try {
       // Send verified payload to backend auth/google or profiles
-      const res = await fetch('/api/auth/google', {
+      const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -228,8 +230,19 @@ export const LearnerAccountModal: React.FC<LearnerAccountModalProps> = ({
         }),
       });
 
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        const text = await res.text();
+        console.error('[LearnerAccountModal Non-JSON Response]:', res.status, text.slice(0, 200));
+        throw new Error(
+          res.status === 404
+            ? 'Authentication service endpoint not found (404). Please check API configuration.'
+            : `Authentication server unavailable (HTTP ${res.status}). Please try again in a moment.`
+        );
+      }
+
       const data = await res.json();
-      if (!res.ok) {
+      if (!res.ok || data.error) {
         throw new Error(data.error || 'Failed to initialize account.');
       }
 

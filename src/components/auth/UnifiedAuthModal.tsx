@@ -65,6 +65,7 @@ export function UnifiedAuthModal({
   const [loggedInUser, setLoggedInUser] = useState<any>(null);
   const [sessionToken, setSessionToken] = useState<string | null>(null);
 
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
   const GOOGLE_CLIENT_ID = (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID || '').trim();
   const isGoogleConfigured = Boolean(
     GOOGLE_CLIENT_ID && 
@@ -72,6 +73,37 @@ export function UnifiedAuthModal({
     !GOOGLE_CLIENT_ID.includes('your-google-client-id') &&
     GOOGLE_CLIENT_ID !== 'undefined'
   );
+
+  // Safe JSON Fetch helper that never throws raw SyntaxError on non-JSON HTML
+  async function safeFetchJson(url: string, options: RequestInit = {}) {
+    const res = await fetch(url, {
+      ...options,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(options.headers || {}),
+      },
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    if (!contentType.includes('application/json')) {
+      const text = await res.text();
+      console.error('[Auth Non-JSON Response]:', res.status, text.slice(0, 200));
+      throw new Error(
+        res.status === 404
+          ? 'Authentication service endpoint not found (404). Please check API configuration.'
+          : `Authentication server unavailable (HTTP ${res.status}). Please try again in a moment.`
+      );
+    }
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      const err: any = new Error(data.error || data.message || `Authentication failed (${res.status})`);
+      err.data = data;
+      err.needsPasswordSetup = Boolean(data.needsPasswordSetup);
+      throw err;
+    }
+    return data;
+  }
 
   // Reset state when modal opens
   useEffect(() => {
@@ -89,17 +121,12 @@ export function UnifiedAuthModal({
     }
   }, [isOpen, initialEmail]);
 
-  // Robust Google GSI Initialization
+  // Load Google Identity Services script
   useEffect(() => {
     if (!isOpen) return;
 
-    if (!isGoogleConfigured) {
-      console.warn('[SKILL-TRACK Auth] NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured in environment variables.');
-      return;
-    }
-
     const initializeGoogle = () => {
-      if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+      if (typeof window !== 'undefined' && window.google?.accounts?.id && isGoogleConfigured) {
         try {
           window.google.accounts.id.initialize({
             client_id: GOOGLE_CLIENT_ID,
@@ -125,7 +152,7 @@ export function UnifiedAuthModal({
     };
 
     if (typeof window !== 'undefined') {
-      if (!window.google?.accounts?.id) {
+      if (!window.google?.accounts) {
         const existingScript = document.getElementById('google-gsi-client-script');
         if (!existingScript) {
           const script = document.createElement('script');
@@ -144,30 +171,17 @@ export function UnifiedAuthModal({
     }
   }, [isOpen, isGoogleConfigured, GOOGLE_CLIENT_ID, modalStep]);
 
-  // Handle Google Credential Token from GSI
-  const handleGoogleCredentialResponse = async (response: any) => {
-    const credential = response?.credential;
-    if (!credential) {
-      setErrorMessage('Failed to receive credential from Google. Please try again.');
-      return;
-    }
-
+  // Unified Google Token/Credential Sender to backend
+  const handleGoogleAuthPayload = async (payload: { access_token?: string; credential?: string }) => {
     try {
       setLoading(true);
       setErrorMessage(null);
       setSuccessNotice(null);
 
-      const res = await fetch('/api/auth/google', {
+      const data = await safeFetchJson(`${API_BASE}/api/auth/google`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ credential }),
+        body: JSON.stringify(payload),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error || 'Google authentication failed.');
-        return;
-      }
 
       const activeUser = data.user || data.profile;
       const token = data.token;
@@ -179,7 +193,6 @@ export function UnifiedAuthModal({
       }
 
       if (data.needsPasswordSetup) {
-        // Transition to SET_PASSWORD_STEP
         setModalStep('SET_PASSWORD_STEP');
         setSuccessNotice('Google account linked! Enhance your account security by setting a password.');
         setTimeout(() => setSuccessNotice(null), 4000);
@@ -197,31 +210,76 @@ export function UnifiedAuthModal({
     }
   };
 
-  // Direct Button Click Trigger for Custom Google Button
+  // Handle Google Credential Token from GSI One Tap / Native button
+  const handleGoogleCredentialResponse = async (response: any) => {
+    const credential = response?.credential;
+    if (!credential) {
+      setErrorMessage('Failed to receive credential from Google. Please try again.');
+      return;
+    }
+    await handleGoogleAuthPayload({ credential });
+  };
+
+  // Direct Button Click: Trigger OAuth2 Popup Client
   const handleCustomGoogleClick = () => {
     if (!isGoogleConfigured) {
-      setErrorMessage('Google Sign-In is initializing. Please verify client ID configuration or sign in with email.');
+      setErrorMessage(
+        'Google Client ID is not configured in environment variables (NEXT_PUBLIC_GOOGLE_CLIENT_ID). Please sign in with email/password.'
+      );
       return;
     }
 
-    if (typeof window !== 'undefined' && window.google?.accounts?.id) {
+    if (typeof window === 'undefined') return;
+
+    // 1. Primary: Use window.google.accounts.oauth2.initTokenClient to open standard account chooser popup
+    if (window.google?.accounts?.oauth2) {
+      try {
+        const tokenClient = window.google.accounts.oauth2.initTokenClient({
+          client_id: GOOGLE_CLIENT_ID,
+          scope: 'openid email profile',
+          callback: async (tokenResponse: any) => {
+            if (tokenResponse?.error) {
+              setErrorMessage(
+                tokenResponse.error_description || 'Google authorization was cancelled or failed.'
+              );
+              return;
+            }
+            if (tokenResponse?.access_token) {
+              await handleGoogleAuthPayload({ access_token: tokenResponse.access_token });
+            } else {
+              setErrorMessage('No access token received from Google.');
+            }
+          },
+        });
+        tokenClient.requestAccessToken({ prompt: 'select_account' });
+        return;
+      } catch (err) {
+        console.warn('[UnifiedAuthModal] initTokenClient failed, falling back to One Tap prompt:', err);
+      }
+    }
+
+    // 2. Fallback: Trigger GSI One Tap / Native hidden button
+    if (window.google?.accounts?.id) {
       try {
         window.google.accounts.id.prompt((notification: any) => {
           if (notification?.isNotDisplayed?.() || notification?.isSkippedMoment?.()) {
-            // Browser suppressed One Tap -> Trigger rendered button
             const nativeBtn = document.querySelector('#google-hidden-btn div[role="button"]') as HTMLElement;
             if (nativeBtn) {
               nativeBtn.click();
             }
           }
         });
+        return;
       } catch (_) {
         const nativeBtn = document.querySelector('#google-hidden-btn div[role="button"]') as HTMLElement;
         if (nativeBtn) {
           nativeBtn.click();
+          return;
         }
       }
     }
+
+    setErrorMessage('Google Sign-In is initializing. Please wait a moment or sign in with email.');
   };
 
   // Step 1a: Handle Sign In Submission
@@ -242,31 +300,10 @@ export function UnifiedAuthModal({
 
     try {
       setLoading(true);
-      let res = await fetch('/api/auth/login', {
+      const data = await safeFetchJson(`${API_BASE}/api/auth/login`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password }),
       });
-
-      if (!res.ok) {
-        // Fallback to universal endpoint
-        res = await fetch('/api/auth/universal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password }),
-        });
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        if (data.needsPasswordSetup) {
-          setErrorMessage(data.message || 'Account created via Google. Please sign in with Google once to set your password.');
-        } else {
-          setErrorMessage(data.error || 'Authentication failed. Please check your credentials.');
-        }
-        return;
-      }
 
       const activeUser = data.user || data.profile;
       const token = data.token;
@@ -289,7 +326,11 @@ export function UnifiedAuthModal({
         onClose();
       }, 700);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Network error occurred. Please try again.');
+      if (err.needsPasswordSetup) {
+        setErrorMessage(err.message || 'Account created via Google. Please sign in with Google once to set your password.');
+      } else {
+        setErrorMessage(err.message || 'Authentication failed. Please check your credentials.');
+      }
     } finally {
       setLoading(false);
     }
@@ -321,27 +362,15 @@ export function UnifiedAuthModal({
 
     try {
       setLoading(true);
-      let res = await fetch('/api/auth/register', {
+      const data = await safeFetchJson(`${API_BASE}/api/auth/register`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: cleanEmail, password, name: name.trim() || undefined }),
+        body: JSON.stringify({
+          email: cleanEmail,
+          password,
+          confirmPassword: signupConfirmPassword,
+          name: name.trim() || undefined,
+        }),
       });
-
-      if (!res.ok) {
-        // Fallback to universal endpoint
-        res = await fetch('/api/auth/universal', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ email: cleanEmail, password, name: name.trim() || undefined }),
-        });
-      }
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        setErrorMessage(data.error || 'Registration failed. Please try again.');
-        return;
-      }
 
       const activeUser = data.user || data.profile;
       const token = data.token;
@@ -359,7 +388,7 @@ export function UnifiedAuthModal({
         onClose();
       }, 700);
     } catch (err: any) {
-      setErrorMessage(err.message || 'Network error occurred. Please try again.');
+      setErrorMessage(err.message || 'Registration failed. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -387,20 +416,13 @@ export function UnifiedAuthModal({
 
     try {
       setLoading(true);
-      const res = await fetch('/api/auth/set-password', {
+      await safeFetchJson(`${API_BASE}/api/auth/set-password`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({ password: newPassword }),
       });
-
-      const data = await res.json();
-      if (!res.ok) {
-        setErrorMessage(data.error || 'Failed to save account password.');
-        return;
-      }
 
       setPasswordSuccess(true);
       setSuccessNotice('Password saved successfully! Entering SKILL-TRACK...');

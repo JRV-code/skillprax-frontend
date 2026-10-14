@@ -54,14 +54,20 @@ export async function hydrateUser(): Promise<UserProfile | null> {
     return null;
   }
 
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
+
   try {
-    const res = await fetch('/api/user/me', {
+    const res = await fetch(`${API_BASE}/api/user/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
 
     if (res.ok) {
+      const contentType = res.headers.get('content-type') || '';
+      if (!contentType.includes('application/json')) {
+        throw new Error('Non-JSON response from server during user hydration');
+      }
       const data = await res.json();
       const user = data.user || data.profile;
       if (user) {
