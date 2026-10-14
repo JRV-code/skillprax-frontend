@@ -307,11 +307,17 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
     }
   }, []);
 
+  // Fetch pack immediately on step ID change or when packStatus transitions to READY
+  useEffect(() => {
+    setPackData(null);
+    if (activeStep?.id) {
+      fetchPack(activeStep.id);
+    }
+  }, [activeStep?.id, fetchPack]);
+
   useEffect(() => {
     if (packStatus === 'READY' && activeStep?.id) {
       fetchPack(activeStep.id);
-    } else if (packStatus !== 'READY') {
-      setPackData(null);
     }
   }, [packStatus, activeStep?.id, fetchPack]);
 
@@ -524,7 +530,7 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
                 isSports={true}
                 onRetry={retryPackBuild}
               />
-            ) : packStatus === 'READY' && packData ? (
+            ) : (packStatus === 'READY' || (packData?.chapters && packData.chapters.length > 0)) && packData ? (
               <div className="space-y-6">
                 <StepIntroCard
                   stepTitle={packData.title || activeStep.title}
@@ -567,6 +573,7 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
                 difficultyTier={activeStep.difficultyTier}
                 onSearchResources={startBuild}
                 loading={packLoading}
+                error={packStatus === 'FAILED' ? (packError || 'Resource search encountered an error. Please retry.') : null}
               />
             )}
           </div>

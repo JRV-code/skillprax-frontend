@@ -77,6 +77,15 @@ export function usePackStatus(stepId: string | null | undefined) {
             timerRef.current = setTimeout(poll, pollInterval);
           }
         }
+      } else {
+        const errData = await res.json().catch(() => ({}));
+        if (isMountedRef.current) {
+          setStatus((prev) => ({
+            ...prev,
+            packStatus: 'FAILED',
+            packError: errData.error || `Status request failed (HTTP ${res.status})`,
+          }));
+        }
       }
     } catch (err: any) {
       if (err.name !== 'AbortError' && isMountedRef.current) {
@@ -101,35 +110,63 @@ export function usePackStatus(stepId: string | null | undefined) {
   }, [stepId, poll]);
 
   const startBuild = useCallback(async () => {
-    if (!stepId) return;
+    if (!stepId) {
+      console.warn('[usePackStatus] Cannot start build: stepId is null');
+      return;
+    }
     setLoading(true);
     startTimeRef.current = Date.now();
 
-    // 1. Immediately set local status to BUILDING so UI transitions instantly
+    // 1. Immediately set local status to BUILDING & stage PLANNING so UI transitions instantly
     setStatus((prev) => ({
       ...prev,
       packStatus: 'BUILDING',
-      packStage: 'QUEUED',
+      packStage: 'PLANNING',
       packError: null,
       timedOut: false,
     }));
 
     // 2. Fire backend level-up-resources endpoint
     try {
-      await fetch(`/api/steps/${stepId}/level-up-resources`, {
+      const res = await fetch(`/api/steps/${stepId}/level-up-resources`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
         cache: 'no-store',
       });
-    } catch (err) {
+
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        const errorMsg = errData.error || `Server returned HTTP ${res.status} when initiating search`;
+        console.error('[usePackStatus] Search start failed:', errorMsg);
+        if (isMountedRef.current) {
+          setStatus((prev) => ({
+            ...prev,
+            packStatus: 'FAILED',
+            packError: errorMsg,
+          }));
+        }
+        return;
+      }
+    } catch (err: any) {
       console.warn('Failed to start pack build:', err);
+      if (isMountedRef.current) {
+        setStatus((prev) => ({
+          ...prev,
+          packStatus: 'FAILED',
+          packError: err.message || 'Network error triggering resource search',
+        }));
+      }
+      return;
     } finally {
-      setLoading(false);
+      if (isMountedRef.current) {
+        setLoading(false);
+      }
     }
 
     // 3. Immediately poll after short delay and continue 2s cycle
     if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(poll, 1200);
+    timerRef.current = setTimeout(poll, 800);
   }, [stepId, poll]);
 
   const retry = useCallback(async () => {

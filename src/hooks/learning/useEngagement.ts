@@ -16,6 +16,7 @@ export function useEngagement(stepId: string | null | undefined, isUnlocked = tr
       await fetch(`/api/steps/${stepId}/engaged`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
       });
     } catch (_) {}
   };

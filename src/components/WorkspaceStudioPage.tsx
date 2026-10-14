@@ -90,11 +90,20 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
   // Raw database steps sorted by index
   const dbSteps = useMemo(() => {
-    if (!rawWorkspace?.steps || !Array.isArray(rawWorkspace.steps) || rawWorkspace.steps.length === 0) {
-      return [];
+    if (rawWorkspace?.steps && Array.isArray(rawWorkspace.steps) && rawWorkspace.steps.length > 0) {
+      return [...rawWorkspace.steps].sort((a: any, b: any) => (a.stepIndex || 0) - (b.stepIndex || 0));
     }
-    return [...rawWorkspace.steps].sort((a: any, b: any) => (a.stepIndex || 0) - (b.stepIndex || 0));
-  }, [rawWorkspace]);
+    if (currentTrack?.milestones && Array.isArray(currentTrack.milestones) && currentTrack.milestones.length > 0) {
+      return currentTrack.milestones.map((m: any, idx: number) => ({
+        id: m.id,
+        stepIndex: m.stepNumber || idx + 1,
+        title: m.title,
+        status: m.status === 'completed' ? 'PASSED' : m.status === 'locked' ? 'LOCKED' : 'IN_PROGRESS',
+        assessableUnits: m.acus,
+      }));
+    }
+    return [];
+  }, [rawWorkspace, currentTrack]);
 
   // ACTIVE STEP: Current database milestone being worked through
   const activeStepIndex = useMemo(() => {
@@ -208,7 +217,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     return dbSteps.find((s: any) => s.stepIndex === viewingStepIndex) || dbSteps[0];
   }, [dbSteps, viewingStepIndex]);
 
-  const viewingStepId = viewingStepObj?.id || currentTrack.id;
+  const viewingStepId = viewingStepObj?.id || (currentTrack?.milestones?.find((m: any) => (m.stepNumber || m.stepIndex) === viewingStepIndex)?.id) || currentTrack.id;
   const viewingStepNum = viewingStepObj?.stepIndex || viewingStepIndex;
   const viewingStepTitle = viewingStepObj?.title || `Milestone ${viewingStepIndex}`;
 
@@ -326,11 +335,17 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }
   }, []);
 
+  // Fetch pack immediately on step ID change or when packStatus transitions to READY
+  useEffect(() => {
+    setPackData(null);
+    if (viewingStepId) {
+      fetchPack(viewingStepId);
+    }
+  }, [viewingStepId, fetchPack]);
+
   useEffect(() => {
     if (packStatus === 'READY' && viewingStepId) {
       fetchPack(viewingStepId);
-    } else if (packStatus !== 'READY') {
-      setPackData(null);
     }
   }, [packStatus, viewingStepId, fetchPack]);
 
@@ -1487,7 +1502,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   isSports={isPhysical}
                   onRetry={retryPackBuild}
                 />
-              ) : packStatus === 'READY' && packData ? (
+              ) : (packStatus === 'READY' || (packData?.chapters && packData.chapters.length > 0)) && packData ? (
                 <div className="space-y-6">
                   <StepIntroCard
                     stepTitle={packData.title || viewingStepTitle}
@@ -1530,6 +1545,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   difficultyTier={viewingStepObj?.difficultyTier}
                   onSearchResources={handleSearchResources}
                   loading={packLoading}
+                  error={packStatus === 'FAILED' ? (packError || 'Resource search encountered an error. Please retry.') : null}
                 />
               )}
             </motion.div>
