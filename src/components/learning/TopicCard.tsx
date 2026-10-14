@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { motion } from 'framer-motion';
 import {
   ExternalLink,
   CheckCircle2,
@@ -109,7 +110,12 @@ export function TopicCard({
   const showGoogleTranslate = preferredLanguage && preferredLanguage !== 'en' && topic.resource?.url;
 
   return (
-    <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:shadow-md transition-all space-y-4">
+    <motion.div
+      whileHover={{ y: -3, scale: 1.005 }}
+      whileTap={{ scale: 0.99 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className="p-6 rounded-2xl bg-white border border-slate-200/90 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 shadow-sm space-y-4"
+    >
       {/* Header: Title, minutes, covers, ACU chips */}
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-3">
@@ -284,6 +290,6 @@ export function TopicCard({
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

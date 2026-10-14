@@ -114,19 +114,43 @@ export async function play(mount: HTMLElement, videoId: string, startSeconds = 0
   const p = await getPlayer(mount, videoId);
   if (currentId !== videoId) {
     currentId = videoId;
-    if (p.loadVideoById) {
-      p.loadVideoById({ videoId, startSeconds });
+    try {
+      if (typeof p.loadVideoById === 'function') {
+        p.loadVideoById({ videoId, startSeconds: startSeconds || 0 });
+      }
+    } catch (_) {
+      try {
+        p.loadVideoById?.(videoId, startSeconds || 0);
+      } catch (_) {}
     }
+
+    sendIframeCommand('loadVideoById', [{ videoId, startSeconds: startSeconds || 0 }]);
   } else if (startSeconds > 0 && p.seekTo) {
     p.seekTo(startSeconds, true);
+    sendIframeCommand('seekTo', [startSeconds, true]);
   }
-  if (p.unMute) p.unMute();
-  if (p.playVideo) p.playVideo();
+
+  try {
+    if (p.unMute) p.unMute();
+    if (p.playVideo) p.playVideo();
+    sendIframeCommand('playVideo');
+  } catch (_) {}
 }
 
 export function pauseVideo() {
   try {
     if (player?.pauseVideo) player.pauseVideo();
+    sendIframeCommand('pauseVideo');
+  } catch (_) {}
+}
+
+export function sendIframeCommand(func: string, args: any[] = []) {
+  try {
+    const iframe = player?.getIframe?.() || (typeof document !== 'undefined' ? document.querySelector('iframe[src*="youtube"]') as HTMLIFrameElement : null);
+    iframe?.contentWindow?.postMessage(
+      JSON.stringify({ event: 'command', func, args }),
+      '*'
+    );
   } catch (_) {}
 }
 

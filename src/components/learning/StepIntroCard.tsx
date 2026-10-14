@@ -25,7 +25,9 @@ export function StepIntroCard({ stepTitle, intro, isSports }: StepIntroCardProps
       variants={fadeSlide}
       initial="initial"
       animate="animate"
-      className="p-7 rounded-3xl bg-white border border-slate-200/90 shadow-lg shadow-slate-200/40 space-y-6"
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+      className="p-7 rounded-3xl bg-white border border-slate-200/90 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 shadow-lg shadow-slate-200/40 space-y-6"
     >
       {/* Goal & Why Now */}
       <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-5 border-b border-slate-100">

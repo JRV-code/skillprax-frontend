@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useEffect, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 import { usePlayerStore } from './playerStore';
 import {
   play,
@@ -9,6 +11,7 @@ import {
   onPlayerError,
   loadYouTubeApi,
   getCurrentPlayerInstance,
+  sendIframeCommand,
 } from './youtubeEngine';
 import {
   X,
@@ -37,6 +40,7 @@ const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 export function PersistentPlayerHost() {
   const mountRef = useRef<HTMLDivElement>(null);
   const videoBoxRef = useRef<HTMLDivElement>(null);
+  const [isClientMounted, setIsClientMounted] = useState(false);
 
   const {
     state,
@@ -57,11 +61,13 @@ export function PersistentPlayerHost() {
   const [playbackSpeed, setPlaybackSpeed] = useState(1);
   const [isMuted, setIsMuted] = useState(false);
   const [isWatched, setIsWatched] = useState(false);
-  const [bufferingTooLong, setBufferingTooLong] = useState(false);
-  const bufferingTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const progressTimerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Lazy-load API at idle after initial page mount
+  // Mark client mounted for safe Portal rendering
+  useEffect(() => {
+    setIsClientMounted(true);
+  }, []);
+
+  // Lazy-load YouTube API script
   useEffect(() => {
     if (typeof window !== 'undefined') {
       if ('requestIdleCallback' in window) {
@@ -96,21 +102,13 @@ export function PersistentPlayerHost() {
       // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
       if (playerState === 1) {
         setPlaying(true);
-        setBufferingTooLong(false);
-        if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
-
         const p = getCurrentPlayerInstance();
         if (p?.getDuration) {
           const d = Math.floor(p.getDuration() || 0);
-          setDuration(d);
+          if (d > 0) setDuration(d);
         }
       } else if (playerState === 2) {
         setPlaying(false);
-      } else if (playerState === 3) {
-        if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
-        bufferingTimerRef.current = setTimeout(() => {
-          setBufferingTooLong(true);
-        }, 6000);
       } else if (playerState === 0) {
         setPlaying(false);
         setIsWatched(true);
@@ -121,6 +119,7 @@ export function PersistentPlayerHost() {
     });
 
     const unsubErr = onPlayerError((code) => {
+      // Only set error for official fatal YouTube error codes
       if (code === 100) {
         setError({
           code,
@@ -131,45 +130,50 @@ export function PersistentPlayerHost() {
           code,
           message: 'The video owner does not allow embedded playback.',
         });
-      } else {
-        setError({
-          code,
-          message: 'Playback error occurred. Click below to open directly on YouTube.',
-        });
       }
     });
 
     return () => {
       unsubState();
       unsubErr();
-      if (bufferingTimerRef.current) clearTimeout(bufferingTimerRef.current);
     };
   }, [activeVideo?.resourceId, duration, setError, setPlaying]);
 
-  // Poll current time every 500ms while playing
+  // Poll player state every 400ms for tight play/pause & time sync
   useEffect(() => {
-    if (state !== 'HIDDEN') {
-      progressTimerRef.current = setInterval(() => {
-        const p = getCurrentPlayerInstance();
-        if (p && typeof p.getCurrentTime === 'function') {
-          const sec = Math.floor(p.getCurrentTime() || 0);
-          const dur = Math.floor((p.getDuration ? p.getDuration() : duration) || duration);
-          setCurrentSeconds(sec);
-          if (dur > 0 && dur !== duration) setDuration(dur);
+    if (state === 'HIDDEN') return;
 
-          const watched90 = dur > 0 && sec >= dur * 0.9;
+    const interval = setInterval(() => {
+      const p = getCurrentPlayerInstance();
+      if (!p) return;
+
+      const playerState = p.getPlayerState?.();
+      if (typeof playerState === 'number') {
+        const activePlaying = playerState === 1;
+        setPlaying(activePlaying);
+      }
+
+      const curr = p.getCurrentTime?.();
+      const dur = p.getDuration?.();
+      if (typeof curr === 'number') {
+        const sec = Math.floor(curr);
+        setCurrentSeconds(sec);
+        if (typeof dur === 'number' && dur > 0) {
+          const d = Math.floor(dur);
+          setDuration(d);
+          const watched90 = d > 0 && sec >= d * 0.9;
           if (watched90) setIsWatched(true);
-          setProgress(sec, dur, watched90);
+          setProgress(sec, d, watched90);
         }
-      }, 500);
-    } else {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    }
+      }
+    }, 400);
 
-    return () => {
-      if (progressTimerRef.current) clearInterval(progressTimerRef.current);
-    };
-  }, [state, duration, setProgress]);
+    return () => clearInterval(interval);
+  }, [state, setPlaying, setProgress]);
+
+  const sendPostMessageCommand = useCallback((func: string, args: any[] = []) => {
+    sendIframeCommand(func, args);
+  }, []);
 
   const saveProgressToBackend = async (
     resourceId: string,
@@ -190,43 +194,6 @@ export function PersistentPlayerHost() {
     } catch (_) {}
   };
 
-  // Keyboard shortcuts
-  useEffect(() => {
-    if (state === 'HIDDEN') return;
-
-    const handleKeyDown = (e: KeyboardEvent) => {
-      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
-      if (activeTag === 'input' || activeTag === 'textarea') return;
-
-      const p = getCurrentPlayerInstance();
-      if (!p) return;
-
-      if (e.key === ' ' || e.key === 'k') {
-        e.preventDefault();
-        if (isPlaying) p.pauseVideo?.();
-        else p.playVideo?.();
-      } else if (e.key === 'j') {
-        e.preventDefault();
-        const cur = p.getCurrentTime?.() || 0;
-        p.seekTo?.(Math.max(0, cur - 10), true);
-      } else if (e.key === 'l') {
-        e.preventDefault();
-        const cur = p.getCurrentTime?.() || 0;
-        p.seekTo?.(cur + 10, true);
-      } else if (e.key === 'm') {
-        e.preventDefault();
-        toggleMute();
-      } else if (e.key === 'Escape') {
-        e.preventDefault();
-        if (state === 'MODAL') dockVideo();
-        else handleClose();
-      }
-    };
-
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [state, isPlaying, dockVideo]);
-
   const handleClose = () => {
     pauseVideo();
     closeVideo();
@@ -234,29 +201,34 @@ export function PersistentPlayerHost() {
 
   const handleTogglePlay = () => {
     const p = getCurrentPlayerInstance();
-    if (!p) return;
-    if (isPlaying) {
-      p.pauseVideo?.();
+    const liveState = p?.getPlayerState?.();
+    const currentlyPlaying = liveState === 1 || isPlaying;
+
+    if (currentlyPlaying) {
+      p?.pauseVideo?.();
+      sendPostMessageCommand('pauseVideo');
+      setPlaying(false);
     } else {
-      p.playVideo?.();
+      p?.playVideo?.();
+      sendPostMessageCommand('playVideo');
+      setPlaying(true);
     }
   };
 
   const handleSeek = (delta: number) => {
     const p = getCurrentPlayerInstance();
-    if (!p) return;
-    const cur = p.getCurrentTime?.() || 0;
+    const cur = p?.getCurrentTime?.() ?? currentSeconds;
     const target = Math.max(0, Math.min(duration || Infinity, cur + delta));
-    p.seekTo?.(target, true);
+    p?.seekTo?.(target, true);
+    sendPostMessageCommand('seekTo', [target, true]);
     setCurrentSeconds(Math.floor(target));
   };
 
   const handleChangeSpeed = (speed: number) => {
     const p = getCurrentPlayerInstance();
-    if (p?.setPlaybackRate) {
-      p.setPlaybackRate(speed);
-      setPlaybackSpeed(speed);
-    }
+    p?.setPlaybackRate?.(speed);
+    sendPostMessageCommand('setPlaybackRate', [speed]);
+    setPlaybackSpeed(speed);
   };
 
   const toggleMute = () => {
@@ -264,9 +236,11 @@ export function PersistentPlayerHost() {
     if (!p) return;
     if (p.isMuted?.()) {
       p.unMute?.();
+      sendPostMessageCommand('unMute');
       setIsMuted(false);
     } else {
       p.mute?.();
+      sendPostMessageCommand('mute');
       setIsMuted(true);
     }
   };
@@ -308,191 +282,231 @@ export function PersistentPlayerHost() {
     }
   };
 
-  // If hidden, render nothing. Zero background bleed!
-  if (state === 'HIDDEN') {
+  // Keyboard shortcuts
+  useEffect(() => {
+    if (state === 'HIDDEN') return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeTag = (document.activeElement?.tagName || '').toLowerCase();
+      if (activeTag === 'input' || activeTag === 'textarea') return;
+
+      if (e.key === ' ' || e.key === 'k') {
+        e.preventDefault();
+        handleTogglePlay();
+      } else if (e.key === 'j') {
+        e.preventDefault();
+        handleSeek(-10);
+      } else if (e.key === 'l') {
+        e.preventDefault();
+        handleSeek(10);
+      } else if (e.key === 'm') {
+        e.preventDefault();
+        toggleMute();
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        if (state === 'MODAL') dockVideo();
+        else handleClose();
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [state, isPlaying, dockVideo]);
+
+  // If hidden or unmounted on client, render nothing
+  if (!isClientMounted || state === 'HIDDEN' || typeof document === 'undefined') {
     return null;
   }
 
-  // MODAL VIEW: Video is strictly mounted inside the modal's 16:9 black box
-  if (state === 'MODAL') {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-xs p-3 sm:p-5 md:p-8 animate-in fade-in duration-200">
-        <div className="relative w-full max-w-4xl bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col">
-          {/* Header */}
-          <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900 border-b border-slate-800">
-            <div className="flex items-center gap-3 min-w-0 pr-4">
-              <span className="text-[11px] font-heading font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
-                In-App Player
+  // MODAL VIEW: Portaled to document.body, centered in exact scroll viewport
+  const renderModal = () => (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-5 md:p-8 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-200">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.92, y: 16 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.94, y: 12 }}
+        transition={{ type: 'spring', stiffness: 340, damping: 26 }}
+        className="relative w-full max-w-4xl bg-slate-950 rounded-3xl border border-slate-800 shadow-2xl overflow-hidden flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-3.5 bg-slate-900 border-b border-slate-800">
+          <div className="flex items-center gap-3 min-w-0 pr-4">
+            <span className="text-[11px] font-heading font-extrabold uppercase tracking-wider px-2.5 py-1 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 flex-shrink-0">
+              In-App Player
+            </span>
+            <h3 className="text-sm font-heading font-semibold text-slate-100 truncate">
+              {activeVideo?.title || 'Video Resource'}
+            </h3>
+          </div>
+          <div className="flex items-center gap-1.5 flex-shrink-0">
+            <button
+              type="button"
+              onClick={handleManualWatched}
+              className={`px-3 py-1.5 rounded-xl text-xs font-heading font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                isWatched
+                  ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30'
+                  : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
+              }`}
+              title="Mark as watched"
+            >
+              <CheckCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">
+                {isWatched ? 'Watched' : 'Mark Watched'}
               </span>
-              <h3 className="text-sm font-heading font-semibold text-slate-100 truncate">
-                {activeVideo?.title || 'Video Resource'}
-              </h3>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <button
-                type="button"
-                onClick={handleManualWatched}
-                className={`px-3 py-1.5 rounded-xl text-xs font-heading font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
-                  isWatched
-                    ? 'text-emerald-400 bg-emerald-500/15 border border-emerald-500/30'
-                    : 'text-slate-400 hover:text-white hover:bg-slate-800 border border-transparent'
-                }`}
-                title="Mark as watched"
-              >
-                <CheckCircle className="w-4 h-4" />
-                <span className="hidden sm:inline">
-                  {isWatched ? 'Watched' : 'Mark Watched'}
-                </span>
-              </button>
+            </button>
 
-              <button
-                type="button"
-                onClick={dockVideo}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Dock to corner"
-              >
-                <Minimize2 className="w-4 h-4" />
-              </button>
+            <button
+              type="button"
+              onClick={dockVideo}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Dock to corner"
+            >
+              <Minimize2 className="w-4 h-4" />
+            </button>
 
-              <button
-                type="button"
-                onClick={handleClose}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Close"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-
-          {/* 16:9 Black Video Box — MOUNT CONTAINER IS STRICTLY CONTAINED HERE */}
-          <div
-            ref={videoBoxRef}
-            className="relative w-full aspect-video bg-black overflow-hidden flex items-center justify-center"
-          >
-            <div ref={mountRef} className="w-full h-full pointer-events-auto" />
-
-            {/* Error or Buffering Fallback Overlay */}
-            {(error || bufferingTooLong) && (
-              <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-10">
-                <AlertTriangle className="w-10 h-10 text-amber-400 mb-3" />
-                <p className="text-sm text-slate-200 font-medium mb-4 max-w-md">
-                  {error?.message ||
-                    'Playback is experiencing buffering delays on your connection.'}
-                </p>
-                <div className="flex items-center gap-3">
-                  {error?.code === 100 && (
-                    <button
-                      type="button"
-                      onClick={handleReplaceResource}
-                      className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors cursor-pointer"
-                    >
-                      Find Alternative Video
-                    </button>
-                  )}
-                  <a
-                    href={`https://www.youtube.com/watch?v=${activeVideo?.videoId}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-colors"
-                  >
-                    Open on YouTube <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Interactive HUD Control Bar Directly Below Video Box */}
-          <div className="px-4 sm:px-6 py-3 bg-slate-900 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-3 text-slate-200 select-none">
-            {/* Left: Play/Pause, -10s, +10s, Duration */}
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={handleTogglePlay}
-                className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all cursor-pointer flex items-center justify-center"
-                title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
-              >
-                {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSeek(-10)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
-                title="Rewind 10 seconds (J)"
-              >
-                <RotateCcw className="w-3.5 h-3.5" />
-                <span className="text-[10px]">-10s</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleSeek(10)}
-                className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
-                title="Forward 10 seconds (L)"
-              >
-                <span className="text-[10px]">+10s</span>
-                <RotateCw className="w-3.5 h-3.5" />
-              </button>
-
-              <div className="ml-2 font-mono text-xs text-slate-300 font-semibold tracking-wider">
-                <span>{formatTime(currentSeconds)}</span>
-                <span className="text-slate-500 mx-1">/</span>
-                <span className="text-slate-400">{formatTime(duration)}</span>
-              </div>
-            </div>
-
-            {/* Middle: Speed Selector */}
-            <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
-              {SPEED_OPTIONS.map((spd) => {
-                const isActive = playbackSpeed === spd;
-                return (
-                  <button
-                    key={spd}
-                    type="button"
-                    onClick={() => handleChangeSpeed(spd)}
-                    className={`px-2 py-1 rounded-lg text-[11px] font-heading font-extrabold transition-all cursor-pointer ${
-                      isActive
-                        ? 'bg-emerald-600 text-white shadow-xs'
-                        : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
-                    }`}
-                  >
-                    {spd}x
-                  </button>
-                );
-              })}
-            </div>
-
-            {/* Right: Mute & Fullscreen */}
-            <div className="flex items-center gap-1.5">
-              <button
-                type="button"
-                onClick={toggleMute}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-                title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
-              >
-                {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
-              </button>
-
-              <button
-                type="button"
-                onClick={toggleFullscreen}
-                className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
-                title="Toggle Fullscreen"
-              >
-                <Maximize2 className="w-4 h-4" />
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={handleClose}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Close"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
         </div>
-      </div>
-    );
-  }
 
-  // DOCKED VIEW (Bottom-right corner)
-  return (
-    <div className="fixed bottom-6 right-6 z-50 w-80 md:w-96 shadow-2xl rounded-2xl border border-slate-700 bg-slate-950 overflow-hidden flex flex-col animate-in slide-in-from-bottom-6 duration-200">
+        {/* 16:9 Black Video Box — MOUNT CONTAINER IS STRICTLY CONTAINED HERE */}
+        <div
+          ref={videoBoxRef}
+          className="relative w-full aspect-video bg-black overflow-hidden flex items-center justify-center"
+        >
+          <div ref={mountRef} className="w-full h-full pointer-events-auto" />
+
+          {/* Fatal Error Fallback ONLY (100, 101, 150) */}
+          {error && (
+            <div className="absolute inset-0 bg-slate-950/95 flex flex-col items-center justify-center p-6 text-center z-10">
+              <AlertTriangle className="w-10 h-10 text-amber-400 mb-3" />
+              <p className="text-sm text-slate-200 font-medium mb-4 max-w-md">
+                {error.message}
+              </p>
+              <div className="flex items-center gap-3">
+                {error.code === 100 && (
+                  <button
+                    type="button"
+                    onClick={handleReplaceResource}
+                    className="px-4 py-2 text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl transition-colors cursor-pointer"
+                  >
+                    Find Alternative Video
+                  </button>
+                )}
+                <a
+                  href={`https://www.youtube.com/watch?v=${activeVideo?.videoId}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-4 py-2 text-xs font-semibold bg-red-600 hover:bg-red-500 text-white rounded-xl transition-colors"
+                >
+                  Open on YouTube <ExternalLink className="w-3.5 h-3.5" />
+                </a>
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Interactive HUD Control Bar Directly Below Video Box */}
+        <div className="px-4 sm:px-6 py-3 bg-slate-900 border-t border-slate-800/90 flex flex-wrap items-center justify-between gap-3 text-slate-200 select-none">
+          {/* Left: Play/Pause, -10s, +10s, Duration */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleTogglePlay}
+              className="p-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white shadow-md transition-all cursor-pointer flex items-center justify-center"
+              title={isPlaying ? 'Pause (Space)' : 'Play (Space)'}
+            >
+              {isPlaying ? <Pause className="w-4 h-4 fill-current" /> : <Play className="w-4 h-4 fill-current ml-0.5" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSeek(-10)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+              title="Rewind 10 seconds (J)"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="text-[10px]">-10s</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => handleSeek(10)}
+              className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-all cursor-pointer flex items-center gap-1 text-xs font-bold"
+              title="Forward 10 seconds (L)"
+            >
+              <span className="text-[10px]">+10s</span>
+              <RotateCw className="w-3.5 h-3.5" />
+            </button>
+
+            <div className="ml-2 font-mono text-xs text-slate-300 font-semibold tracking-wider">
+              <span>{formatTime(currentSeconds)}</span>
+              <span className="text-slate-500 mx-1">/</span>
+              <span className="text-slate-400">{formatTime(duration)}</span>
+            </div>
+          </div>
+
+          {/* Middle: Speed Selector */}
+          <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            {SPEED_OPTIONS.map((spd) => {
+              const isActive = playbackSpeed === spd;
+              return (
+                <button
+                  key={spd}
+                  type="button"
+                  onClick={() => handleChangeSpeed(spd)}
+                  className={`px-2 py-1 rounded-lg text-[11px] font-heading font-extrabold transition-all cursor-pointer ${
+                    isActive
+                      ? 'bg-emerald-600 text-white shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200 hover:bg-slate-700/60'
+                  }`}
+                >
+                  {spd}x
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Right: Mute & Fullscreen */}
+          <div className="flex items-center gap-1.5">
+            <button
+              type="button"
+              onClick={toggleMute}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              title={isMuted ? 'Unmute (M)' : 'Mute (M)'}
+            >
+              {isMuted ? <VolumeX className="w-4 h-4 text-rose-400" /> : <Volume2 className="w-4 h-4" />}
+            </button>
+
+            <button
+              type="button"
+              onClick={toggleFullscreen}
+              className="p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              title="Toggle Fullscreen"
+            >
+              <Maximize2 className="w-4 h-4" />
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </div>
+  );
+
+  // DOCKED VIEW: Portaled to document.body, floating at bottom-right of current screen
+  const renderDocked = () => (
+    <motion.div
+      initial={{ opacity: 0, scale: 0.9, y: 20 }}
+      animate={{ opacity: 1, scale: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.9, y: 20 }}
+      transition={{ type: 'spring', stiffness: 350, damping: 25 }}
+      className="fixed bottom-6 right-6 z-[9999] w-80 sm:w-96 shadow-2xl rounded-2xl border border-slate-700 bg-slate-950 overflow-hidden flex flex-col"
+    >
       {/* Header */}
       <div className="flex items-center justify-between px-3.5 py-2.5 bg-slate-900 border-b border-slate-800">
         <span className="text-xs font-medium text-slate-200 truncate pr-2">
@@ -561,6 +575,13 @@ export function PersistentPlayerHost() {
           {isMuted ? <VolumeX className="w-3.5 h-3.5 text-rose-400" /> : <Volume2 className="w-3.5 h-3.5" />}
         </button>
       </div>
-    </div>
+    </motion.div>
+  );
+
+  return createPortal(
+    <AnimatePresence mode="wait">
+      {state === 'MODAL' ? renderModal() : renderDocked()}
+    </AnimatePresence>,
+    document.body
   );
 }

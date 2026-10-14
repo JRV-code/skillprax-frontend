@@ -26,7 +26,19 @@ export const InAppLectureTheater: React.FC<InAppLectureTheaterProps> = ({
   miniGuide,
 }) => {
   const [playbackSpeed, setPlaybackSpeed] = useState<number>(1);
+  const [isPlaying, setIsPlaying] = useState<boolean>(true);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+
+  const togglePlay = () => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      const func = isPlaying ? 'pauseVideo' : 'playVideo';
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func, args: [] }),
+        '*'
+      );
+      setIsPlaying(!isPlaying);
+    }
+  };
 
   const changeSpeed = (speed: number) => {
     setPlaybackSpeed(speed);
@@ -96,6 +108,16 @@ export const InAppLectureTheater: React.FC<InAppLectureTheaterProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* Play/Pause Button */}
+          <button
+            type="button"
+            onClick={togglePlay}
+            title={isPlaying ? 'Pause' : 'Play'}
+            className="p-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white transition-colors cursor-pointer flex items-center justify-center"
+          >
+            {isPlaying ? <Pause className="w-3.5 h-3.5 fill-current" /> : <Play className="w-3.5 h-3.5 fill-current ml-0.5" />}
+          </button>
+
           {/* ±10s Skip Buttons */}
           <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
             <button

@@ -480,16 +480,22 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
           </div>
         </div>
 
-        {/* Questions List */}
-        <div className="space-y-5">
+        {/* Questions List with Staggered Cascades */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1, transition: { staggerChildren: 0.07 } }}
+          className="space-y-5"
+        >
           {questions.map((q, idx) => {
             const currentSelected = selectedAnswers[q.id];
             const optionLabels = ['A', 'B', 'C', 'D'];
 
             return (
-              <div
+              <motion.div
                 key={q.id}
-                className="p-6 bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-4"
+                initial={{ opacity: 0, y: 14 }}
+                animate={{ opacity: 1, y: 0, transition: { type: 'spring', stiffness: 300, damping: 24 } }}
+                className="p-6 bg-white rounded-3xl border border-slate-200/90 shadow-xs space-y-4 hover:border-slate-300 transition-all"
               >
                 <div className="flex items-start gap-3.5">
                   <span className="w-8 h-8 rounded-xl bg-slate-900 text-white font-heading font-extrabold text-xs flex items-center justify-center shrink-0 mt-0.5">
@@ -507,22 +513,29 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                   </div>
                 </div>
 
-                {/* 4 Option Cards (A, B, C, D) */}
-                <div className="grid grid-cols-1 gap-2.5 pt-1">
+                {/* 4 Option Cards (A, B, C, D) with Staggered Cascades & Micro-Animations */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1, transition: { staggerChildren: 0.05 } }}
+                  className="grid grid-cols-1 gap-2.5 pt-1"
+                >
                   {q.options.map((opt, optIdx) => {
                     const isSelected = currentSelected === opt.id;
                     const letter = optionLabels[optIdx] || String(optIdx + 1);
 
                     return (
-                      <div
+                      <motion.div
                         key={opt.id}
+                        whileHover={{ y: -2, scale: 1.005 }}
+                        whileTap={{ scale: 0.985 }}
+                        transition={{ type: 'spring', stiffness: 300, damping: 24 }}
                         onClick={() =>
                           setSelectedAnswers((prev) => ({ ...prev, [q.id]: opt.id }))
                         }
-                        className={`p-3.5 rounded-2xl border text-xs sm:text-sm font-medium cursor-pointer transition-all flex items-center justify-between gap-3 select-none ${
+                        className={`p-3.5 rounded-2xl border text-xs sm:text-sm font-medium cursor-pointer transition-all duration-300 flex items-center justify-between gap-3 select-none hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 ${
                           isSelected
                             ? 'bg-emerald-50/90 border-emerald-500 text-emerald-950 ring-1 ring-emerald-500 shadow-xs font-semibold'
-                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700 hover:border-slate-300'
+                            : 'bg-white hover:bg-slate-50 border-slate-200 text-slate-700'
                         }`}
                       >
                         <div className="flex items-center gap-3">
@@ -547,14 +560,14 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                         >
                           {isSelected && <Check className="w-3.5 h-3.5 stroke-[3]" />}
                         </div>
-                      </div>
+                      </motion.div>
                     );
                   })}
-                </div>
-              </div>
+                </motion.div>
+              </motion.div>
             );
           })}
-        </div>
+        </motion.div>
 
         {/* Sticky Submit Action Bar */}
         <div className="sticky bottom-4 z-20 p-5 bg-white/95 backdrop-blur-md rounded-2xl border border-emerald-200/90 shadow-xl flex flex-col sm:flex-row items-center justify-between gap-4">
@@ -703,9 +716,12 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                 const isCompleted = Boolean(completedRemediations[rem.id]);
 
                 return (
-                  <div
+                  <motion.div
                     key={rem.id}
-                    className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between gap-3 hover:border-slate-300 transition-all"
+                    whileHover={{ y: -3, scale: 1.005 }}
+                    whileTap={{ scale: 0.99 }}
+                    transition={{ type: 'spring', stiffness: 300, damping: 24 }}
+                    className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs flex flex-col justify-between gap-3 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300"
                   >
                     <div className="space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
@@ -767,7 +783,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                         <span>Open Website ↗</span>
                       </button>
                     )}
-                  </div>
+                  </motion.div>
                 );
               })}
             </div>

@@ -61,15 +61,39 @@ export function ChapterAccordion({
     }));
   };
 
+  const containerVariants = {
+    initial: {},
+    animate: {
+      transition: {
+        staggerChildren: 0.07,
+      },
+    },
+  };
+
+  const itemVariants = {
+    initial: { opacity: 0, y: 14 },
+    animate: {
+      opacity: 1,
+      y: 0,
+      transition: { type: 'spring', stiffness: 300, damping: 24 },
+    },
+  };
+
   return (
-    <div className="space-y-4">
+    <motion.div
+      variants={containerVariants}
+      initial="initial"
+      animate="animate"
+      className="space-y-4"
+    >
       {chapters.map((chapter, chIdx) => {
         const isOpen = openMap[chapter.id] ?? false;
 
         return (
-          <div
+          <motion.div
             key={chapter.id}
-            className="rounded-3xl bg-white border border-slate-200/90 shadow-md shadow-slate-200/40 overflow-hidden transition-all hover:shadow-lg"
+            variants={itemVariants}
+            className="rounded-3xl bg-white border border-slate-200/90 shadow-md shadow-slate-200/40 overflow-hidden transition-all hover:shadow-lg hover:border-slate-300"
           >
             {/* Header Accordion Trigger */}
             <button
@@ -118,26 +142,32 @@ export function ChapterAccordion({
                       </div>
                     )}
 
-                    {/* Topics List */}
-                    <div className="space-y-3.5">
+                    {/* Topics List with Staggered Cascades */}
+                    <motion.div
+                      variants={containerVariants}
+                      initial="initial"
+                      animate="animate"
+                      className="space-y-3.5"
+                    >
                       {chapter.topics.map((topic, tIdx) => (
-                        <TopicCard
-                          key={topic.id || topic.key}
-                          topic={topic}
-                          stepId={stepId}
-                          defaultExpanded={chIdx === 0 && tIdx === 0}
-                          preferredLanguage={preferredLanguage}
-                          onResourceReplaced={onResourceReplaced}
-                        />
+                        <motion.div key={topic.id || topic.key} variants={itemVariants}>
+                          <TopicCard
+                            topic={topic}
+                            stepId={stepId}
+                            defaultExpanded={chIdx === 0 && tIdx === 0}
+                            preferredLanguage={preferredLanguage}
+                            onResourceReplaced={onResourceReplaced}
+                          />
+                        </motion.div>
                       ))}
-                    </div>
+                    </motion.div>
                   </div>
                 </motion.div>
               )}
             </AnimatePresence>
-          </div>
+          </motion.div>
         );
       })}
-    </div>
+    </motion.div>
   );
 }

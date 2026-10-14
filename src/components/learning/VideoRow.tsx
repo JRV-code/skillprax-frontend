@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useRef } from 'react';
+import { motion } from 'framer-motion';
 import { Play, Video, ExternalLink } from 'lucide-react';
 import { usePlayerStore } from './video/playerStore';
 import { prewarm } from './video/youtubeEngine';
@@ -44,16 +45,22 @@ export function VideoRow({ video }: VideoRowProps) {
   };
 
   return (
-    <div
+    <motion.div
+      whileHover={{ y: -3, scale: 1.005 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ type: 'spring', stiffness: 300, damping: 24 }}
       onPointerEnter={handlePointerEnter}
       onPointerLeave={handlePointerLeave}
       onClick={handleClick}
-      className="group flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-emerald-500/40 transition-all cursor-pointer shadow-sm hover:shadow-md"
+      className="group flex items-center justify-between p-3.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200/90 hover:border-sky-300 hover:shadow-xl hover:shadow-sky-500/10 transition-all duration-300 cursor-pointer shadow-sm"
     >
       <div className="flex items-center gap-3.5 min-w-0 pr-3">
-        {/* Play Icon */}
-        <div className="w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-600 group-hover:text-white transition-all flex-shrink-0 shadow-xs">
-          <Play className="w-4 h-4 fill-current ml-0.5" />
+        {/* Play Icon with pulsing ring */}
+        <div className="relative flex items-center justify-center flex-shrink-0">
+          <span className="absolute -inset-1 rounded-2xl bg-emerald-400/20 animate-ping pointer-events-none group-hover:bg-emerald-400/40" />
+          <div className="relative w-9 h-9 rounded-xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 group-hover:scale-105 group-hover:bg-emerald-600 group-hover:text-white transition-all shadow-xs">
+            <Play className="w-4 h-4 fill-current ml-0.5" />
+          </div>
         </div>
 
         <div className="min-w-0 space-y-0.5">
@@ -75,8 +82,11 @@ export function VideoRow({ video }: VideoRowProps) {
 
       <div className="flex items-center gap-2 flex-shrink-0 text-xs font-heading font-bold text-emerald-600 group-hover:text-emerald-700">
         <span className="hidden sm:inline">Play In-App</span>
-        <Play className="w-3.5 h-3.5 fill-current" />
+        <div className="relative flex items-center justify-center">
+          <span className="absolute -inset-1 rounded-full bg-emerald-400/25 animate-pulse pointer-events-none" />
+          <Play className="relative w-3.5 h-3.5 fill-current" />
+        </div>
       </div>
-    </div>
+    </motion.div>
   );
 }

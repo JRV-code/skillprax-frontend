@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { motion } from 'framer-motion';
 import { CheckCircle2, Lock, ArrowRight, Sparkles } from 'lucide-react';
 
 export interface StepNode {
@@ -44,13 +45,15 @@ export const StepFlowchartStepper: React.FC<StepFlowchartStepperProps> = ({
 
           return (
             <React.Fragment key={step.step_number}>
-              <button
+              <motion.button
                 type="button"
                 disabled={isLocked}
                 onClick={() => onSelectStep(step.step_number)}
-                className={`flex-1 flex flex-col justify-between p-4 rounded-2xl text-left border transition-all cursor-pointer ${
+                whileHover={!isLocked ? { y: -2, scale: 1.01 } : undefined}
+                whileTap={!isLocked ? { scale: 0.98 } : undefined}
+                className={`relative flex-1 flex flex-col justify-between p-4 rounded-2xl text-left border transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-sky-50/60 border-[#0284C7] ring-2 ring-sky-100 shadow-sm'
+                    ? 'bg-sky-50/70 border-[#0284C7] ring-2 ring-sky-200 shadow-md'
                     : isCompleted
                     ? 'bg-emerald-50/40 border-emerald-200 hover:border-emerald-300'
                     : isLocked
@@ -58,6 +61,9 @@ export const StepFlowchartStepper: React.FC<StepFlowchartStepperProps> = ({
                     : 'bg-white border-slate-200 hover:border-slate-300'
                 }`}
               >
+                {isActive && (
+                  <span className="absolute -inset-0.5 rounded-2xl border-2 border-sky-400/50 animate-pulse pointer-events-none" />
+                )}
                 <div>
                   <div className="flex items-center justify-between mb-2">
                     <span
@@ -87,7 +93,7 @@ export const StepFlowchartStepper: React.FC<StepFlowchartStepperProps> = ({
                     {step.difficulty_tier || 'Foundations'}
                   </span>
                 </div>
-              </button>
+              </motion.button>
 
               {idx < steps.length - 1 && (
                 <div className="flex items-center justify-center text-slate-300">
