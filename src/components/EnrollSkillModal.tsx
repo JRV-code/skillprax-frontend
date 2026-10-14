@@ -93,19 +93,17 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
   initialDomain = '',
   initialSubGenre = '',
   restrictToDomain,
-  excludeSports = false,
+  excludeSports = true,
 }) => {
   const router = useRouter();
 
   const availableDomains = useMemo(() => {
-    let list = DOMAINS;
     if (restrictToDomain) {
-      list = list.filter((d) => d.id === restrictToDomain);
-    } else if (excludeSports) {
-      list = list.filter((d) => d.id !== 'Athletics');
+      return DOMAINS.filter((d) => d.id === restrictToDomain);
     }
-    return list;
-  }, [restrictToDomain, excludeSports]);
+    // Cognitive/general modal excludes Athletics (which has its own dedicated Sports Hub)
+    return DOMAINS.filter((d) => d.id !== 'Athletics');
+  }, [restrictToDomain]);
 
   const [selectedDomainId, setSelectedDomainId] = useState<DomainCategory>(
     restrictToDomain || (availableDomains[0]?.id as DomainCategory) || 'Science'
@@ -126,12 +124,16 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
   }, []);
 
   useEffect(() => {
-    if (initialDomain && DOMAINS.some((d) => d.id === initialDomain)) {
+    if (restrictToDomain) {
+      setSelectedDomainId(restrictToDomain);
+    } else if (initialDomain && availableDomains.some((d) => d.id === initialDomain)) {
       setSelectedDomainId(initialDomain as DomainCategory);
+    } else if (availableDomains.length > 0 && !availableDomains.some((d) => d.id === selectedDomainId)) {
+      setSelectedDomainId(availableDomains[0].id as DomainCategory);
     }
     if (initialTitle) setCustomTitle(initialTitle);
     if (initialSubGenre) setSubGenre(initialSubGenre);
-  }, [initialTitle, initialDomain, initialSubGenre, isOpen]);
+  }, [initialTitle, initialDomain, initialSubGenre, isOpen, restrictToDomain, availableDomains]);
 
   const [subgenreSuggestions, setSubgenreSuggestions] = useState<string[]>([]);
   const [isLoadingSubgenres, setIsLoadingSubgenres] = useState<boolean>(false);

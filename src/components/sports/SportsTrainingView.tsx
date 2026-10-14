@@ -2,10 +2,11 @@
 
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useRouter } from 'next/navigation';
 import { 
   Activity, Plus, Clock, CheckCircle2, ChevronRight, 
   RotateCcw, Sparkles, RefreshCw, Zap, Shield, Target,
-  Dumbbell, Flame, Check
+  Dumbbell, Flame, Check, BookOpen
 } from 'lucide-react';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from './DrillCardWithTimer';
@@ -26,6 +27,7 @@ export interface SportsTrainingViewProps {
 }
 
 export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewProps = {}) {
+  const router = useRouter();
   const { currentLanguage } = useLanguage();
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [sportsTracks, setSportsTracks] = useState<any[]>([]);
@@ -347,6 +349,15 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
               <h3 className="text-xl font-black text-slate-900 mt-1">
                 {activeStep.title}
               </h3>
+              <div className="pt-2">
+                <button
+                  onClick={() => router.push(`/workspace/${activeWorkspace.id}`)}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold transition-all shadow-xs cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                >
+                  <BookOpen className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>Study Milestone Pack & Verified Videos ➔</span>
+                </button>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -516,10 +527,9 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
 
                 <button
                   onClick={() => {
-                    setSelectedSportId(track.id);
-                    window.scrollTo({ top: 0, behavior: 'smooth' });
+                    router.push(`/workspace/${track.id}`);
                   }}
-                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer"
+                  className="w-full py-2.5 px-4 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-sm cursor-pointer hover:scale-[1.01] active:scale-[0.98]"
                 >
                   <span>Launch Sports Studio ➔</span>
                   <ChevronRight className="w-3.5 h-3.5" />

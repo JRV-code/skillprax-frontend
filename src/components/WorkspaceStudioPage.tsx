@@ -1498,6 +1498,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 <PackBuildingScreen
                   packStage={packStage}
                   packError={packError}
+                  isSports={isPhysical}
                   onRetry={retryPackBuild}
                 />
               ) : packStatus === 'READY' && packData ? (

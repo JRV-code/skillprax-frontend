@@ -1,12 +1,23 @@
 'use client';
 
-import React from 'react';
-import { motion } from 'framer-motion';
-import { Loader2, CheckCircle2, Clock, Search, ShieldCheck, PenTool, AlertTriangle, RefreshCw } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Loader2,
+  CheckCircle2,
+  Clock,
+  Search,
+  ShieldCheck,
+  PenTool,
+  AlertTriangle,
+  RefreshCw,
+  Sparkles,
+} from 'lucide-react';
 
 interface PackBuildingScreenProps {
   packStage: string | null;
   packError?: string | null;
+  isSports?: boolean;
   onRetry?: () => void;
 }
 
@@ -17,13 +28,55 @@ const STAGES = [
   { key: 'WRITING_GUIDES', label: 'Synthesizing Factual Guides', icon: PenTool },
 ];
 
+const STAGE_PERCENT: Record<string, number> = {
+  QUEUED: 15,
+  PLANNING: 35,
+  FINDING_LINKS: 65,
+  VERIFYING: 85,
+  WRITING_GUIDES: 95,
+  READY: 100,
+};
+
+const COGNITIVE_PHRASES = [
+  'Architecting curriculum milestones & assessable concept units...',
+  'Scanning live Tavily index for high-signal documentation...',
+  'Filtering out gated paywalls, registration walls & dead links...',
+  'Indexing authoritative demonstration & breakdown videos...',
+  'Synthesizing original grounded Socratic conceptual models...',
+  'Formulating structured deliberate practice guides...',
+  'Calibrating pedagogical difficulty to your exact tier...',
+  'Finalizing milestone curriculum & evaluation benchmarks...',
+];
+
+const SPORTS_PHRASES = [
+  'Architecting biomechanical milestones & conditioning units...',
+  'Scanning athletic research for verified technique guides...',
+  'Filtering out paywalls & validating open video breakdowns...',
+  'Indexing physical execution drills from verified channels...',
+  'Synthesizing warm-up safety cues & observable technique cues...',
+  'Calibrating deliberate practice tasks for your experience level...',
+  'Synthesizing physical verification checklist benchmarks...',
+];
+
 export function PackBuildingScreen({
   packStage,
   packError,
+  isSports = false,
   onRetry,
 }: PackBuildingScreenProps) {
   const currentStageIdx = STAGES.findIndex((s) => s.key === packStage);
   const isQueued = packStage === 'QUEUED' || !packStage;
+  const progressPercent = STAGE_PERCENT[packStage || 'QUEUED'] || 20;
+
+  const phrases = isSports ? SPORTS_PHRASES : COGNITIVE_PHRASES;
+  const [phraseIndex, setPhraseIndex] = useState(0);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setPhraseIndex((prev) => (prev + 1) % phrases.length);
+    }, 2800);
+    return () => clearInterval(timer);
+  }, [phrases.length]);
 
   return (
     <div
@@ -46,10 +99,37 @@ export function PackBuildingScreen({
               ? 'In line — starting shortly'
               : 'Assembling Verified Milestone Book'}
           </h3>
-          <p className="text-xs text-slate-400 max-w-sm">
-            {packError ||
-              'Skill-Track inspects live public sources, verifies link health, and writes original conceptual guides.'}
-          </p>
+
+          {/* DYNAMIC PROGRESS BAR */}
+          {!packError && (
+            <div className="w-full max-w-md mx-auto pt-3 space-y-2.5">
+              <div className="w-full bg-slate-800/80 rounded-full h-2.5 overflow-hidden border border-slate-700/60 p-0.5 relative shadow-inner">
+                <motion.div
+                  className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-cyan-400 rounded-full shadow-sm shadow-emerald-500/50"
+                  initial={{ width: '15%' }}
+                  animate={{ width: `${progressPercent}%` }}
+                  transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+                />
+              </div>
+
+              {/* DYNAMIC ROTATING PHRASES BELOW THE LOADING BAR */}
+              <div className="h-6 relative overflow-hidden flex items-center justify-center">
+                <AnimatePresence mode="wait">
+                  <motion.div
+                    key={phraseIndex}
+                    initial={{ opacity: 0, y: 7 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -7 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                    className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium"
+                  >
+                    <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse shrink-0" />
+                    <span>{phrases[phraseIndex]}</span>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
@@ -61,7 +141,7 @@ export function PackBuildingScreen({
           {onRetry && (
             <button
               onClick={onRetry}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-md"
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-semibold text-slate-950 bg-emerald-400 hover:bg-emerald-300 transition-colors shadow-md cursor-pointer"
             >
               <RefreshCw className="w-4 h-4" />
               <span>Retry Milestone Build</span>
@@ -118,3 +198,5 @@ export function PackBuildingScreen({
     </div>
   );
 }
+
+export default PackBuildingScreen;
