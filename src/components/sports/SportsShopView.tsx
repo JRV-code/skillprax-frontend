@@ -1,226 +1,437 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { 
-  ShoppingBag, ShieldCheck, Tag, Star, ArrowRight, 
-  Check, Truck, Clock, RefreshCw, X, Plus, Minus, Package 
-} from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { 
+  ShoppingBag, 
+  ExternalLink, 
+  Tag, 
+  Sparkles, 
+  MapPin, 
+  Store, 
+  Phone, 
+  Clock, 
+  Star, 
+  CheckCircle2, 
+  Info, 
+  Compass, 
+  ChevronUp, 
+  ChevronDown, 
+  RefreshCw,
+  Search
+} from 'lucide-react';
+import { useAuthStore } from '@/store/useAuthStore';
 
-const SHOP_CATEGORIES = ['All', 'Equipment', 'Footwear', 'Accessories', 'Jerseys'];
-const SHOP_SPORTS = ['All', 'Football', 'Cricket', 'Swimming', 'Basketball', 'Tennis'];
+interface GearDeal {
+  id: string;
+  category: 'Footwear & Cleats' | 'Match Equipment' | 'Jerseys & Apparel' | 'Protective & Accessories';
+  itemTitle: string;
+  recommendedSpecs: string;
+  priceRange: string;
+  dealBadge?: string;
+}
+
+interface LocalShop {
+  name: string;
+  address: string;
+  specialization: string;
+  timing: string;
+  contactPhone: string;
+  rating: number;
+  verified: boolean;
+  googleMapsQuery: string;
+}
+
+const DEALS_BY_SPORT: Record<string, GearDeal[]> = {
+  Football: [
+    {
+      id: 'fb-1',
+      category: 'Footwear & Cleats',
+      itemTitle: 'Turf Football Shoes (TF Studs)',
+      recommendedSpecs: 'Multi-rubber studded outsole for synthetic turf; PU synthetic leather upper with reinforced heel cup.',
+      priceRange: '₹1,499 - ₹3,999',
+      dealBadge: 'Top Recommended for Artificial Turf',
+    },
+    {
+      id: 'fb-2',
+      category: 'Footwear & Cleats',
+      itemTitle: 'Firm Ground Cleats (FG Studs)',
+      recommendedSpecs: 'Molded TPU studs for natural grass pitches; lightweight responsive soleplate and asymmetrical lacing.',
+      priceRange: '₹1,999 - ₹4,899',
+    },
+    {
+      id: 'fb-3',
+      category: 'Match Equipment',
+      itemTitle: 'FIFA Basic Size 5 Match Football',
+      recommendedSpecs: 'Thermally bonded or hand-stitched 32-panel casing; butyl bladder for high air retention and true flight trajectory.',
+      priceRange: '₹899 - ₹2,499',
+      dealBadge: 'Match Standard',
+    },
+    {
+      id: 'fb-4',
+      category: 'Protective & Accessories',
+      itemTitle: 'Ankle-Guarded Shin Guards',
+      recommendedSpecs: 'High-density PP shell with EVA foam backing; attached padded ankle sock for impact absorption.',
+      priceRange: '₹349 - ₹899',
+    },
+    {
+      id: 'fb-5',
+      category: 'Jerseys & Apparel',
+      itemTitle: 'Moisture-Wicking Athletic Football Kit',
+      recommendedSpecs: 'Breathable dry-fit polyester knit; mesh ventilation side panels and elasticated drawstring shorts.',
+      priceRange: '₹699 - ₹1,499',
+    },
+    {
+      id: 'fb-6',
+      category: 'Protective & Accessories',
+      itemTitle: 'Grip Goalkeeper Gloves with Finger Spines',
+      recommendedSpecs: '4mm German latex palm with supportive finger save spines and wrapped thumb protection.',
+      priceRange: '₹1,199 - ₹2,799',
+    },
+  ],
+  Cricket: [
+    {
+      id: 'cr-1',
+      category: 'Match Equipment',
+      itemTitle: 'English Willow Cricket Bat (Grade 1/2)',
+      recommendedSpecs: 'Large edges (38-40mm), pronounced spine profile, 6-9 straight grains; balanced pick-up.',
+      priceRange: '₹4,999 - ₹14,999',
+      dealBadge: 'Top Tournament Grade',
+    },
+    {
+      id: 'cr-2',
+      category: 'Match Equipment',
+      itemTitle: 'Kashmir Willow Hard Tennis & Leather Bat',
+      recommendedSpecs: 'Thick contoured blade with curved bow for club practice and leather/tennis ball boundary clearing.',
+      priceRange: '₹1,199 - ₹2,499',
+    },
+    {
+      id: 'cr-3',
+      category: 'Footwear & Cleats',
+      itemTitle: 'Cricket Spike / Rubber Stud Shoes',
+      recommendedSpecs: 'Dual-density EVA midsole, reinforced toe guard for bowlers/batsmen; metal spikes or rubber studs.',
+      priceRange: '₹1,899 - ₹4,299',
+    },
+    {
+      id: 'cr-4',
+      category: 'Protective & Accessories',
+      itemTitle: 'Molded Cricket Batting Helmet with Steel Visor',
+      recommendedSpecs: 'High-impact ABS shell with expanded polystyrene liner and adjustable powder-coated steel faceguard.',
+      priceRange: '₹1,299 - ₹3,499',
+      dealBadge: 'Safety Certified',
+    },
+    {
+      id: 'cr-5',
+      category: 'Protective & Accessories',
+      itemTitle: 'Test Match Batting Leg Guards & Gloves Combo',
+      recommendedSpecs: 'High-density foam cane bars, Gel Zone knee cup, sheep leather palm with split-finger plastic inserts.',
+      priceRange: '₹2,499 - ₹5,999',
+    },
+    {
+      id: 'cr-6',
+      category: 'Match Equipment',
+      itemTitle: 'Four-Piece Alum-Tanned Leather Match Cricket Ball',
+      recommendedSpecs: 'Cork and rubber core wrapped with 100% genuine alum-tanned leather; hand-stitched seam for prolonged swing.',
+      priceRange: '₹499 - ₹1,299',
+    },
+  ],
+  Badminton: [
+    {
+      id: 'bm-1',
+      category: 'Match Equipment',
+      itemTitle: 'High-Modulus Graphite Badminton Racket (3U/4U)',
+      recommendedSpecs: 'Isometric head shape, built-in T-joint, strung at 24-28 lbs tension with Nanomesh carbon frame.',
+      priceRange: '₹1,799 - ₹5,499',
+      dealBadge: 'Tournament Ready',
+    },
+    {
+      id: 'bm-2',
+      category: 'Footwear & Cleats',
+      itemTitle: 'Non-Marking Gum Rubber Badminton Shoes',
+      recommendedSpecs: 'Power Cushion sole with hexagrip gum rubber outsole for slip resistance on wooden and synthetic courts.',
+      priceRange: '₹1,899 - ₹4,999',
+      dealBadge: 'Mandatory Court Requirement',
+    },
+    {
+      id: 'bm-3',
+      category: 'Match Equipment',
+      itemTitle: 'Goose Feather Shuttlecock Barrel (Speed 77)',
+      recommendedSpecs: '100% solid cork base with Grade-A goose feathers; stable flight trajectory and clean smash recovery.',
+      priceRange: '₹1,199 - ₹2,199',
+    },
+    {
+      id: 'bm-4',
+      category: 'Protective & Accessories',
+      itemTitle: 'Sweat-Absorbing Polyurethane Overgrips (Pack of 5)',
+      recommendedSpecs: '0.6mm thickness with tacky feel and micro-perforations for blister prevention during long rallies.',
+      priceRange: '₹349 - ₹699',
+    },
+    {
+      id: 'bm-5',
+      category: 'Jerseys & Apparel',
+      itemTitle: 'Quick-Dry Badminton Polo & Breathable Shorts',
+      recommendedSpecs: 'Anti-static polyester with UV shielding; engineered armhole gussets for unrestricted overhead smash reach.',
+      priceRange: '₹799 - ₹1,899',
+    },
+  ],
+  Swimming: [
+    {
+      id: 'sw-1',
+      category: 'Protective & Accessories',
+      itemTitle: 'Anti-Fog Wide-Vision Racing Goggles',
+      recommendedSpecs: 'Polycarbonate mirrored lenses with UV400 coating; 3 interchangeable nose bridges and soft silicone seals.',
+      priceRange: '₹799 - ₹2,499',
+      dealBadge: 'FINA Approved Style',
+    },
+    {
+      id: 'sw-2',
+      category: 'Protective & Accessories',
+      itemTitle: 'Seamless 100% Silicone Ergonomic Swim Cap',
+      recommendedSpecs: 'Hydrodynamic wrinkle-free dome reduces water drag; tear-resistant hypoallergenic silicone.',
+      priceRange: '₹299 - ₹799',
+    },
+    {
+      id: 'sw-3',
+      category: 'Jerseys & Apparel',
+      itemTitle: 'Chlorine-Resistant Competitive Jammers / Swimsuit',
+      recommendedSpecs: 'Endurance+ fabric with 4-way stretch; quick drying and 20x more chlorine-resistant than standard Lycra.',
+      priceRange: '₹1,199 - ₹3,499',
+    },
+    {
+      id: 'sw-4',
+      category: 'Match Equipment',
+      itemTitle: 'Biofuse Ergonomic Training Hand Paddles',
+      recommendedSpecs: 'Contoured palm surface with flexible flow holes for stroke technique correction and upper body conditioning.',
+      priceRange: '₹699 - ₹1,499',
+    },
+  ],
+  Tennis: [
+    {
+      id: 'tn-1',
+      category: 'Match Equipment',
+      itemTitle: 'Midplus Graphite Tennis Racket (100 sq in, 300g)',
+      recommendedSpecs: 'Open 16x19 string pattern for spin generation; aerodynamic beam with dampened vibration handle.',
+      priceRange: '₹4,499 - ₹16,999',
+      dealBadge: 'Club Match Grade',
+    },
+    {
+      id: 'tn-2',
+      category: 'Footwear & Cleats',
+      itemTitle: 'All-Court Tennis Shoes with Lateral Claw Support',
+      recommendedSpecs: 'Herringbone tread pattern for clay and hard courts; reinforced medial drag pad for slide stability.',
+      priceRange: '₹2,999 - ₹7,499',
+    },
+    {
+      id: 'tn-3',
+      category: 'Match Equipment',
+      itemTitle: 'Pressurized Extra-Duty Tennis Ball Can (3/4 Balls)',
+      recommendedSpecs: 'Interlocked wool fiber felt for consistent bounce and durability on abrasive hard court surfaces.',
+      priceRange: '₹399 - ₹899',
+    },
+  ],
+  Basketball: [
+    {
+      id: 'bb-1',
+      category: 'Match Equipment',
+      itemTitle: 'Composite Leather Official Size 7 Basketball',
+      recommendedSpecs: 'Deep channel design for finger alignment and grip; microfiber composite cover for indoor/outdoor courts.',
+      priceRange: '₹1,299 - ₹3,499',
+      dealBadge: 'Tournament Standard',
+    },
+    {
+      id: 'bb-2',
+      category: 'Footwear & Cleats',
+      itemTitle: 'High-Top Court Basketball Shoes with Ankle Lock',
+      recommendedSpecs: 'Air-cushioned heel pod for jump landing impact dispersion; multidirectional herringbone rubber traction.',
+      priceRange: '₹2,499 - ₹6,999',
+    },
+    {
+      id: 'bb-3',
+      category: 'Protective & Accessories',
+      itemTitle: 'Honeycomb Compression Knee & Elbow Sleeves',
+      recommendedSpecs: 'High-density EVA foam honeycomb pads for court impact shielding with moisture-wicking compression sleeve.',
+      priceRange: '₹499 - ₹1,199',
+    },
+  ],
+};
+
+const CATEGORIES = [
+  'All Categories',
+  'Footwear & Cleats',
+  'Match Equipment',
+  'Jerseys & Apparel',
+  'Protective & Accessories',
+] as const;
+
+const POPULAR_CITIES = ['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Pune'];
 
 export function SportsShopView() {
-  const [products, setProducts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedSport, setSelectedSport] = useState('All');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const { user } = useAuthStore();
+  const [activeSubTab, setActiveSubTab] = useState<'online' | 'stores'>('online');
+  const [selectedSport, setSelectedSport] = useState<string>('Football');
+  const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
+  
+  // Physical store location state
+  const [city, setCity] = useState<string>((user as any)?.city || 'Ahmedabad');
+  const [state, setState] = useState<string>((user as any)?.state || 'Gujarat');
+  const [shops, setShops] = useState<LocalShop[]>([]);
+  const [loadingShops, setLoadingShops] = useState<boolean>(false);
+  const [expandedMapStore, setExpandedMapStore] = useState<string | null>(null);
+  const [geoLocating, setGeoLocating] = useState<boolean>(false);
 
-  // Sliding Cart Drawer
-  const [cartOpen, setCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<any[]>([]);
-  const [checkingOut, setCheckingOut] = useState(false);
-  const [orderNotice, setOrderNotice] = useState<string | null>(null);
-
-  // Orders Tab
-  const [activeTab, setActiveTab] = useState<'shop' | 'orders'>('shop');
-  const [orders, setOrders] = useState<any[]>([
-    {
-      id: 'ORD-9842',
-      item: 'SKILL-TRACK Official Pro Match Football (Size 5)',
-      amount: 1499,
-      status: 'Shipped',
-      date: 'Yesterday',
-      escrowState: 'HELD IN ESCROW (Protection Active)',
-    },
-    {
-      id: 'ORD-8812',
-      item: 'AeroStream Hydrodynamic Competition Goggles',
-      amount: 1299,
-      status: 'Delivered',
-      date: '3 days ago',
-      escrowState: 'RELEASED TO VENDOR (Verified)',
-    },
-  ]);
-
+  // Sync city from user store
   useEffect(() => {
-    fetchProducts();
-  }, [selectedSport, selectedCategory]);
+    if ((user as any)?.city) setCity((user as any).city);
+    if ((user as any)?.state) setState((user as any).state);
+  }, [user]);
 
-  async function fetchProducts() {
+  // Fetch local stores when viewing stores tab or when city/sport changes
+  useEffect(() => {
+    if (activeSubTab === 'stores') {
+      fetchLocalShops();
+    }
+  }, [activeSubTab, city, state, selectedSport]);
+
+  async function fetchLocalShops() {
     try {
-      setLoading(true);
+      setLoadingShops(true);
       const params = new URLSearchParams({
+        city,
+        state,
         sport: selectedSport,
-        category: selectedCategory,
       });
-
-      const res = await fetch(`/api/sports/shop/products?${params.toString()}`);
+      const res = await fetch(`/api/sports/local-shops?${params.toString()}`);
       if (res.ok) {
         const data = await res.json();
-        setProducts(data.products || []);
+        setShops(data.shops || []);
       }
     } catch (err) {
-      console.warn('Failed to fetch shop products:', err);
+      console.warn('Failed to fetch local sports shops:', err);
     } finally {
-      setLoading(false);
+      setLoadingShops(false);
     }
   }
 
-  const addToCart = (product: any) => {
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
-      }
-      return [...prev, { ...product, quantity: 1 }];
-    });
-    setCartOpen(true);
-  };
-
-  const removeFromCart = (productId: string) => {
-    setCartItems((prev) => prev.filter((item) => item.id !== productId));
-  };
-
-  const totalAmount = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-
-  const handleCheckout = async () => {
-    try {
-      setCheckingOut(true);
-      const storedId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
-
-      const res = await fetch('/api/sports/shop/order', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId: storedId,
-          items: cartItems.map((c) => ({ productId: c.id, quantity: c.quantity })),
-          totalAmount,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        setOrderNotice(`Order ${data.orderId} placed! ₹${totalAmount} held in Escrow protection until delivery.`);
-        setOrders((prev) => [
-          {
-            id: data.orderId,
-            item: cartItems.map((c) => c.title).join(', '),
-            amount: totalAmount,
-            status: 'Processing',
-            date: 'Just now',
-            escrowState: 'HELD IN ESCROW (Protection Active)',
-          },
-          ...prev,
-        ]);
-        setCartItems([]);
-        setCartOpen(false);
-        setActiveTab('orders');
-        setTimeout(() => setOrderNotice(null), 5000);
-      }
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setCheckingOut(false);
+  const handleDetectLocation = () => {
+    if (!navigator.geolocation) {
+      alert('Geolocation is not supported by your browser.');
+      return;
     }
+
+    setGeoLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const lat = pos.coords.latitude;
+          const lon = pos.coords.longitude;
+          const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+          if (res.ok) {
+            const data = await res.json();
+            const detectedCity = data.address?.city || data.address?.town || data.address?.county || 'Ahmedabad';
+            const detectedState = data.address?.state || 'Gujarat';
+            setCity(detectedCity);
+            setState(detectedState);
+          }
+        } catch (_) {
+          setCity('Ahmedabad');
+          setState('Gujarat');
+        } finally {
+          setGeoLocating(false);
+        }
+      },
+      () => setGeoLocating(false),
+      { timeout: 7000 }
+    );
   };
+
+  const sportsList = Object.keys(DEALS_BY_SPORT);
+  const allDeals = DEALS_BY_SPORT[selectedSport] || [];
+  const filteredDeals = selectedCategory === 'All Categories'
+    ? allDeals
+    : allDeals.filter((d) => d.category === selectedCategory);
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-      {/* Top Banner Notice */}
-      <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-300 text-emerald-950 flex items-center justify-between text-xs shadow-xs">
-        <div className="flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-emerald-600" />
-          <span className="font-bold">Protected Escrow Guarantee:</span>
-          <span>Your payment sits in a protected HELD state and releases to the vendor only upon delivery confirmation.</span>
-        </div>
-        <span className="text-[10px] font-mono font-bold uppercase bg-emerald-200 text-emerald-900 px-2 py-0.5 rounded">
-          100% Refundable Pre-Delivery
-        </span>
-      </div>
-
-      {orderNotice && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-400 text-emerald-900 text-xs font-bold flex items-center gap-2">
-          <Check className="w-4 h-4 text-emerald-600" />
-          <span>{orderNotice}</span>
-        </div>
-      )}
-
-      {/* Header */}
-      <div className="p-6 md:p-8 bg-white/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
-        <div>
-          <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-emerald-800 bg-emerald-50 px-2.5 py-0.5 rounded-md border border-emerald-200/60">
-            SPORTS GEAR & ACADEMY MERCHANDISE
-          </span>
-          <h1 className="text-2xl sm:text-3xl font-heading font-black text-slate-900 mt-1 tracking-tight">
-            Sports Gear Marketplace ("Sports Shop")
-          </h1>
-          <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            Verified equipment, match balls, studs, and official academy jerseys backed by platform escrow protection.
-          </p>
-        </div>
-
-        <div className="flex items-center gap-2">
+    <div className="space-y-6">
+      {/* Top Controls: Mode Switcher & Sport Selector */}
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+        {/* Sub-tab Switcher: Online Verified Deals vs. Local Physical Stores */}
+        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 w-fit">
           <button
-            onClick={() => setActiveTab('shop')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'shop' ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
+            onClick={() => setActiveSubTab('online')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeSubTab === 'online'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
             }`}
-          >
-            Catalog
-          </button>
-          <button
-            onClick={() => setActiveTab('orders')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-              activeTab === 'orders' ? 'bg-slate-900 text-white shadow-xs' : 'bg-slate-100 text-slate-600'
-            }`}
-          >
-            Orders & Escrow Status ({orders.length})
-          </button>
-          <button
-            onClick={() => setCartOpen(true)}
-            className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer ml-1"
           >
             <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Cart ({cartItems.reduce((a, b) => a + b.quantity, 0)})</span>
+            <span>Online Gear Deals</span>
           </button>
+
+          <button
+            onClick={() => setActiveSubTab('stores')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              activeSubTab === 'stores'
+                ? 'bg-white text-emerald-600 shadow-sm'
+                : 'text-slate-600 hover:text-slate-900'
+            }`}
+          >
+            <Store className="w-3.5 h-3.5" />
+            <span>Local Physical Stores</span>
+          </button>
+        </div>
+
+        {/* Sport Selection Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-slate-100 rounded-2xl border border-slate-200/60 scrollbar-none">
+          {sportsList.map((sp) => (
+            <button
+              key={sp}
+              onClick={() => setSelectedSport(sp)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                selectedSport === sp
+                  ? 'bg-white text-slate-900 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              }`}
+            >
+              {sp}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* TAB 1: PRODUCT CATALOG */}
-      {activeTab === 'shop' && (
+      {/* VIEW 1: ONLINE GEAR DEALS (AMAZON / FLIPKART) */}
+      {activeSubTab === 'online' && (
         <div className="space-y-6">
-          {/* Filters */}
-          <div className="p-4 bg-white/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 shadow-xs flex flex-wrap items-center justify-between gap-3 text-xs">
-            <div className="flex items-center gap-1.5 overflow-x-auto">
-              <span className="font-mono text-slate-400 uppercase mr-1">Sport:</span>
-              {SHOP_SPORTS.map((sp) => (
-                <button
-                  key={sp}
-                  onClick={() => setSelectedSport(sp)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
-                    selectedSport === sp
-                      ? 'bg-emerald-600 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-                  }`}
-                >
-                  {sp}
-                </button>
-              ))}
+          {/* Header Description */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+            <div>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 border border-indigo-200">
+                  <Sparkles className="w-3 h-3 text-indigo-600" />
+                  <span>DIRECT VERIFIED DEALS</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  Zero Platform Fees
+                </span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                Verified {selectedSport} Hardware & Gear
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5 max-w-xl">
+                Compare direct live inventory and buyer protection across Amazon India and Flipkart with expert buying guidelines.
+              </p>
             </div>
 
-            <div className="flex items-center gap-1.5 overflow-x-auto">
-              <span className="font-mono text-slate-400 uppercase mr-1">Type:</span>
-              {SHOP_CATEGORIES.map((cat) => (
+            {/* Category Filter Pills */}
+            <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+              {CATEGORIES.map((cat) => (
                 <button
                   key={cat}
                   onClick={() => setSelectedCategory(cat)}
-                  className={`px-3 py-1.5 rounded-xl font-bold transition-all cursor-pointer ${
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
                     selectedCategory === cat
                       ? 'bg-slate-900 text-white shadow-xs'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'
                   }`}
                 >
                   {cat}
@@ -229,188 +440,259 @@ export function SportsShopView() {
             </div>
           </div>
 
-          {/* Product Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-5">
-            {products.map((prod) => {
-              const isOfficial = prod.sellerType === 'official';
+          {/* Deals Cards Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredDeals.map((deal, idx) => {
+              const amazonUrl = `https://www.amazon.in/s?k=${encodeURIComponent(`${selectedSport} ${deal.itemTitle}`)}`;
+              const flipkartUrl = `https://www.flipkart.com/search?q=${encodeURIComponent(`${selectedSport} ${deal.itemTitle}`)}`;
 
               return (
-                <div
-                  key={prod.id}
-                  className="bg-white/95 rounded-3xl border border-slate-200/80 hover:border-emerald-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between group"
+                <motion.div
+                  key={deal.id}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: idx * 0.04 }}
+                  whileHover={{ scale: 1.012, y: -2 }}
+                  className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-lg hover:border-indigo-200/80 transition-all flex flex-col justify-between"
                 >
                   <div>
-                    {/* Image Area */}
-                    <div className="relative h-48 w-full bg-slate-100 overflow-hidden">
-                      <img
-                        src={prod.imageUrl}
-                        alt={prod.title}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                      />
-                      <span className={`absolute top-3 left-3 px-2.5 py-0.5 rounded-md text-[10px] font-black uppercase tracking-wider font-mono shadow-xs ${
-                        isOfficial
-                          ? 'bg-emerald-600 text-white'
-                          : 'bg-sky-600 text-white'
-                      }`}>
-                        {isOfficial ? 'Sold by SKILL-TRACK' : `Sold by ${prod.vendorName || 'Verified Vendor'}`}
+                    {/* Header: Category & Badge */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                        {deal.category}
+                      </span>
+                      {deal.dealBadge && (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-rose-50 text-[#F43F5E] border border-rose-200">
+                          {deal.dealBadge}
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Title */}
+                    <h3 className="text-base font-extrabold text-slate-900 tracking-tight leading-snug">
+                      {deal.itemTitle}
+                    </h3>
+
+                    {/* Price Indicator */}
+                    <div className="mt-2 flex items-center gap-2">
+                      <span className="text-sm font-black text-slate-900 font-mono">
+                        {deal.priceRange}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-medium">
+                        (Market Range)
                       </span>
                     </div>
 
-                    {/* Details */}
-                    <div className="p-5 space-y-2">
-                      <div className="flex items-center justify-between text-[11px] text-slate-400 font-mono">
-                        <span>{prod.sport}</span>
-                        <span>{prod.category}</span>
+                    {/* Buying Guide / Recommended Specs Card */}
+                    <div className="mt-3.5 p-3 rounded-2xl bg-indigo-50/40 border border-indigo-100/70 text-xs">
+                      <div className="flex items-center gap-1.5 text-indigo-600 font-bold text-[11px] mb-1">
+                        <Info className="w-3.5 h-3.5" />
+                        <span>Coach Selection Advice:</span>
                       </div>
-
-                      <h3 className="text-sm font-heading font-black text-slate-900 group-hover:text-emerald-700 transition-colors leading-snug line-clamp-2">
-                        {prod.title}
-                      </h3>
-
-                      <div className="flex items-center gap-1 text-[11px] text-amber-500 font-bold">
-                        <span>★ 4.8</span>
-                        <span className="text-slate-400 font-normal">(Verified Athletes)</span>
-                      </div>
+                      <p className="text-slate-600 text-[11px] leading-relaxed">
+                        {deal.recommendedSpecs}
+                      </p>
                     </div>
                   </div>
 
-                  {/* Pricing and Cart Button */}
-                  <div className="p-5 pt-0 flex items-center justify-between gap-2 border-t border-slate-100 mt-2">
-                    <span className="text-lg font-black font-mono text-slate-900">
-                      ₹{prod.price}
-                    </span>
-
-                    <button
-                      onClick={() => addToCart(prod)}
-                      className="px-4 py-2 bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold rounded-xl transition-all flex items-center gap-1.5 cursor-pointer shadow-xs"
+                  {/* Action Buttons: Direct Amazon and Flipkart Search Links */}
+                  <div className="mt-5 pt-3 border-t border-slate-100 space-y-2">
+                    <a
+                      href={amazonUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
                     >
-                      <Plus className="w-3.5 h-3.5" />
-                      <span>Add to Cart</span>
-                    </button>
+                      <span className="font-extrabold">Amazon India</span>
+                      <span className="text-amber-950/70 text-[11px]">View Live Deals</span>
+                      <ExternalLink className="w-3.5 h-3.5 ml-auto" />
+                    </a>
+
+                    <a
+                      href={flipkartUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="w-full py-2.5 px-4 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-xs cursor-pointer active:scale-95"
+                    >
+                      <span className="font-extrabold">Flipkart</span>
+                      <span className="text-blue-100/80 text-[11px]">Compare Offers</span>
+                      <ExternalLink className="w-3.5 h-3.5 ml-auto" />
+                    </a>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>
         </div>
       )}
 
-      {/* TAB 2: ORDER MANAGEMENT & ESCROW TRACKER */}
-      {activeTab === 'orders' && (
-        <div className="p-6 md:p-8 bg-white/90 backdrop-blur-xl rounded-3xl border border-slate-200/80 shadow-sm space-y-5">
-          <div className="flex items-center justify-between">
+      {/* VIEW 2: LOCAL PHYSICAL SPORTS STORES NEAR USER */}
+      {activeSubTab === 'stores' && (
+        <div className="space-y-6">
+          {/* Location Bar & City Selector */}
+          <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h3 className="text-base font-heading font-black text-slate-900">
-                Order Tracking & Escrow Protection State
-              </h3>
-              <p className="text-xs text-slate-500">
-                Tracking lifecycle: Order Placed → Processing → Shipped → Delivered. Funds release only on delivery confirmation.
+              <div className="flex items-center gap-2 mb-1">
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                  <Store className="w-3 h-3 text-emerald-600" />
+                  <span>BRICK & MORTAR RETAIL</span>
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                  Real Store Geocodes
+                </span>
+              </div>
+              <h2 className="text-xl font-black text-slate-900 tracking-tight">
+                Physical Sports Shops in {city}
+              </h2>
+              <p className="text-xs text-slate-500 mt-0.5">
+                Visit walk-in equipment stores, try out gear in person, and get professional stringing or repair services.
               </p>
+            </div>
+
+            {/* City Selector & GPS Button */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-medium text-slate-700">
+                <MapPin className="w-3.5 h-3.5 text-indigo-600" />
+                <select
+                  value={city}
+                  onChange={(e) => setCity(e.target.value)}
+                  className="bg-transparent font-bold text-slate-900 outline-none cursor-pointer"
+                >
+                  {POPULAR_CITIES.map((c) => (
+                    <option key={c} value={c}>{c}, {state}</option>
+                  ))}
+                </select>
+              </div>
+
+              <motion.button
+                onClick={handleDetectLocation}
+                disabled={geoLocating}
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.97 }}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-600 border border-indigo-200/60 text-xs font-bold cursor-pointer transition-all disabled:opacity-50"
+              >
+                <Compass className={`w-3.5 h-3.5 ${geoLocating ? 'animate-spin' : ''}`} />
+                <span>{geoLocating ? 'Detecting...' : 'Detect GPS'}</span>
+              </motion.button>
             </div>
           </div>
 
-          <div className="space-y-3">
-            {orders.map((ord) => (
-              <div key={ord.id} className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="font-mono font-bold text-slate-900">{ord.id}</span>
-                    <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-bold">
-                      {ord.status}
-                    </span>
-                  </div>
-                  <p className="font-semibold text-slate-800">{ord.item}</p>
-                  <p className="text-[11px] font-mono text-slate-400">{ord.date} • ₹{ord.amount}</p>
-                </div>
+          {/* Stores List / Grid */}
+          {loadingShops ? (
+            <div className="py-20 text-center space-y-3 bg-white rounded-3xl border border-slate-200/80">
+              <RefreshCw className="w-8 h-8 animate-spin text-emerald-600 mx-auto" />
+              <p className="text-sm font-bold text-slate-800">
+                Scanning Verified Sports Stores in {city}...
+              </p>
+              <p className="text-xs text-slate-500 max-w-sm mx-auto">
+                Querying live Google Maps retail geocodes and store operational hours.
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {shops.map((shop, idx) => {
+                const isMapOpen = expandedMapStore === shop.name;
+                const gmapsUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(shop.googleMapsQuery || `${shop.name} ${city}`)}`;
 
-                <div className="text-right space-y-1 sm:w-auto w-full border-t sm:border-t-0 pt-2 sm:pt-0">
-                  <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200">
-                    <ShieldCheck className="w-3.5 h-3.5" />
-                    <span>{ord.escrowState}</span>
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* SLIDING CART DRAWER */}
-      <AnimatePresence>
-        {cartOpen && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex justify-end">
-            <motion.div
-              initial={{ x: '100%' }}
-              animate={{ x: 0 }}
-              exit={{ x: '100%' }}
-              transition={{ type: 'spring', damping: 25 }}
-              className="w-full max-w-md bg-white h-full shadow-2xl flex flex-col justify-between p-6 overflow-y-auto"
-            >
-              <div className="space-y-4">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                  <div className="flex items-center gap-2">
-                    <ShoppingBag className="w-5 h-5 text-emerald-600" />
-                    <h3 className="font-heading font-black text-slate-900 text-base">Your Sports Cart</h3>
-                  </div>
-                  <button onClick={() => setCartOpen(false)} className="p-1 rounded-lg text-slate-400 hover:text-slate-700">
-                    <X className="w-5 h-5" />
-                  </button>
-                </div>
-
-                {cartItems.length === 0 ? (
-                  <div className="py-16 text-center text-slate-400 space-y-2">
-                    <ShoppingBag className="w-12 h-12 mx-auto stroke-[1.5]" />
-                    <p className="text-xs">Your cart is empty.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {cartItems.map((item) => (
-                      <div key={item.id} className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between gap-3 text-xs">
-                        <div className="flex items-center gap-2.5">
-                          <img src={item.imageUrl} alt="" className="w-12 h-12 rounded-xl object-cover" />
-                          <div>
-                            <p className="font-bold text-slate-900 line-clamp-1">{item.title}</p>
-                            <p className="text-[11px] font-mono text-emerald-700 font-bold">₹{item.price} × {item.quantity}</p>
-                          </div>
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="bg-white rounded-3xl p-5 border border-slate-200/90 shadow-xs hover:shadow-md transition-all flex flex-col justify-between"
+                  >
+                    <div>
+                      {/* Badge & Rating */}
+                      <div className="flex items-center justify-between gap-2 mb-2">
+                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                          <span>Verified Sports Retailer</span>
+                        </span>
+                        <div className="flex items-center gap-1 px-2 py-0.5 bg-amber-50 border border-amber-200 rounded-full text-xs font-bold text-amber-800">
+                          <Star className="w-3 h-3 fill-amber-400 text-amber-500" />
+                          <span>{shop.rating || 4.6} / 5.0</span>
                         </div>
+                      </div>
+
+                      {/* Store Name */}
+                      <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                        {shop.name}
+                      </h3>
+
+                      {/* Address */}
+                      <p className="text-xs text-slate-500 mt-1 line-clamp-2">
+                        {shop.address}
+                      </p>
+
+                      {/* Equipment in Stock */}
+                      <div className="mt-3 p-2.5 rounded-xl bg-slate-50 border border-slate-100 text-xs">
+                        <span className="font-bold text-slate-700">Specialization: </span>
+                        <span className="text-slate-600">{shop.specialization}</span>
+                      </div>
+
+                      {/* Timing & Phone */}
+                      <div className="mt-3 grid grid-cols-2 gap-2 text-[11px] text-slate-600">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">{shop.timing}</span>
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                          <span className="truncate">{shop.contactPhone}</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Action Buttons: Google Maps Directions & Live Map Embed */}
+                    <div className="mt-5 pt-3 border-t border-slate-100">
+                      <div className="flex items-center gap-2">
+                        <a
+                          href={gmapsUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-all shadow-xs cursor-pointer"
+                        >
+                          <span>Get Directions</span>
+                          <ExternalLink className="w-3.5 h-3.5" />
+                        </a>
 
                         <button
-                          onClick={() => removeFromCart(item.id)}
-                          className="p-1 text-slate-400 hover:text-rose-600"
+                          onClick={() => setExpandedMapStore(isMapOpen ? null : shop.name)}
+                          className="flex items-center gap-1 py-2.5 px-3 rounded-xl bg-emerald-50 hover:bg-emerald-100 text-emerald-700 border border-emerald-200/60 font-bold text-xs transition-all cursor-pointer"
                         >
-                          <X className="w-4 h-4" />
+                          <MapPin className="w-3.5 h-3.5" />
+                          <span>{isMapOpen ? 'Hide Map' : 'Store Map'}</span>
+                          {isMapOpen ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
                         </button>
                       </div>
-                    ))}
-                  </div>
-                )}
-              </div>
 
-              {cartItems.length > 0 && (
-                <div className="pt-4 border-t border-slate-200 space-y-3">
-                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
-                    <span>Subtotal:</span>
-                    <span className="text-base font-mono font-black text-slate-900">₹{totalAmount}</span>
-                  </div>
-
-                  <div className="p-3 rounded-xl bg-emerald-50 text-[11px] text-emerald-900 border border-emerald-200 flex items-center gap-2">
-                    <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
-                    <span>Protected by SKILL-TRACK Escrow. Refundable pre-dispatch.</span>
-                  </div>
-
-                  <button
-                    disabled={checkingOut}
-                    onClick={handleCheckout}
-                    className="w-full py-3 bg-slate-900 hover:bg-emerald-600 text-white rounded-xl font-heading font-black text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md"
-                  >
-                    <span>{checkingOut ? 'Securing Escrow Funds...' : `Pay ₹${totalAmount} via Escrow →`}</span>
-                  </button>
-                </div>
-              )}
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
+                      {/* Embedded Google Maps Iframe */}
+                      <AnimatePresence>
+                        {isMapOpen && (
+                          <motion.div
+                            initial={{ opacity: 0, height: 0 }}
+                            animate={{ opacity: 1, height: 'auto' }}
+                            exit={{ opacity: 0, height: 0 }}
+                            className="mt-3 overflow-hidden"
+                          >
+                            <iframe
+                              title={shop.name}
+                              src={`https://www.google.com/maps?q=${encodeURIComponent(shop.googleMapsQuery || `${shop.name} ${city}`)}&output=embed`}
+                              className="w-full h-48 rounded-2xl border border-slate-200 shadow-inner"
+                              loading="lazy"
+                            />
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

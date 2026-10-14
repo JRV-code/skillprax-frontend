@@ -21,7 +21,11 @@ export interface StepDrillItem {
   isCompleted: boolean;
 }
 
-export function SportsTrainingView() {
+export interface SportsTrainingViewProps {
+  ageCategory?: string;
+}
+
+export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewProps = {}) {
   const { currentLanguage } = useLanguage();
   const [activeProfileId, setActiveProfileId] = useState<string | null>(null);
   const [sportsTracks, setSportsTracks] = useState<any[]>([]);

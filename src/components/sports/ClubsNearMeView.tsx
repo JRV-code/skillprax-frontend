@@ -30,6 +30,7 @@ interface ClubVenue {
   contactPhone: string;
   verified: boolean;
   googleMapsQuery: string;
+  ageEligibility?: string;
 }
 
 interface ShopVenue {
@@ -46,7 +47,11 @@ interface ShopVenue {
 const SPORTS_LIST = ['Football', 'Cricket', 'Badminton', 'Swimming', 'Tennis', 'Basketball'];
 const POPULAR_CITIES = ['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Pune'];
 
-export function ClubsNearMeView() {
+export interface ClubsNearMeViewProps {
+  ageCategory?: 'ALL' | 'U14' | 'U17' | 'U19' | 'OPEN';
+}
+
+export function ClubsNearMeView({ ageCategory = 'ALL' }: ClubsNearMeViewProps = {}) {
   const { user } = useAuthStore();
   const [activeSubTab, setActiveSubTab] = useState<'clubs' | 'shops'>('clubs');
   const [selectedSport, setSelectedSport] = useState<string>('Football');
@@ -69,14 +74,14 @@ export function ClubsNearMeView() {
     }
   }, [user]);
 
-  // Fetch real clubs or shops whenever sport or city changes
+  // Fetch real clubs or shops whenever sport, city, or age category changes
   useEffect(() => {
     if (activeSubTab === 'clubs') {
       fetchRealClubs();
     } else {
       fetchLocalShops();
     }
-  }, [selectedSport, city, state, activeSubTab]);
+  }, [selectedSport, city, state, activeSubTab, ageCategory]);
 
   async function fetchRealClubs() {
     try {
@@ -85,6 +90,7 @@ export function ClubsNearMeView() {
         sport: selectedSport,
         city,
         state,
+        ageCategory: ageCategory || 'ALL',
       });
       const res = await fetch(`/api/sports/real-clubs?${params.toString()}`);
       if (res.ok) {
@@ -264,12 +270,17 @@ export function ClubsNearMeView() {
                   >
                     <div>
                       {/* Badge & Distance */}
-                      <div className="flex items-center justify-between gap-2 mb-2">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                          <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                          <span>Verified Academy</span>
-                        </span>
-                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                      <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
+                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
+                            <span>Verified Academy</span>
+                          </span>
+                          <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
+                            {club.ageEligibility || (ageCategory && ageCategory !== 'ALL' ? `Eligible for ${ageCategory}` : 'All Age Groups')}
+                          </span>
+                        </div>
+                        <span className="text-xs font-semibold text-slate-500 flex items-center gap-1 shrink-0">
                           <MapPin className="w-3.5 h-3.5 text-slate-400" />
                           <span>~{club.estimatedDistanceKm || 3.5} km from center</span>
                         </span>
