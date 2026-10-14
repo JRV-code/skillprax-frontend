@@ -149,11 +149,12 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
         body: JSON.stringify({ userId: activeUserId }),
       });
 
-      if (!res.ok) {
-        throw new Error(`Server returned status ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok || (data && data.success === false)) {
+        throw new Error(data?.error || `Server responded with status ${res.status}`);
       }
 
-      const data = await res.json();
       const stepData = data.step || data;
 
       const vId = stepData.video_id || stepData.videoId;
