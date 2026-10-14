@@ -528,12 +528,12 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Synthesizing Context-Aware Trajectory...</span>
+                  <span>Synthesizing Context-Aware Mastery Trajectory...</span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Generate Learning Trajectory ➔</span>
+                  <span>Generate Mastery Trajectory ➔</span>
                 </>
               )}
             </button>

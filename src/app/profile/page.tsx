@@ -8,7 +8,7 @@ import {
   Award, Settings, RefreshCw, Star, Trash2, Edit2, 
   Bell, Clock, Activity, CheckCircle2, AlertCircle, 
   Lock, Mail, User, Sparkles, Calendar, Check, Send,
-  Apple, HeartPulse, Globe, MapPin, Compass
+  Apple, HeartPulse, Globe, MapPin, Compass, Brain
 } from 'lucide-react';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
@@ -19,6 +19,36 @@ import { Navbar } from '@/components/common/Navbar';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
+
+const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 1200 }) => {
+  const [displayValue, setDisplayValue] = useState(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const target = Math.max(0, value || 0);
+    if (target === 0) {
+      setDisplayValue(0);
+      return;
+    }
+
+    let animationFrameId: number;
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const ease = progress === 1 ? 1 : 1 - Math.pow(2, -10 * progress);
+      setDisplayValue(Math.floor(ease * target));
+      if (progress < 1) {
+        animationFrameId = requestAnimationFrame(step);
+      } else {
+        setDisplayValue(target);
+      }
+    };
+    animationFrameId = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(animationFrameId);
+  }, [value, duration]);
+
+  return <span>{displayValue}</span>;
+};
 
 function isProfileComplete(profile: any): boolean {
   if (!profile) return false;
@@ -526,40 +556,138 @@ export default function ProfileHubPage() {
           </div>
         )}
 
-        {/* MINIMALIST ACTIVE DISCIPLINE CARDS */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6">
-          {/* Card 1: Ongoing Skill Learning */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+        {/* MASTER VELOCITY & DISCIPLINE METRICS (MODULE 1: ANIMATED COUNTERS & PULSING ICONS) */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+          {/* Metric 1: Daily Streak Velocity */}
+          <div className="p-6 rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-amber-500/5 rounded-full blur-2xl group-hover:bg-amber-500/10 transition-colors pointer-events-none" />
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                ONGOING SKILL LEARNING
-              </span>
-              <h3 className="text-base font-bold text-slate-900">
-                {activeSkillName ? activeSkillName : "No skill enrolled yet"}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200/80">
+                  ATTENDANCE VELOCITY
+                </span>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.12, 1],
+                    filter: [
+                      'drop-shadow(0 0 4px rgba(245, 158, 11, 0.4))',
+                      'drop-shadow(0 0 12px rgba(245, 158, 11, 0.75))',
+                      'drop-shadow(0 0 4px rgba(245, 158, 11, 0.4))'
+                    ]
+                  }}
+                  transition={{ repeat: Infinity, duration: 2.2, ease: "easeInOut" }}
+                  className="w-10 h-10 rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-white flex items-center justify-center shadow-md shadow-amber-500/30 shrink-0"
+                >
+                  <Flame className="w-5 h-5 fill-amber-100 stroke-[2.5]" />
+                </motion.div>
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-heading">
+                  <AnimatedCounter value={Number(profile?.flameStreak || profile?.streakDays || telemetry?.profile?.flameStreak || 1)} />
+                </span>
+                <span className="text-sm font-bold text-slate-500">Days Consecutive</span>
+              </div>
+              <p className="text-xs text-slate-500">
+                {profile?.streakFreezesRemaining ? `${profile.streakFreezesRemaining} Streak Freezes Active` : 'Daily diagnostic practice required'}
+              </p>
             </div>
-            {activeSkillName && (
-              <Link className="text-xs font-bold text-[#0284C7] hover:underline" href="/skills">
-                Open Skills Studio →
-              </Link>
-            )}
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-md">
+                Velocity: Optimal
+              </span>
+              <span className="text-slate-400 font-mono">Unbroken</span>
+            </div>
           </div>
 
-          {/* Card 2: Ongoing Sports Training */}
-          <div className="p-5 rounded-2xl bg-white border border-slate-200/80 shadow-xs flex items-center justify-between">
+          {/* Metric 2: Ongoing Cognitive Skills */}
+          <div className="p-6 rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-sky-500/5 rounded-full blur-2xl group-hover:bg-sky-500/10 transition-colors pointer-events-none" />
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400 block mb-1">
-                ONGOING SPORTS TRAINING
-              </span>
-              <h3 className="text-base font-bold text-slate-900">
-                {activeSportName ? activeSportName : "No sports training active"}
-              </h3>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-sky-700 bg-sky-50 px-2.5 py-1 rounded-lg border border-sky-200/80">
+                  COGNITIVE DISCIPLINES
+                </span>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.09, 1],
+                    filter: [
+                      'drop-shadow(0 0 3px rgba(14, 165, 233, 0.35))',
+                      'drop-shadow(0 0 10px rgba(14, 165, 233, 0.7))',
+                      'drop-shadow(0 0 3px rgba(14, 165, 233, 0.35))'
+                    ]
+                  }}
+                  transition={{ repeat: Infinity, duration: 2.8, ease: "easeInOut" }}
+                  className="w-10 h-10 rounded-2xl bg-gradient-to-br from-sky-500 to-indigo-600 text-white flex items-center justify-center shadow-md shadow-sky-500/30 shrink-0"
+                >
+                  <Brain className="w-5 h-5 stroke-[2.2]" />
+                </motion.div>
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-heading">
+                  <AnimatedCounter value={Math.max(academicSkills.length, enrolledSkills.length)} />
+                </span>
+                <span className="text-sm font-bold text-slate-500">Active Tracks</span>
+              </div>
+              <p className="text-xs text-slate-600 font-semibold truncate">
+                {activeSkillName ? activeSkillName : "No cognitive skill enrolled"}
+              </p>
             </div>
-            {activeSportName && (
-              <Link className="text-xs font-bold text-emerald-600 hover:underline" href="/sports">
-                Open Sports Hub →
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="text-slate-400 font-medium">Mental Studio</span>
+              <Link className="font-bold text-[#0284C7] hover:underline flex items-center gap-1 group-hover:translate-x-0.5 transition-transform" href="/skills">
+                <span>Skills Studio</span>
+                <ArrowRight className="w-3 h-3" />
               </Link>
-            )}
+            </div>
+          </div>
+
+          {/* Metric 3: Ongoing Physical Skills / Sports */}
+          <div className="p-6 rounded-3xl bg-white/95 backdrop-blur-md border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between relative overflow-hidden group">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-emerald-500/5 rounded-full blur-2xl group-hover:bg-emerald-500/10 transition-colors pointer-events-none" />
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 px-2.5 py-1 rounded-lg border border-emerald-200/80">
+                  PHYSICAL & ATHLETIC
+                </span>
+                <motion.div
+                  animate={{ 
+                    scale: [1, 1.1, 1],
+                    y: [0, -2, 0],
+                    filter: [
+                      'drop-shadow(0 0 3px rgba(16, 185, 129, 0.35))',
+                      'drop-shadow(0 0 10px rgba(16, 185, 129, 0.7))',
+                      'drop-shadow(0 0 3px rgba(16, 185, 129, 0.35))'
+                    ]
+                  }}
+                  transition={{ repeat: Infinity, duration: 2.4, ease: "easeInOut" }}
+                  className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-600 text-white flex items-center justify-center shadow-md shadow-emerald-500/30 shrink-0"
+                >
+                  <Activity className="w-5 h-5 stroke-[2.2]" />
+                </motion.div>
+              </div>
+
+              <div className="flex items-baseline gap-2 mb-1">
+                <span className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight font-heading">
+                  <AnimatedCounter value={Math.max(athleticSports.length, enrolledSports.length)} />
+                </span>
+                <span className="text-sm font-bold text-slate-500">Active Sports</span>
+              </div>
+              <p className="text-xs text-slate-600 font-semibold truncate">
+                {activeSportName ? activeSportName : "No sports training active"}
+              </p>
+            </div>
+
+            <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-[11px]">
+              <span className="text-slate-400 font-medium">Kinetic Hub</span>
+              <Link className="font-bold text-emerald-600 hover:underline flex items-center gap-1 group-hover:translate-x-0.5 transition-transform" href="/sports">
+                <span>Sports Hub</span>
+                <ArrowRight className="w-3 h-3" />
+              </Link>
+            </div>
           </div>
         </div>
 

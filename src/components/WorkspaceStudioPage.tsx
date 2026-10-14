@@ -21,6 +21,7 @@ import { InAppLectureTheater } from '@/components/workspace/InAppLectureTheater'
 import { TopicDocumentationSection, TopicItem as DocTopicItem } from '@/components/workspace/TopicDocumentationSection';
 import { ExternalTopicWebLinks, TopicDoc, isVideoUrl } from '@/components/workspace/ExternalTopicWebLinks';
 import { StepFlowchartStepper, StepNode } from '@/components/workspace/StepFlowchartStepper';
+import { StepResourceHub } from '@/components/workspace/StepResourceHub';
 import {
   Activity,
   GitBranch,
@@ -409,35 +410,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     }
   }, [viewingStepId, fetchStepGuide]);
 
-  // Dynamic Step Sourcing Sync (Anti-Repetition Vault enforced)
-  useEffect(() => {
-    if (!currentTrack?.id || !viewingStepNum) return;
-    if (viewingStepObj && (!viewingStepObj.topics || viewingStepObj.topics.length === 0 || !viewingStepObj.videoId)) {
-      const activeUserId = typeof window !== 'undefined'
-        ? localStorage.getItem('skillprax_active_profile_id') || 'default-user'
-        : 'default-user';
-
-      fetch(`/api/skills/${currentTrack.id}/step/${viewingStepNum}/source`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: activeUserId }),
-      })
-        .then((r) => (r.ok ? r.json() : null))
-        .then((data) => {
-          if (data && viewingStepObj) {
-            viewingStepObj.videoId = data.videoId;
-            viewingStepObj.video_id = data.videoId;
-            viewingStepObj.videoUrl = data.videoUrl;
-            viewingStepObj.video_url = data.videoUrl;
-            viewingStepObj.videoTitle = data.videoTitle;
-            viewingStepObj.video_title = data.videoTitle;
-            viewingStepObj.topics = data.topics;
-            setStepGuides((prev) => ({ ...prev }));
-          }
-        })
-        .catch(() => {});
-    }
-  }, [currentTrack?.id, viewingStepNum, viewingStepObj]);
+  // Sourced steps tracking map (ensures instant UI transition upon generation)
+  const [sourcedStepNumbers, setSourcedStepNumbers] = useState<Record<number, boolean>>({});
   const [physicalDrills, setPhysicalDrills] = useState<any[]>([]);
   const [loadingDrills, setLoadingDrills] = useState<boolean>(false);
 
@@ -586,6 +560,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           viewingStepObj.topics = sourced.topics;
           viewingStepObj.is_sourced = true;
         }
+        setSourcedStepNumbers((prev) => ({ ...prev, [viewingStepNum]: true }));
+        setStepGuides((prev) => ({ ...prev }));
       }
 
       // 2. Synthesize level-up study chapters and guide
@@ -894,52 +870,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         };
       });
     }
-    // High-quality authoritative topic fallbacks
-    const trackName = currentTrack.title || 'Technical Skill';
-    return [
-      {
-        topicId: `t-${viewingStepNum}-1`,
-        title: `${trackName}: Foundational Syntax & Memory Models`,
-        externalUrl: `https://en.wikipedia.org/wiki/${encodeURIComponent(trackName)}`,
-        sourceDomain: 'wikipedia.org',
-        pedagogicalGuide: {
-          sectionsToRead: [
-            'Foundational architecture and execution primitives',
-            'Core mental models and state lifecycle guarantees',
-          ],
-          sectionsToSkip: [
-            'Obsolete legacy flags and archived tooling',
-            'Vendor-specific non-standard hacks',
-          ],
-          howToLearn: `Master the foundational mental models before attempting advanced edge-case scenarios.`,
-          keyTraps: [
-            'Conflating sequential operations with parallel execution',
-            'Skipping invariant checks prior to state mutation',
-          ],
-        },
-      },
-      {
-        topicId: `t-${viewingStepNum}-2`,
-        title: `${viewingStepTitle}: Practical Engineering Specifications`,
-        externalUrl: `https://developer.mozilla.org/en-US/search?q=${encodeURIComponent(trackName)}`,
-        sourceDomain: 'developer.mozilla.org',
-        pedagogicalGuide: {
-          sectionsToRead: [
-            'Technical method declarations and parameter invariants',
-            'Memory safety constraints and execution benchmarks',
-          ],
-          sectionsToSkip: [
-            'Deprecated legacy APIs marked for future deprecation',
-            'Ad-hoc blog tutorials without formal test suites',
-          ],
-          howToLearn: `Study the method contracts and verify each output against the expected behavioral invariant.`,
-          keyTraps: [
-            'Assuming default configurations are optimized for production load',
-          ],
-        },
-      },
-    ];
-  }, [viewingStepObj?.topics, currentTopicMap, currentChapters, studyBookResources, currentTrack.title, viewingStepNum, viewingStepTitle]);
+    return [];
+  }, [viewingStepObj?.topics, currentTopicMap, currentChapters, studyBookResources, currentTrack.title]);
 
   const externalTopicDocs: TopicDoc[] = useMemo(() => {
     return formattedTopicList.map((t) => ({
@@ -950,6 +882,37 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       coreObjective: (t as any).coreObjective || t.pedagogicalGuide?.howToLearn || `Master the principles of ${t.title}`,
     }));
   }, [formattedTopicList]);
+
+  const isStepSourced = useMemo(() => {
+    if (sourcedStepNumbers[viewingStepNum]) return true;
+    if (!viewingStepObj) return false;
+    return Boolean(
+      viewingStepObj.is_sourced ||
+      viewingStepObj.isSourced ||
+      (viewingStepObj.videoId && Array.isArray(viewingStepObj.topics) && viewingStepObj.topics.length > 0)
+    );
+  }, [viewingStepObj, viewingStepNum, sourcedStepNumbers]);
+
+  const chapterObjectives = useMemo(() => {
+    if (Array.isArray(viewingStepObj?.objectives) && viewingStepObj.objectives.length > 0) {
+      return viewingStepObj.objectives;
+    }
+    if (Array.isArray(viewingStepObj?.newConcepts) && viewingStepObj.newConcepts.length > 0) {
+      return viewingStepObj.newConcepts;
+    }
+    if (viewingStepAcus && viewingStepAcus.length > 0) {
+      return viewingStepAcus.map((a) => a.title);
+    }
+    return [
+      `Master fundamental principles and invariants of ${viewingStepTitle}`,
+      `Understand operational mechanics and key workflow standards`,
+      `Verify domain-specific safety, error states, and execution criteria`,
+    ];
+  }, [viewingStepObj, viewingStepAcus, viewingStepTitle]);
+
+  const handleGenerateStepResources = async (stepNum?: number) => {
+    await handleSynthesizeMaterials();
+  };
 
   const handleOpenPlayer = (videoId: string, title?: string, channel?: string, focusNote?: string) => {
     setActiveYouTubeModal({
@@ -1456,158 +1419,46 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 onSelectStep={(stepNum) => setViewingStepIndex(stepNum)}
               />
 
-              {/* MODULE 2: IN-APP LECTURE THEATER (Direct Embedded Stream) */}
-              {lectureVideoToPlay ? (
-                <InAppLectureTheater
-                  videoId={lectureVideoToPlay.videoId}
-                  videoTitle={lectureVideoToPlay.videoTitle}
-                  stepNumber={viewingStepNum}
-                />
-              ) : (
-                <div className="w-full bg-slate-900 rounded-3xl p-8 border border-slate-800 text-center text-slate-400 mb-8">
-                  <div className="w-8 h-8 border-2 border-sky-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-                  <p className="text-xs font-semibold">Sourcing authentic educational lecture for Step {viewingStepNum}...</p>
-                </div>
-              )}
-
-              {/* MODULE 3: DIRECT EXTERNAL TOPIC DOCUMENTATION (Clean Links to Original Sites) */}
-              <ExternalTopicWebLinks topics={externalTopicDocs} stepNumber={viewingStepNum} />
-
-              {/* IDLE / UNGENERATED LAUNCHPAD STATE */}
-              {(!activeStepResources || activeStepResources.length === 0) && currentChapters.length === 0 && !isSynthesizing && (
-                <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-4">
-                  <div className="w-14 h-14 rounded-2xl bg-emerald-50 text-emerald-600 mx-auto flex items-center justify-center border border-emerald-200 shadow-sm">
-                    <Sparkles className="w-7 h-7 text-emerald-600 animate-pulse" />
-                  </div>
-                  <div className="space-y-1">
-                    <h3 className="text-xl font-heading font-extrabold text-slate-900">Milestone Curriculum Ready</h3>
-                    <p className="text-xs text-slate-600 max-w-md mx-auto leading-relaxed">
-                      Synthesize live web resources curated specifically for "{viewingStepTitle}" using Tavily search and Groq pedagogy engine. Zero link rot guaranteed.
-                    </p>
-                  </div>
-                  <div className="pt-2">
-                    <div className="relative p-[1.5px] rounded-xl conic-beam shadow-md shadow-emerald-500/20 inline-block">
-                      <button
-                        onClick={handleSynthesizeMaterials}
-                        disabled={isSynthesizing}
-                        className="relative z-10 px-6 py-3 rounded-[10px] font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 text-white transition-all flex items-center gap-2 cursor-pointer btn-shimmer"
-                      >
-                        <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
-                        <span>⚡ Build My Milestone Curriculum</span>
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* SYNTHESIZING SPINNER */}
-              {isSynthesizing && (
-                <div className="p-10 bg-white/95 backdrop-blur-md rounded-3xl border border-emerald-200/90 shadow-xl text-center space-y-3">
-                  <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto mb-2" />
-                  <h4 className="text-base font-heading font-bold text-slate-900">
-                    Querying Tavily Web Search & Curating via Groq...
-                  </h4>
-                  <p className="text-xs text-slate-500 max-w-sm mx-auto">
-                    Harvesting technical documentation and video demonstrations tailored to "{viewingStepTitle}".
-                  </p>
-                </div>
-              )}
-
-              {/* SECTION 2: CURRICULUM CHAPTERS & PRE-STUDY GAME PLAN */}
-              {(currentChapters.length > 0 || studyBookResources.length > 0) && !isSynthesizing && (
-                <div className="space-y-6">
-                  {/* PRE-STUDY GAME PLAN (FIRST CARD BEFORE ANY RESOURCE) */}
-                  <StepApproachBrief
-                    stepId={viewingStepId}
-                    stepTitle={viewingStepTitle}
-                    tier={currentDifficultyTier}
-                    approachBrief={currentApproachBrief}
-                    approachViewedAt={currentApproachViewedAt}
-                    onApproachViewed={handleApproachViewed}
-                    onGenerateApproach={handleGenerateApproach}
-                    isGenerating={isGeneratingApproach}
-                  />
-
-                  {/* CHAPTERS LIST (ONE RESOURCE PER CHAPTER, VERIFIED ONLY) */}
-                  <ChapterList
-                    chapters={currentChapters}
-                    onOpenVideo={(chapter, resource) => {
-                      setVideoDrawerState({
-                        isOpen: true,
-                        chapter,
-                        resource,
-                      });
-                    }}
-                    onReplaceResource={handleReplaceResource}
-                    onRetryChapter={handleRetryChapter}
-                    currentLanguage="en"
-                    approachViewed={Boolean(currentApproachViewedAt)}
-                  />
-                </div>
-              )}
-
-              {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}
-              {isPhysical && physicalDrills.length > 0 && (
-                <div className="space-y-4 pt-4 border-t border-slate-100">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-2">
-                      <span className="p-1.5 rounded-lg bg-emerald-100 text-emerald-700">
-                        <Activity className="w-5 h-5"/>
-                      </span>
-                      <div>
-                        <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                          Step {viewingStepNum}: Practical Execution Drills
-                        </h3>
-                        <p className="text-xs text-slate-500">
-                          Execute these physical biomechanical drills to build muscle memory before attempting the milestone gate.
-                        </p>
-                      </div>
-                    </div>
-                    <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-                      {physicalDrills.filter((d) => d.isCompleted).length} of {physicalDrills.length} Drills Completed
-                    </span>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-                    {physicalDrills.map((drill, idx) => (
-                      <DrillCardWithTimer
-                        key={drill.id || idx}
-                        drillNumber={idx + 1}
-                        title={drill.title}
-                        durationMinutes={drill.durationMinutes}
-                        technicalFocusPoints={drill.technicalFocusPoints}
-                        isCompleted={drill.isCompleted}
-                        onDrillComplete={handlePhysicalDrillComplete}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Ready for Quiz Prompt Banner */}
-              <div className="p-5 rounded-2xl bg-emerald-50/70 border border-emerald-200/90 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-emerald-100 text-emerald-700 flex items-center justify-center">
-                    <Zap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-heading font-bold text-emerald-950">
-                      Materials Mastered? Take the Socratic Competency Check
-                    </h4>
-                    <p className="text-xs text-emerald-800">
-                      Passing threshold is 70%. Score 100% or take the perfection drill to earn Grandmaster XP.
-                    </p>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setActiveTab('evaluation')}
-                  className="px-5 py-2.5 rounded-xl font-heading font-semibold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.96] btn-shimmer"
-                >
-                  <Zap className="w-4 h-4 text-amber-300 animate-pulse" />
-                  <span>⚡ Ready for Quiz — Start Socratic Evaluation ➔</span>
-                </button>
-              </div>
+              {/* UNIFIED ON-DEMAND STEP RESOURCE HUB */}
+              <StepResourceHub
+                currentStep={viewingStepNum}
+                stepTitle={viewingStepTitle}
+                skillId={currentTrack.id}
+                isPhysical={isPhysical}
+                step={viewingStepObj}
+                stepDrills={physicalDrills.map((d, i) => ({
+                  drillNumber: d.drillNumber || i + 1,
+                  title: d.title,
+                  durationMinutes: d.durationMinutes || 10,
+                  technicalFocusPoints: d.technicalFocusPoints || [],
+                  isCompleted: d.isCompleted,
+                }))}
+                onDrillComplete={(drillTitle) => {
+                  handlePhysicalDrillComplete(drillTitle);
+                }}
+                onStartQuiz={() => {
+                  setActiveTab('evaluation');
+                }}
+                onStepLoaded={(sourced) => {
+                  if (viewingStepObj) {
+                    viewingStepObj.videoId = sourced.videoId;
+                    viewingStepObj.video_id = sourced.videoId;
+                    viewingStepObj.videoUrl = sourced.videoUrl;
+                    viewingStepObj.video_url = sourced.videoUrl;
+                    viewingStepObj.videoTitle = sourced.videoTitle;
+                    viewingStepObj.video_title = sourced.videoTitle;
+                    viewingStepObj.videoMiniGuide = sourced.videoMiniGuide;
+                    viewingStepObj.docTitle = sourced.docTitle;
+                    viewingStepObj.docUrl = sourced.docUrl;
+                    viewingStepObj.docDomain = sourced.docDomain;
+                    viewingStepObj.docMiniGuide = sourced.docMiniGuide;
+                    viewingStepObj.stepExplanation = sourced.stepExplanation;
+                    viewingStepObj.topics = sourced.topics;
+                    viewingStepObj.is_sourced = true;
+                  }
+                  setSourcedStepNumbers((prev) => ({ ...prev, [viewingStepNum]: true }));
+                }}
+              />
             </motion.div>
           )}
 

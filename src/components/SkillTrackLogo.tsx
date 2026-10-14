@@ -24,15 +24,10 @@ export const SkillTrackLogo: React.FC<SkillTrackLogoProps> = ({
 }) => {
   const displayWordmark = showWordmark !== undefined ? showWordmark : showText;
 
-  // Map sizes to BrandLogo supported sizes: 'sm' | 'md' | 'lg'
-  const brandSize: 'sm' | 'md' | 'lg' = 
-    size === 'xs' || size === 'sm' ? 'sm' :
-    size === 'lg' || size === 'xl' || size === 'hero' ? 'lg' : 'md';
-
   return (
     <div onClick={onClick} className={`inline-flex items-center cursor-pointer ${className}`}>
       <BrandLogo
-        size={brandSize}
+        size={size}
         showWordmark={displayWordmark}
         href={href}
       />

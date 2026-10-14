@@ -6,7 +6,7 @@ import Link from 'next/link';
 
 export interface BrandLogoProps {
   className?: string;
-  size?: 'sm' | 'md' | 'lg';
+  size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | 'hero';
   showText?: boolean;
   showWordmark?: boolean;
   href?: string;
@@ -17,21 +17,25 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   size = 'md',
   href = '/',
 }) => {
-  const heightMap = {
-    sm: 'h-7',
-    md: 'h-9',
-    lg: 'h-12',
+  const heightMap: Record<string, string> = {
+    xs: 'h-6',
+    sm: 'h-8 sm:h-9',
+    md: 'h-11 sm:h-12',
+    lg: 'h-16 sm:h-20',
+    xl: 'h-20 sm:h-24 md:h-28',
+    '2xl': 'h-28 sm:h-32 md:h-36',
+    hero: 'h-28 sm:h-36 md:h-44 lg:h-48',
   };
 
   const content = (
-    <div className="relative flex items-center">
+    <div className="relative flex items-center justify-center">
       <Image 
         src="/logo.png" 
         alt="Skill-Track Logo" 
-        width={180} 
-        height={60} 
+        width={420} 
+        height={140} 
         priority 
-        className={`${heightMap[size]} w-auto object-contain transition-opacity group-hover:opacity-90`}
+        className={`${heightMap[size] || heightMap.md} w-auto object-contain drop-shadow-md transition-transform duration-300 group-hover:scale-105 group-hover:opacity-95`}
       />
     </div>
   );

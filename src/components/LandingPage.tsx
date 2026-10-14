@@ -799,12 +799,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </motion.div>
 
         <motion.div
-          initial={{ scale: 0.65, opacity: 0 }}
+          initial={{ scale: 0.75, opacity: 0 }}
           animate={{ scale: 1, opacity: 1 }}
           transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
-          className="relative my-2 sm:my-4 flex items-center justify-center"
+          className="relative my-4 sm:my-6 flex items-center justify-center"
         >
-          <BrandLogo size="lg" />
+          <div className="relative group p-2">
+            <div className="absolute -inset-4 bg-gradient-to-r from-sky-400/20 via-emerald-400/20 to-amber-400/20 rounded-3xl blur-2xl opacity-60 group-hover:opacity-100 transition-opacity duration-500" />
+            <BrandLogo size="hero" className="relative z-10" />
+          </div>
         </motion.div>
 
         <motion.div
