@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { ExternalLink, Activity, Zap, RotateCw, Sparkles, BookOpen } from 'lucide-react';
+import { ExternalLink, Activity, Zap, RotateCw, Sparkles, BookOpen, Loader2, AlertCircle } from 'lucide-react';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
 import { InAppLectureTheater } from './InAppLectureTheater';
 
@@ -92,6 +92,15 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
   onStepLoaded,
 }) => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isSourced, setIsSourced] = useState<boolean>(
+    Boolean(
+      step?.is_sourced ||
+      step?.isSourced ||
+      step?.video_id ||
+      (step?.topics && step.topics.length > 0)
+    )
+  );
+  const [sourceError, setSourceError] = useState<string | null>(null);
   const [activeVideoId, setActiveVideoId] = useState<string>(
     step?.video_id || (step?.is_sourced && videoResources[0]?.id ? videoResources[0].id : '')
   );
@@ -122,51 +131,90 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
 
   const handleGenerateStepResources = async (stepNum: number) => {
     if (!skillId) return;
+    setIsGenerating(true);
+    setSourceError(null);
+
     try {
-      setIsGenerating(true);
+      const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
       const activeUserId = typeof window !== 'undefined'
         ? localStorage.getItem('skillprax_active_profile_id') || 'default-user'
         : 'default-user';
 
       const res = await fetch(`/api/skills/${skillId}/step/${stepNum}/source`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify({ userId: activeUserId }),
       });
 
-      if (res.ok) {
-        const data = await res.json();
-        if (data.videoId) {
-          setActiveVideoId(data.videoId);
-          setActiveVideoTitle(data.videoTitle || `${stepTitle} - Lecture Video`);
-        }
-        if (data.videoMiniGuide) setActiveVideoMiniGuide(data.videoMiniGuide);
-        if (data.docTitle) setActiveDocTitle(data.docTitle);
-        if (data.docUrl) setActiveDocUrl(data.docUrl);
-        if (data.docDomain) setActiveDocDomain(data.docDomain);
-        if (data.docMiniGuide) setActiveDocMiniGuide(data.docMiniGuide);
-        if (data.stepExplanation) setActiveStepExplanation(data.stepExplanation);
-        if (Array.isArray(data.topics)) {
-          setActiveTopics(data.topics);
-        }
-        if (onStepLoaded) onStepLoaded(data);
+      if (!res.ok) {
+        throw new Error(`Server returned status ${res.status}`);
       }
-    } catch (err) {
+
+      const data = await res.json();
+      const stepData = data.step || data;
+
+      const vId = stepData.video_id || stepData.videoId;
+      const vTitle = stepData.video_title || stepData.videoTitle || `${stepTitle} - Lecture Video`;
+      const vMini = stepData.video_mini_guide || stepData.videoMiniGuide || '';
+      const dTitle = stepData.doc_title || stepData.docTitle || '';
+      const dUrl = stepData.doc_url || stepData.docUrl || '';
+      const dDomain = stepData.doc_domain || stepData.docDomain || '';
+      const dMini = stepData.doc_mini_guide || stepData.docMiniGuide || '';
+      const sExp = stepData.step_explanation || stepData.stepExplanation || stepData.documentation_markdown || '';
+      const topList = Array.isArray(stepData.topics) ? stepData.topics : [];
+
+      if (!vId && topList.length === 0) {
+        throw new Error('Invalid resource payload received from backend');
+      }
+
+      // Immediately mutate local state to trigger the in-app theater and documents
+      if (vId) {
+        setActiveVideoId(vId);
+        setActiveVideoTitle(vTitle);
+      }
+      if (vMini) setActiveVideoMiniGuide(vMini);
+      if (dTitle) setActiveDocTitle(dTitle);
+      if (dUrl) setActiveDocUrl(dUrl);
+      if (dDomain) setActiveDocDomain(dDomain);
+      if (dMini) setActiveDocMiniGuide(dMini);
+      if (sExp) setActiveStepExplanation(sExp);
+      if (topList.length > 0) setActiveTopics(topList);
+
+      setIsSourced(true);
+
+      if (onStepLoaded) {
+        onStepLoaded({
+          ...stepData,
+          is_sourced: true,
+          video_id: vId,
+          video_title: vTitle,
+          topics: topList,
+        });
+      }
+    } catch (err: any) {
       console.error('[StepResourceHub] Sourcing error:', err);
+      setSourceError(err.message || 'Failed to source chapter resources. Please try again.');
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // DYNAMIC STEP FETCHING VIA GET /api/skills/:skillId/step/:stepNumber
   useEffect(() => {
+    // If already sourced in state, do not overwrite with un-sourced data
+    if (isSourced && activeVideoId) return;
+
     if (!skillId) {
       if (step?.video_id) {
         setActiveVideoId(step.video_id);
         setActiveVideoTitle(step.video_title || `${stepTitle} — Video Walkthrough`);
+        setIsSourced(true);
       } else if (videoResources.length > 0) {
         setActiveVideoId(videoResources[0].id);
         setActiveVideoTitle(videoResources[0].title);
+        setIsSourced(true);
       }
       if (step?.videoMiniGuide || step?.video_mini_guide) {
         setActiveVideoMiniGuide(step.videoMiniGuide || step.video_mini_guide || '');
@@ -188,6 +236,7 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
       }
       if (step?.topics && step.topics.length > 0) {
         setActiveTopics(step.topics);
+        setIsSourced(true);
       }
       setActiveDrills(stepDrills);
       return;
@@ -212,6 +261,10 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
         if (vId) {
           setActiveVideoId(vId);
           setActiveVideoTitle(vTitle);
+          setIsSourced(true);
+        }
+        if (data.step?.is_sourced) {
+          setIsSourced(true);
         }
 
         // Mini guides and explanation
@@ -246,7 +299,10 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
           topics = data.topics;
         }
 
-        setActiveTopics(topics);
+        if (topics.length > 0) {
+          setActiveTopics(topics);
+          setIsSourced(true);
+        }
 
         if (Array.isArray(data.drills) && data.drills.length > 0) {
           setActiveDrills(data.drills);
@@ -258,9 +314,11 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
         if (step?.video_id) {
           setActiveVideoId(step.video_id);
           setActiveVideoTitle(step.video_title || `${stepTitle} — Video Walkthrough`);
+          setIsSourced(true);
         }
         if (step?.topics) {
           setActiveTopics(step.topics);
+          setIsSourced(true);
         }
         setActiveDrills(stepDrills);
       } finally {
@@ -276,7 +334,6 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
   }, [skillId, currentStep, stepTitle, step]);
 
   const completedDrillsCount = activeDrills.filter((d) => d.isCompleted).length;
-  const isSourced = Boolean(activeVideoId || (activeTopics && activeTopics.length > 0));
 
   return (
     <div className="space-y-8">
@@ -291,7 +348,7 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
             </div>
           </div>
         </div>
-      ) : !isSourced && !isGenerating ? (
+      ) : !isSourced ? (
         /* CHAPTER MILESTONE OVERVIEW BEFORE USER CLICKS GENERATE */
         <div className="w-full bg-white/95 backdrop-blur-md rounded-3xl border border-slate-200/90 p-8 md:p-10 shadow-xl mb-10 space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
@@ -308,13 +365,30 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
 
             <button
               type="button"
+              disabled={isGenerating}
               onClick={() => handleGenerateStepResources(currentStep)}
-              className="flex items-center gap-2 px-6 py-3 rounded-2xl text-sm font-bold text-white bg-[#0284C7] hover:bg-sky-600 shadow-lg shadow-sky-500/20 transition-all cursor-pointer whitespace-nowrap self-start sm:self-center"
+              className="flex items-center gap-2 px-6 py-3.5 rounded-2xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-600 disabled:opacity-60 shadow-lg shadow-sky-500/25 transition-all cursor-pointer whitespace-nowrap self-start sm:self-center"
             >
-              <Sparkles className="w-4 h-4"/>
-              <span>Generate Chapter Resources & Video Lecture</span>
+              {isGenerating ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  <span>Sourcing Authentic Video & Docs...</span>
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-4 h-4" />
+                  <span>Generate Chapter Resources & Video Lecture</span>
+                </>
+              )}
             </button>
           </div>
+
+          {sourceError && (
+            <div className="p-3.5 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium flex items-center gap-2">
+              <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
+              <span>{sourceError}</span>
+            </div>
+          )}
 
           <div className="space-y-3">
             <h4 className="text-xs font-bold uppercase tracking-wider text-slate-500">Key Chapter Objectives</h4>
@@ -404,46 +478,99 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
               </span>
             </div>
 
-            <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between gap-4">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex items-start sm:items-center gap-3.5">
-                  <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 sm:mt-0">
-                    <BookOpen className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0284C7] uppercase tracking-wider">
-                        TEXT DOCUMENT
-                      </span>
-                      <span className="text-xs text-slate-400">•</span>
-                      <span className="text-xs font-medium text-slate-500">{activeDocDomain}</span>
+            {activeTopics.length > 0 ? (
+              <div className="grid grid-cols-1 gap-3.5">
+                {activeTopics.map((topic, idx) => (
+                  <div
+                    key={topic.topicId || idx}
+                    className="p-5 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between gap-4"
+                  >
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-start sm:items-center gap-3.5">
+                        <span className="w-8 h-8 rounded-xl bg-sky-50 text-[#0284C7] border border-sky-100 flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 sm:mt-0">
+                          {idx + 1}
+                        </span>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0284C7] uppercase">
+                              TEXT DOCUMENT
+                            </span>
+                            <span className="text-xs text-slate-400">•</span>
+                            <span className="text-xs font-medium text-slate-500">{topic.sourceDomain || 'Documentation'}</span>
+                          </div>
+                          <h4 className="text-sm font-bold text-slate-900">{topic.title}</h4>
+                          {topic.coreObjective && (
+                            <p className="text-xs text-slate-500 mt-0.5">{topic.coreObjective}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      <a
+                        href={topic.externalUrl || topic.url || activeDocUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-600 transition-all shadow-sm w-fit shrink-0 self-start sm:self-auto cursor-pointer"
+                      >
+                        <span>Open Website ↗</span>
+                        <ExternalLink className="w-3.5 h-3.5"/>
+                      </a>
                     </div>
-                    <h4 className="text-sm font-bold text-slate-900">{activeDocTitle}</h4>
+
+                    {(topic.miniGuide || (idx === 0 && activeDocMiniGuide)) && (
+                      <div className="p-3.5 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
+                        <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 block">
+                          Mini Guide • What to Read & Focus On
+                        </span>
+                        <p className="text-[11px] text-slate-600 leading-relaxed font-sans">
+                          {topic.miniGuide || activeDocMiniGuide}
+                        </p>
+                      </div>
+                    )}
                   </div>
-                </div>
-
-                <a
-                  href={activeDocUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-sm w-fit shrink-0 cursor-pointer self-start sm:self-auto"
-                >
-                  <span>Open Website ↗</span>
-                  <ExternalLink className="w-3.5 h-3.5" />
-                </a>
+                ))}
               </div>
+            ) : (
+              <div className="p-6 rounded-2xl bg-white border border-slate-200/90 shadow-sm hover:border-slate-300 transition-all flex flex-col justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex items-start sm:items-center gap-3.5">
+                    <div className="w-9 h-9 rounded-xl bg-sky-50 text-[#0284C7] flex items-center justify-center font-bold text-xs shrink-0 mt-0.5 sm:mt-0">
+                      <BookOpen className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-sky-50 text-[#0284C7] uppercase tracking-wider">
+                          TEXT DOCUMENT
+                        </span>
+                        <span className="text-xs text-slate-400">•</span>
+                        <span className="text-xs font-medium text-slate-500">{activeDocDomain}</span>
+                      </div>
+                      <h4 className="text-sm font-bold text-slate-900">{activeDocTitle}</h4>
+                    </div>
+                  </div>
 
-              {activeDocMiniGuide && (
-                <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
-                  <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 block">
-                    Mini Guide • What to Read & Focus On
-                  </span>
-                  <p className="text-[11px] text-slate-600 leading-relaxed font-sans">
-                    {activeDocMiniGuide}
-                  </p>
+                  <a
+                    href={activeDocUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-sm w-fit shrink-0 cursor-pointer self-start sm:self-auto"
+                  >
+                    <span>Open Website ↗</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-              )}
-            </div>
+
+                {activeDocMiniGuide && (
+                  <div className="p-4 rounded-xl bg-slate-50 border border-slate-200/80 text-xs space-y-1">
+                    <span className="text-[10px] font-mono font-bold uppercase tracking-wider text-sky-800 block">
+                      Mini Guide • What to Read & Focus On
+                    </span>
+                    <p className="text-[11px] text-slate-600 leading-relaxed font-sans">
+                      {activeDocMiniGuide}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* SECTION 3: PRACTICAL EXECUTION DRILLS (With Embedded Step Timers) */}

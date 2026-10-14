@@ -38,6 +38,15 @@ export const InAppLectureTheater: React.FC<InAppLectureTheaterProps> = ({
     }
   };
 
+  const skipTime = (seconds: number) => {
+    if (iframeRef.current && iframeRef.current.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        JSON.stringify({ event: 'command', func: 'seekBy', args: [seconds, true] }),
+        '*'
+      );
+    }
+  };
+
   const handleFullscreen = () => {
     if (iframeRef.current) {
       if (iframeRef.current.requestFullscreen) {
@@ -87,6 +96,28 @@ export const InAppLectureTheater: React.FC<InAppLectureTheaterProps> = ({
         </div>
 
         <div className="flex items-center gap-3">
+          {/* ±10s Skip Buttons */}
+          <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
+            <button
+              type="button"
+              onClick={() => skipTime(-10)}
+              title="Skip -10s"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-700/60 transition-colors cursor-pointer"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span>10s</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => skipTime(10)}
+              title="Skip +10s"
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold text-slate-300 hover:text-white hover:bg-slate-700/60 transition-colors cursor-pointer"
+            >
+              <span>10s</span>
+              <RotateCw className="w-3.5 h-3.5" />
+            </button>
+          </div>
+
           <div className="flex items-center gap-1 bg-slate-800/80 p-1 rounded-xl border border-slate-700/60">
             <Gauge className="w-3.5 h-3.5 text-slate-400 ml-2"/>
             <span className="text-[11px] font-bold text-slate-400">Speed:</span>

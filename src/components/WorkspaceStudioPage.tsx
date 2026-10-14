@@ -1441,20 +1441,24 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 }}
                 onStepLoaded={(sourced) => {
                   if (viewingStepObj) {
-                    viewingStepObj.videoId = sourced.videoId;
-                    viewingStepObj.video_id = sourced.videoId;
-                    viewingStepObj.videoUrl = sourced.videoUrl;
-                    viewingStepObj.video_url = sourced.videoUrl;
-                    viewingStepObj.videoTitle = sourced.videoTitle;
-                    viewingStepObj.video_title = sourced.videoTitle;
-                    viewingStepObj.videoMiniGuide = sourced.videoMiniGuide;
-                    viewingStepObj.docTitle = sourced.docTitle;
-                    viewingStepObj.docUrl = sourced.docUrl;
-                    viewingStepObj.docDomain = sourced.docDomain;
-                    viewingStepObj.docMiniGuide = sourced.docMiniGuide;
-                    viewingStepObj.stepExplanation = sourced.stepExplanation;
+                    const vId = sourced.videoId || sourced.video_id;
+                    const vTitle = sourced.videoTitle || sourced.video_title;
+                    const vUrl = sourced.videoUrl || sourced.video_url;
+                    viewingStepObj.videoId = vId;
+                    viewingStepObj.video_id = vId;
+                    viewingStepObj.videoUrl = vUrl;
+                    viewingStepObj.video_url = vUrl;
+                    viewingStepObj.videoTitle = vTitle;
+                    viewingStepObj.video_title = vTitle;
+                    viewingStepObj.videoMiniGuide = sourced.videoMiniGuide || sourced.video_mini_guide;
+                    viewingStepObj.docTitle = sourced.docTitle || sourced.doc_title;
+                    viewingStepObj.docUrl = sourced.docUrl || sourced.doc_url;
+                    viewingStepObj.docDomain = sourced.docDomain || sourced.doc_domain;
+                    viewingStepObj.docMiniGuide = sourced.docMiniGuide || sourced.doc_mini_guide;
+                    viewingStepObj.stepExplanation = sourced.stepExplanation || sourced.step_explanation;
                     viewingStepObj.topics = sourced.topics;
                     viewingStepObj.is_sourced = true;
+                    viewingStepObj.isSourced = true;
                   }
                   setSourcedStepNumbers((prev) => ({ ...prev, [viewingStepNum]: true }));
                 }}
