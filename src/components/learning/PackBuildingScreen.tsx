@@ -37,26 +37,62 @@ const STAGE_PERCENT: Record<string, number> = {
   READY: 100,
 };
 
-const COGNITIVE_PHRASES = [
-  'Architecting curriculum milestones & assessable concept units...',
-  'Scanning live Tavily index for high-signal documentation...',
-  'Filtering out gated paywalls, registration walls & dead links...',
-  'Indexing authoritative demonstration & breakdown videos...',
-  'Synthesizing original grounded Socratic conceptual models...',
-  'Formulating structured deliberate practice guides...',
-  'Calibrating pedagogical difficulty to your exact tier...',
-  'Finalizing milestone curriculum & evaluation benchmarks...',
-];
+// Stage-aware phrases rotating below the loading bar
+const STAGE_AWARE_PHRASES: Record<string, string[]> = {
+  QUEUED: [
+    'Breaking down milestone into atomic competency units...',
+    'Structuring prerequisite chapters and learning sequence...',
+    'Calibrating topic depth to your current experience level...',
+  ],
+  PLANNING: [
+    'Breaking down milestone into atomic competency units...',
+    'Structuring prerequisite chapters and learning sequence...',
+    'Calibrating topic depth to your current experience level...',
+  ],
+  FINDING_LINKS: [
+    'Querying Tavily research engine for authoritative references...',
+    'Filtering out paywalls, login walls, and duplicate domains...',
+    'Sourcing full-length instructional video lectures...',
+  ],
+  VERIFYING: [
+    'Checking live URL health and embeddability...',
+    'Cross-checking against your workspace history vault...',
+    'Validating source readability and domain authority...',
+  ],
+  WRITING_GUIDES: [
+    "Synthesizing 'What to look for' and 'What to skip' study guides...",
+    'Formulating practical execution tasks for each topic...',
+    'Preparing grounded competency facts for your milestone evaluation...',
+  ],
+};
 
-const SPORTS_PHRASES = [
-  'Architecting biomechanical milestones & conditioning units...',
-  'Scanning athletic research for verified technique guides...',
-  'Filtering out paywalls & validating open video breakdowns...',
-  'Indexing physical execution drills from verified channels...',
-  'Synthesizing warm-up safety cues & observable technique cues...',
-  'Calibrating deliberate practice tasks for your experience level...',
-  'Synthesizing physical verification checklist benchmarks...',
-];
+const SPORTS_STAGE_AWARE_PHRASES: Record<string, string[]> = {
+  QUEUED: [
+    'Breaking down athletic milestone into physical competency units...',
+    'Structuring prerequisite conditioning and drill sequence...',
+    'Calibrating technique depth to your current fitness level...',
+  ],
+  PLANNING: [
+    'Calibrating biomechanics and physical conditioning milestones...',
+    'Structuring athletic drill progression and safety baseline...',
+    'Targeting kinetic efficiency for your experience tier...',
+  ],
+  FINDING_LINKS: [
+    'Sourcing authoritative sports science & coaching references...',
+    'Filtering out paywalled training journals and unverified claims...',
+    'Sourcing full-length instructional video drills & demonstrations...',
+  ],
+  VERIFYING: [
+    'Checking live video embeddability and coaching link health...',
+    'Validating biomechanical drill safety & movement cues...',
+    'Cross-referencing against athletic technique vaults...',
+  ],
+  WRITING_GUIDES: [
+    "Synthesizing observable technique cues & 'what to avoid'...",
+    'Formulating concrete physical practice tasks and warm-up notes...',
+    'Preparing 3-5 item technique checklist for milestone verification...',
+  ],
+};
 
 export function PackBuildingScreen({
   packStage,
@@ -68,15 +104,19 @@ export function PackBuildingScreen({
   const isQueued = packStage === 'QUEUED' || !packStage;
   const progressPercent = STAGE_PERCENT[packStage || 'QUEUED'] || 20;
 
-  const phrases = isSports ? SPORTS_PHRASES : COGNITIVE_PHRASES;
+  const phraseSource = isSports ? SPORTS_STAGE_AWARE_PHRASES : STAGE_AWARE_PHRASES;
+  const currentPhrases = phraseSource[packStage || 'QUEUED'] || phraseSource.QUEUED;
+
   const [phraseIndex, setPhraseIndex] = useState(0);
 
+  // Reset phrase index and rotate every 2.5 seconds
   useEffect(() => {
+    setPhraseIndex(0);
     const timer = setInterval(() => {
-      setPhraseIndex((prev) => (prev + 1) % phrases.length);
-    }, 2800);
+      setPhraseIndex((prev) => (prev + 1) % currentPhrases.length);
+    }, 2500);
     return () => clearInterval(timer);
-  }, [phrases.length]);
+  }, [packStage, currentPhrases.length]);
 
   return (
     <div
@@ -91,7 +131,7 @@ export function PackBuildingScreen({
             <Loader2 className="w-7 h-7 animate-spin text-emerald-400" />
           )}
         </div>
-        <div className="space-y-1">
+        <div className="space-y-1 w-full">
           <h3 className="text-lg font-bold text-slate-100">
             {packError
               ? 'Milestone Build Paused'
@@ -113,18 +153,18 @@ export function PackBuildingScreen({
               </div>
 
               {/* DYNAMIC ROTATING PHRASES BELOW THE LOADING BAR */}
-              <div className="h-6 relative overflow-hidden flex items-center justify-center">
+              <div className="h-7 relative overflow-hidden flex items-center justify-center">
                 <AnimatePresence mode="wait">
                   <motion.div
-                    key={phraseIndex}
-                    initial={{ opacity: 0, y: 7 }}
+                    key={`${packStage}-${phraseIndex}`}
+                    initial={{ opacity: 0, y: 6 }}
                     animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -7 }}
-                    transition={{ duration: 0.35, ease: 'easeOut' }}
-                    className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium"
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.28, ease: [0.22, 1, 0.36, 1] }}
+                    className="flex items-center gap-1.5 text-xs text-emerald-400 font-medium px-2"
                   >
                     <Sparkles className="w-3.5 h-3.5 text-amber-300 animate-pulse shrink-0" />
-                    <span>{phrases[phraseIndex]}</span>
+                    <span className="truncate">{currentPhrases[phraseIndex]}</span>
                   </motion.div>
                 </AnimatePresence>
               </div>

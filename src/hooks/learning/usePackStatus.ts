@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 
 export interface StepPackStatus {
   locked: boolean;
@@ -27,95 +27,116 @@ export function usePackStatus(stepId: string | null | undefined) {
   const abortControllerRef = useRef<AbortController | null>(null);
   const startTimeRef = useRef<number>(Date.now());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const isMountedRef = useRef<boolean>(true);
+
+  const poll = useCallback(async () => {
+    if (!stepId || !isMountedRef.current) return;
+
+    const elapsed = Date.now() - startTimeRef.current;
+    // Give up after 4 minutes (240,000 ms) with a Retry state
+    if (elapsed > 240000) {
+      if (isMountedRef.current) {
+        setStatus((prev) => ({
+          ...prev,
+          packStatus: 'FAILED',
+          packError: 'Build timed out after 4 minutes. Please click Retry.',
+          timedOut: true,
+        }));
+      }
+      return;
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const res = await fetch(`/api/steps/${stepId}/status`, {
+        cache: 'no-store',
+        signal: abortControllerRef.current.signal,
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (isMountedRef.current) {
+          setStatus({
+            locked: data.locked ?? false,
+            packStatus: data.packStatus || 'NOT_BUILT',
+            packStage: data.packStage || null,
+            packError: data.packError || null,
+            quizStatus: data.quizStatus || 'NOT_BUILT',
+            quizError: data.quizError || null,
+            timedOut: false,
+          });
+
+          // If still BUILDING, schedule next poll (2s normally, 5s after 90s)
+          if (data.packStatus === 'BUILDING') {
+            const pollInterval = elapsed > 90000 ? 5000 : 2000;
+            if (timerRef.current) clearTimeout(timerRef.current);
+            timerRef.current = setTimeout(poll, pollInterval);
+          }
+        }
+      }
+    } catch (err: any) {
+      if (err.name !== 'AbortError' && isMountedRef.current) {
+        if (timerRef.current) clearTimeout(timerRef.current);
+        timerRef.current = setTimeout(poll, 3000);
+      }
+    }
+  }, [stepId]);
 
   useEffect(() => {
+    isMountedRef.current = true;
     if (!stepId) return;
 
     startTimeRef.current = Date.now();
-    let isMounted = true;
-
-    const poll = async () => {
-      const elapsed = Date.now() - startTimeRef.current;
-      // Give up after 4 minutes (240,000 ms) with a Retry state
-      if (elapsed > 240000) {
-        if (isMounted) {
-          setStatus((prev) => ({
-            ...prev,
-            packStatus: 'FAILED',
-            packError: 'Build timed out after 4 minutes. Please click Retry.',
-            timedOut: true,
-          }));
-        }
-        return;
-      }
-
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
-      }
-      abortControllerRef.current = new AbortController();
-
-      try {
-        const res = await fetch(`/api/steps/${stepId}/status`, {
-          cache: 'no-store',
-          signal: abortControllerRef.current.signal,
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          if (isMounted) {
-            setStatus({
-              locked: data.locked ?? false,
-              packStatus: data.packStatus || 'NOT_BUILT',
-              packStage: data.packStage || null,
-              packError: data.packError || null,
-              quizStatus: data.quizStatus || 'NOT_BUILT',
-              quizError: data.quizError || null,
-              timedOut: false,
-            });
-
-            // If still BUILDING, schedule next poll
-            if (data.packStatus === 'BUILDING') {
-              const pollInterval = elapsed > 90000 ? 5000 : 2000;
-              timerRef.current = setTimeout(poll, pollInterval);
-            }
-          }
-        }
-      } catch (err: any) {
-        if (err.name !== 'AbortError' && isMounted) {
-          // If fetch fails, schedule retry
-          timerRef.current = setTimeout(poll, 4000);
-        }
-      }
-    };
-
     poll();
 
     return () => {
-      isMounted = false;
+      isMountedRef.current = false;
       if (abortControllerRef.current) abortControllerRef.current.abort();
       if (timerRef.current) clearTimeout(timerRef.current);
     };
-  }, [stepId]);
+  }, [stepId, poll]);
 
-  const retry = async () => {
+  const startBuild = useCallback(async () => {
     if (!stepId) return;
     setLoading(true);
+    startTimeRef.current = Date.now();
+
+    // 1. Immediately set local status to BUILDING so UI transitions instantly
+    setStatus((prev) => ({
+      ...prev,
+      packStatus: 'BUILDING',
+      packStage: 'QUEUED',
+      packError: null,
+      timedOut: false,
+    }));
+
+    // 2. Fire backend level-up-resources endpoint
     try {
       await fetch(`/api/steps/${stepId}/level-up-resources`, {
         method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         cache: 'no-store',
       });
-      startTimeRef.current = Date.now();
-      setStatus((prev) => ({
-        ...prev,
-        packStatus: 'BUILDING',
-        packStage: 'QUEUED',
-        packError: null,
-        timedOut: false,
-      }));
-    } catch (_) {}
-    setLoading(false);
-  };
+    } catch (err) {
+      console.warn('Failed to start pack build:', err);
+    } finally {
+      setLoading(false);
+    }
 
-  return { ...status, loading, retry };
+    // 3. Immediately poll after short delay and continue 2s cycle
+    if (timerRef.current) clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(poll, 1200);
+  }, [stepId, poll]);
+
+  const retry = useCallback(async () => {
+    await startBuild();
+  }, [startBuild]);
+
+  return { ...status, loading, retry, startBuild };
 }
+
+export default usePackStatus;

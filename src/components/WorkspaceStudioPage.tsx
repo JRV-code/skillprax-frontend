@@ -305,10 +305,11 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     packStage,
     packError,
     retry: retryPackBuild,
+    startBuild,
+    loading: packLoading,
   } = usePackStatus(viewingStepId);
 
   const [packData, setPackData] = useState<any | null>(null);
-  const [isBuildingPack, setIsBuildingPack] = useState(false);
 
   const fetchPack = useCallback(async (stepId: string) => {
     if (!stepId) return;
@@ -338,22 +339,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
   const handleSearchResources = async () => {
     if (!viewingStepId) return;
-    setIsBuildingPack(true);
-    try {
-      await fetch(`/api/steps/${viewingStepId}/level-up-resources`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          stepIndex: viewingStepNum,
-          title: viewingStepTitle,
-          workspaceTitle: currentTrack.title,
-        }),
-      });
-    } catch (err) {
-      console.error('Failed to trigger pack build:', err);
-    } finally {
-      setIsBuildingPack(false);
-    }
+    await startBuild();
   };
 
   const handleNodeClick = (node: FlowchartNode) => {
@@ -1543,7 +1529,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                   stepIndex={viewingStepNum}
                   difficultyTier={viewingStepObj?.difficultyTier}
                   onSearchResources={handleSearchResources}
-                  loading={isBuildingPack}
+                  loading={packLoading}
                 />
               )}
             </motion.div>

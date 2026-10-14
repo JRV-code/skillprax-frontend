@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { 
@@ -13,6 +13,12 @@ import { DrillCardWithTimer } from './DrillCardWithTimer';
 import { SocraticQuizModal } from '@/components/SocraticQuizModal';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { usePackStatus } from '@/hooks/learning/usePackStatus';
+import { useEngagement } from '@/hooks/learning/useEngagement';
+import { StartStepCard } from '@/components/learning/StartStepCard';
+import { PackBuildingScreen } from '@/components/learning/PackBuildingScreen';
+import { StepIntroCard } from '@/components/learning/StepIntroCard';
+import { ChapterAccordion } from '@/components/learning/ChapterAccordion';
 
 export interface StepDrillItem {
   id: string;
@@ -273,7 +279,80 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
   const activeStep = activeWorkspace?.steps?.[activeStepIndex] || null;
   const completedDrillsCount = stepDrills.filter((d) => d.isCompleted).length;
 
-  const activeQuizQuestions = React.useMemo(() => {
+  // V4 Shared Learning Engine Hook & State
+  const {
+    locked: packLocked,
+    packStatus,
+    packStage,
+    packError,
+    retry: retryPackBuild,
+    startBuild,
+    loading: packLoading,
+  } = usePackStatus(activeStep?.id);
+
+  const [packData, setPackData] = useState<any | null>(null);
+
+  const fetchPack = useCallback(async (stepId: string) => {
+    if (!stepId) return;
+    try {
+      const res = await fetch(`/api/steps/${stepId}/pack`, { cache: 'no-store' });
+      if (res.ok) {
+        const data = await res.json();
+        if (!data.locked) {
+          setPackData(data);
+        }
+      }
+    } catch (err) {
+      console.warn('Failed to fetch sports pack:', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (packStatus === 'READY' && activeStep?.id) {
+      fetchPack(activeStep.id);
+    } else if (packStatus !== 'READY') {
+      setPackData(null);
+    }
+  }, [packStatus, activeStep?.id, fetchPack]);
+
+  // Silent prefetch trigger after 20s of active reading or resource access
+  useEngagement(activeStep?.id, !packLocked, packStatus === 'READY');
+
+  const [dynamicQuizQuestions, setDynamicQuizQuestions] = useState<any[]>([]);
+
+  const fetchDynamicQuiz = useCallback(async (stepId: string) => {
+    try {
+      const res = await fetch(`/api/steps/${stepId}/level-up-quiz`);
+      if (res.ok) {
+        const data = await res.json();
+        if (Array.isArray(data.questions) && data.questions.length > 0) {
+          setDynamicQuizQuestions(data.questions);
+        }
+      }
+    } catch (_) {}
+  }, []);
+
+  useEffect(() => {
+    if (activeStep?.id && packStatus === 'READY') {
+      fetchDynamicQuiz(activeStep.id);
+    }
+  }, [activeStep?.id, packStatus, fetchDynamicQuiz]);
+
+  const activeQuizQuestions = useMemo(() => {
+    if (dynamicQuizQuestions && dynamicQuizQuestions.length > 0) {
+      return dynamicQuizQuestions.map((q: any) => ({
+        id: q.id || q.questionId,
+        question: q.question || q.scenario,
+        options: Array.isArray(q.options)
+          ? q.options.map((opt: any) => typeof opt === 'string' ? opt : opt.text)
+          : [],
+        correctOptionIndex: typeof q.correctOptionIndex === 'number'
+          ? q.correctOptionIndex
+          : (q.correctOptionId ? ['A', 'B', 'C', 'D'].indexOf(String(q.correctOptionId).toUpperCase()) : -1),
+        correctOptionId: q.correctOptionId || '',
+        explanation: q.explanation || 'Validated biomechanical and athletic comprehension.',
+      }));
+    }
     if (!activeStep) return [];
     const blueprintRaw = activeStep.quizBlueprint;
     let questions = Array.isArray(blueprintRaw)
@@ -294,7 +373,14 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
       correctOptionId: q.correctOptionId || '',
       explanation: q.explanation || 'Validated biomechanical and athletic comprehension.',
     }));
-  }, [activeStep]);
+  }, [dynamicQuizQuestions, activeStep]);
+
+  const handleOpenQuizModal = async () => {
+    if (activeStep?.id && dynamicQuizQuestions.length === 0) {
+      await fetchDynamicQuiz(activeStep.id);
+    }
+    setShowQuizModal(true);
+  };
 
   return (
     <div className="space-y-8">
@@ -391,8 +477,99 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
             dailyDietPlan={activeStep.dailyDietPlan}
             onPracticeDayComplete={handlePracticeDayComplete}
             onAdvanceStep={handleAdvanceStep}
-            onOpenQuiz={() => setShowQuizModal(true)}
+            onOpenQuiz={handleOpenQuizModal}
           />
+
+          {/* V4 SHARED SPORTS LEARNING ENGINE (STUDY PACK, VERIFIED VIDEOS, DRILL GUIDES) */}
+          <div className="pt-6 border-t border-slate-100 space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                    V4 ATHLETIC MASTERY ENGINE
+                  </span>
+                  <span className="text-xs font-semibold text-slate-400">
+                    Technique Guides, Coaching Videos & Biomechanical Breakdowns
+                  </span>
+                </div>
+                <h4 className="text-base font-black text-slate-900 mt-1">
+                  Milestone {activeStepIndex + 1} Study Pack & Verified Resources
+                </h4>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider self-start sm:self-auto ${
+                packStatus === 'READY'
+                  ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
+                  : packStatus === 'BUILDING'
+                  ? 'bg-amber-100 text-amber-800 border border-amber-200 animate-pulse'
+                  : 'bg-slate-100 text-slate-600 border border-slate-200'
+              }`}>
+                {packStatus === 'READY' ? 'PACK READY ✓' : packStatus === 'BUILDING' ? 'BUILDING PACK…' : 'NOT BUILT'}
+              </span>
+            </div>
+
+            {packLocked ? (
+              <div className="p-8 rounded-2xl bg-slate-50 border border-slate-200 text-center space-y-3">
+                <div className="w-10 h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center text-slate-400 mx-auto shadow-xs">
+                  <Shield className="w-5 h-5" />
+                </div>
+                <h4 className="text-sm font-bold text-slate-900">Milestone {activeStepIndex + 1} Locked</h4>
+                <p className="text-xs text-slate-500 max-w-md mx-auto">
+                  Complete previous milestone practice requirements and pass the Socratic Gate (70% score) to unlock this milestone.
+                </p>
+              </div>
+            ) : packStatus === 'BUILDING' ? (
+              <PackBuildingScreen
+                packStage={packStage}
+                packError={packError}
+                isSports={true}
+                onRetry={retryPackBuild}
+              />
+            ) : packStatus === 'READY' && packData ? (
+              <div className="space-y-6">
+                <StepIntroCard
+                  stepTitle={packData.title || activeStep.title}
+                  intro={packData.intro}
+                  isSports={true}
+                />
+
+                <ChapterAccordion
+                  chapters={packData.chapters || []}
+                  stepId={activeStep.id}
+                  onResourceReplaced={() => {
+                    fetchPack(activeStep.id);
+                  }}
+                />
+
+                {/* Socratic Gate Trigger Action Bar */}
+                <div className="p-5 bg-emerald-50/80 rounded-2xl border border-emerald-200/90 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h5 className="text-xs font-bold text-slate-900 uppercase tracking-wide">
+                      Ready for Biomechanical Comprehension Evaluation?
+                    </h5>
+                    <p className="text-xs text-slate-500">
+                      Score at least 70% on the Socratic Evaluation Gate to verify milestone mastery.
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleOpenQuizModal}
+                    className="px-5 py-2.5 rounded-xl font-bold text-xs bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs transition-all flex items-center gap-2 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    <Zap className="w-4 h-4 text-amber-300" />
+                    <span>Launch Milestone Socratic Gate (70%)</span>
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <StartStepCard
+                stepTitle={activeStep.title}
+                stepIndex={activeStepIndex + 1}
+                difficultyTier={activeStep.difficultyTier}
+                onSearchResources={startBuild}
+                loading={packLoading}
+              />
+            )}
+          </div>
         </div>
       )}
 
