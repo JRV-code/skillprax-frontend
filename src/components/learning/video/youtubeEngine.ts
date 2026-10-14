@@ -10,9 +10,7 @@ type ErrCb = (code: number) => void;
 
 let apiPromise: Promise<any> | null = null;
 let player: any = null;
-let readyPromise: Promise<any> | null = null;
 let currentId: string | null = null;
-let prewarming = false;
 
 const stateListeners = new Set<Cb>();
 const errorListeners = new Set<ErrCb>();
@@ -50,37 +48,53 @@ export function loadYouTubeApi(): Promise<any> {
   return apiPromise;
 }
 
-export function getPlayer(mount: HTMLElement): Promise<any> {
-  if (player && readyPromise) return readyPromise;
-  readyPromise = loadYouTubeApi().then(
-    (YT) =>
-      new Promise<any>((resolve) => {
-        player = new YT.Player(mount, {
-          host: 'https://www.youtube-nocookie.com',
-          width: '100%',
-          height: '100%',
-          playerVars: {
-            rel: 0,
-            modestbranding: 1,
-            playsinline: 1,
-            enablejsapi: 1,
-            origin: typeof window !== 'undefined' ? window.location.origin : '',
+export function getPlayer(mount: HTMLElement, videoId?: string): Promise<any> {
+  return loadYouTubeApi().then((YT) => {
+    return new Promise<any>((resolve) => {
+      if (player && typeof player.getPlayerState === 'function') {
+        const iframe = player.getIframe?.();
+        if (iframe && mount && iframe.parentElement !== mount) {
+          mount.innerHTML = '';
+          mount.appendChild(iframe);
+        }
+        return resolve(player);
+      }
+
+      // If existing dead player, clean up
+      try {
+        if (player && player.destroy) player.destroy();
+      } catch (_) {}
+
+      mount.innerHTML = '';
+      const playerDiv = document.createElement('div');
+      playerDiv.className = 'w-full h-full pointer-events-auto';
+      mount.appendChild(playerDiv);
+
+      player = new YT.Player(playerDiv, {
+        host: 'https://www.youtube-nocookie.com',
+        width: '100%',
+        height: '100%',
+        videoId: videoId || undefined,
+        playerVars: {
+          autoplay: 1,
+          controls: 1,
+          rel: 0,
+          modestbranding: 1,
+          playsinline: 1,
+          enablejsapi: 1,
+          cc_load_policy: 1,
+          origin: typeof window !== 'undefined' ? window.location.origin : '',
+        },
+        events: {
+          onReady: () => resolve(player),
+          onStateChange: (e: any) => {
+            stateListeners.forEach((cb) => cb(e.data));
           },
-          events: {
-            onReady: () => resolve(player),
-            onStateChange: (e: any) => {
-              if (prewarming && e.data === 1) {
-                player.pauseVideo();
-                prewarming = false;
-              }
-              stateListeners.forEach((cb) => cb(e.data));
-            },
-            onError: (e: any) => errorListeners.forEach((cb) => cb(e.data)),
-          },
-        });
-      })
-  );
-  return readyPromise;
+          onError: (e: any) => errorListeners.forEach((cb) => cb(e.data)),
+        },
+      });
+    });
+  });
 }
 
 export const canPrewarm = () => {
@@ -89,27 +103,31 @@ export const canPrewarm = () => {
   return !c?.saveData && (!c?.effectiveType || c.effectiveType === '4g');
 };
 
-// Buffer the first seconds muted and paused so the click starts instantly
-export async function prewarm(mount: HTMLElement, videoId: string, startSeconds = 0) {
-  if (!canPrewarm() || currentId === videoId) return;
-  const p = await getPlayer(mount);
-  currentId = videoId;
-  prewarming = true;
-  p.mute();
-  p.loadVideoById({ videoId, startSeconds });
+export async function prewarm(mount?: HTMLElement, videoId?: string) {
+  // Prewarm API script only without creating detached iframes
+  try {
+    await loadYouTubeApi();
+  } catch (_) {}
 }
 
 export async function play(mount: HTMLElement, videoId: string, startSeconds = 0) {
-  const p = await getPlayer(mount);
-  prewarming = false;
+  const p = await getPlayer(mount, videoId);
   if (currentId !== videoId) {
     currentId = videoId;
-    p.loadVideoById({ videoId, startSeconds });
-  } else if (startSeconds > 0) {
+    if (p.loadVideoById) {
+      p.loadVideoById({ videoId, startSeconds });
+    }
+  } else if (startSeconds > 0 && p.seekTo) {
     p.seekTo(startSeconds, true);
   }
-  p.unMute();
-  p.playVideo();
+  if (p.unMute) p.unMute();
+  if (p.playVideo) p.playVideo();
+}
+
+export function pauseVideo() {
+  try {
+    if (player?.pauseVideo) player.pauseVideo();
+  } catch (_) {}
 }
 
 export function getCurrentPlayerInstance() {

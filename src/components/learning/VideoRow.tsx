@@ -21,12 +21,9 @@ export function VideoRow({ video }: VideoRowProps) {
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   const handlePointerEnter = () => {
-    // 150ms hover intent before prewarming (Prompt Section 13.4)
+    // 150ms hover intent before prewarming
     hoverTimerRef.current = setTimeout(() => {
-      const dummyMount = document.querySelector('div[class*="pointer-events-none"]') as HTMLElement;
-      if (dummyMount && video.videoId) {
-        prewarm(dummyMount, video.videoId);
-      }
+      prewarm();
     }, 150);
   };
 
