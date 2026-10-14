@@ -611,28 +611,24 @@ export const StepResourceHub: React.FC<StepResourceHubProps> = ({
             </section>
           )}
 
-          {/* SECTION 4: STEP MILESTONE EVALUATION (Socratic Quiz Gate) */}
-          <section className="p-6 rounded-3xl bg-emerald-50/80 border border-emerald-200/90 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-5">
-            <div className="flex items-center gap-3.5">
-              <div className="w-11 h-11 rounded-2xl bg-emerald-100 text-emerald-700 flex items-center justify-center shrink-0">
-                <Zap className="w-6 h-6 animate-pulse" />
-              </div>
-              <div className="space-y-0.5">
-                <h4 className="text-sm font-heading font-extrabold text-emerald-950">
-                  Ready for Evaluation • Step {currentStep} Milestone Gate
-                </h4>
-                <p className="text-xs text-emerald-800 leading-relaxed">
-                  Only click when you have studied the video lecture and documentation. Socratic quiz will be generated on demand.
-                </p>
-              </div>
+          {/* SECTION 4: STEP MILESTONE EVALUATION (Socratic Quiz Gate — 70% Pass Gate) */}
+          <section className="p-6 rounded-3xl bg-indigo-50/50 border border-indigo-100 flex flex-col sm:flex-row sm:items-center justify-between gap-4 shadow-sm">
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-indigo-600 block mb-1">
+                KNOWLEDGE GATEWAY (70% PASS THRESHOLD)
+              </span>
+              <h4 className="text-base font-bold text-slate-900">
+                Ready to verify Step {currentStep} mastery?
+              </h4>
+              <p className="text-xs text-slate-600">
+                Score 70% or higher on the milestone exam to unlock Step {currentStep + 1}.
+              </p>
             </div>
-
             <button
               onClick={onStartQuiz}
-              className="px-6 py-3 rounded-2xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md shadow-emerald-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0 hover:scale-[1.02] active:scale-[0.96] whitespace-nowrap"
+              className="px-5 py-2.5 rounded-xl text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-700 transition-all shadow-md shadow-indigo-200 shrink-0 cursor-pointer hover:scale-[1.02] active:scale-[0.98] whitespace-nowrap"
             >
-              <Zap className="w-4 h-4 text-amber-300" />
-              <span>Ready for Evaluation — Start Milestone Quiz ➔</span>
+              Take Milestone Quiz (8–10 Qs) →
             </button>
           </section>
         </>
