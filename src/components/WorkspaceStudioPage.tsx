@@ -26,6 +26,7 @@ import { StartStepCard } from '@/components/learning/StartStepCard';
 import { PackBuildingScreen } from '@/components/learning/PackBuildingScreen';
 import { StepIntroCard } from '@/components/learning/StepIntroCard';
 import { ChapterAccordion } from '@/components/learning/ChapterAccordion';
+import { VideoRow } from '@/components/learning/VideoRow';
 import {
   Activity,
   GitBranch,
@@ -1509,6 +1510,36 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     intro={packData.intro}
                     isSports={isPhysical}
                   />
+
+                  {/* Top-Level Verified Video Lectures Section */}
+                  {Array.isArray(packData?.videos) && packData.videos.length > 0 && (
+                    <div className="bg-white rounded-3xl border border-slate-200/90 shadow-md p-6 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2.5">
+                          <span className="w-9 h-9 rounded-xl bg-sky-50 text-[#0284C7] border border-sky-200 flex items-center justify-center font-bold">
+                            <Video className="w-4 h-4" />
+                          </span>
+                          <div>
+                            <h3 className="text-sm font-heading font-bold text-slate-900">
+                              Verified Video Lectures
+                            </h3>
+                            <p className="text-xs text-slate-500">
+                              Curated video guides for Milestone {viewingStepNum} with in-app theater playback
+                            </p>
+                          </div>
+                        </div>
+                        <span className="text-[11px] font-heading font-extrabold px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200">
+                          {packData.videos.length} {packData.videos.length === 1 ? 'Lecture' : 'Lectures'} Available
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 gap-2.5 pt-1">
+                        {packData.videos.map((vid: any) => (
+                          <VideoRow key={vid.id || vid.videoId} video={vid} />
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                   <ChapterAccordion
                     chapters={packData.chapters || []}

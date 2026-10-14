@@ -72,11 +72,66 @@ function extractYouTubeId(url?: string): string | null {
   return match ? match[1] : null;
 }
 
-export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = ({
+interface QuizErrorBoundaryProps {
+  children: React.ReactNode;
+  onReset?: () => void;
+}
+
+interface QuizErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class QuizErrorBoundary extends React.Component<QuizErrorBoundaryProps, QuizErrorBoundaryState> {
+  constructor(props: QuizErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error): QuizErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
+    console.error('[QuizErrorBoundary] Caught evaluation exception:', error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 bg-white/95 backdrop-blur-md rounded-3xl border border-red-200/90 shadow-xl text-center space-y-4 max-w-lg mx-auto">
+          <div className="w-14 h-14 rounded-2xl bg-red-50 text-red-600 flex items-center justify-center mx-auto border border-red-200">
+            <AlertTriangle className="w-7 h-7" />
+          </div>
+          <h4 className="text-lg font-heading font-bold text-slate-900">
+            Evaluation Gate Encountered an Error
+          </h4>
+          <p className="text-xs text-slate-600 max-w-sm mx-auto">
+            We recovered safely from a client rendering issue. Click below to re-initialize the evaluation gate.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              this.setState({ hasError: false });
+              this.props.onReset?.();
+            }}
+            className="px-6 py-2.5 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
+          >
+            <RotateCcw className="w-4 h-4" />
+            <span>Reset Evaluation Gate</span>
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
   stepId,
   stepIndex,
   stepTitle,
-  acus,
+  acus = [],
   onStepPassed,
   onRemediationStateChange,
   isFinalStep = false,
@@ -182,16 +237,49 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
 
       const data = await res.json();
       if (data.coverage) {
-        setQuizCoverage(data.coverage);
+        setQuizCoverage(String(data.coverage));
       }
 
-      const formattedQuestions: Question[] = (data.questions || []).map((q: any) => ({
-        id: q.id,
-        prompt: q.prompt || q.question || 'Scenario Evaluation',
-        options: shuffleOptions(q.options || []),
-        acuId: q.acuId,
-        chapterKey: q.chapterKey,
-      }));
+      const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
+      const formattedQuestions: Question[] = rawQuestions.map((q: any, qIdx: number) => {
+        const rawPrompt = q.prompt ?? q.question ?? 'Scenario Evaluation';
+        const promptStr = typeof rawPrompt === 'object' && rawPrompt !== null
+          ? (rawPrompt.text || rawPrompt.prompt || JSON.stringify(rawPrompt))
+          : String(rawPrompt || 'Scenario Evaluation');
+
+        const rawOptions = Array.isArray(q.options) ? q.options : [];
+        const optionsList: Option[] = rawOptions.map((opt: any, oIdx: number) => {
+          if (typeof opt === 'string') {
+            return {
+              id: String(oIdx),
+              text: opt,
+              position: oIdx,
+            };
+          }
+          const optText = typeof opt === 'object' && opt !== null
+            ? (opt.text ?? opt.label ?? opt.option ?? String(opt))
+            : String(opt ?? '');
+          const optId = typeof opt === 'object' && opt !== null && opt.id != null
+            ? String(opt.id)
+            : String(oIdx);
+
+          return {
+            id: optId,
+            text: typeof optText === 'object' ? JSON.stringify(optText) : String(optText),
+            position: typeof opt === 'object' && opt !== null && typeof opt.position === 'number' ? opt.position : oIdx,
+          };
+        });
+
+        const rawChapterKey = q.chapterKey != null ? String(q.chapterKey) : '';
+
+        return {
+          id: String(q.id || `q-${qIdx}`),
+          prompt: promptStr,
+          options: shuffleOptions(optionsList),
+          acuId: q.acuId ? String(q.acuId) : undefined,
+          chapterKey: rawChapterKey,
+        };
+      });
 
       setQuestions(formattedQuestions);
       setSelectedAnswers({});
@@ -224,13 +312,13 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
       if (!res.ok) throw new Error('Evaluation submission failed');
       const data = await res.json();
 
-      const score = data.scorePercent ?? data.scorePercentage ?? 0;
+      const score = data.scorePercent ?? data.scorePercentage ?? data.percent ?? data.score ?? 0;
       setLastScore(score);
       const passed = data.passed ?? (score >= passThreshold);
 
       // Map response to EvaluationResultData
-      const resultObj: EvaluationResultData = {
-        id: data.evaluationId,
+      const resultObj: EvaluationResultData & any = {
+        id: data.evaluationId || data.id,
         scorePercent: score,
         correctCount: data.correctCount ?? 0,
         totalCount: data.totalCount ?? questions.length,
@@ -243,6 +331,10 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         questions: data.questions || [],
         attempts: data.attempts || [],
         analysis: null,
+        nextStepIndex: data.nextStepIndex,
+        unlockedNextStepId: data.unlockedNextStepId || data.nextStepId,
+        xpEarned: data.xpEarned,
+        isFinalStep: data.isFinalStep,
       };
 
       setEvaluationResult(resultObj);
@@ -675,6 +767,14 @@ export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (
         takeaway={activeVideoModal.takeaway}
       />
     </div>
+  );
+};
+
+export const QuizAndEvaluationEngine: React.FC<QuizAndEvaluationEngineProps> = (props) => {
+  return (
+    <QuizErrorBoundary onReset={() => window.location.reload()}>
+      <QuizAndEvaluationEngineInner {...props} />
+    </QuizErrorBoundary>
   );
 };
 

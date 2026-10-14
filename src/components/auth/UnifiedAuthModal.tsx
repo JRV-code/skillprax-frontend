@@ -14,7 +14,8 @@ import {
   AlertCircle,
   ShieldCheck,
   KeyRound,
-  Check
+  Check,
+  User,
 } from 'lucide-react';
 import { login as storeLogin } from '@/store/useAuthStore';
 import { BrandLogo } from '@/components/common/BrandLogo';
@@ -40,11 +41,15 @@ export function UnifiedAuthModal({
 }: UnifiedAuthModalProps) {
   // Modal View States: AUTH_FORM or SET_PASSWORD_STEP
   const [modalStep, setModalStep] = useState<'AUTH_FORM' | 'SET_PASSWORD_STEP'>('AUTH_FORM');
+  const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
 
-  // Step 1: Universal Auth Fields
+  // Step 1: Auth Fields
+  const [name, setName] = useState('');
   const [email, setEmail] = useState(initialEmail);
   const [password, setPassword] = useState('');
+  const [signupConfirmPassword, setSignupConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showSignupConfirmPassword, setShowSignupConfirmPassword] = useState(false);
 
   // Step 2: Post-Google Password Setup Fields
   const [newPassword, setNewPassword] = useState('');
@@ -219,8 +224,8 @@ export function UnifiedAuthModal({
     }
   };
 
-  // Step 1: Handle Universal Email + Password Submission
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Step 1a: Handle Sign In Submission
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
     setSuccessNotice(null);
@@ -230,22 +235,27 @@ export function UnifiedAuthModal({
       setErrorMessage('Please enter your email address.');
       return;
     }
-    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-      setErrorMessage('Please enter a valid email address.');
-      return;
-    }
-    if (!password || password.length < 6) {
-      setErrorMessage('Password must be at least 6 characters.');
+    if (!password) {
+      setErrorMessage('Please enter your password.');
       return;
     }
 
     try {
       setLoading(true);
-      const res = await fetch('/api/auth/universal', {
+      let res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: cleanEmail, password }),
       });
+
+      if (!res.ok) {
+        // Fallback to universal endpoint
+        res = await fetch('/api/auth/universal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password }),
+        });
+      }
 
       const data = await res.json();
 
@@ -272,7 +282,77 @@ export function UnifiedAuthModal({
         return;
       }
 
-      setSuccessNotice(data.isNewUser ? 'Account created! Welcome to SKILL-TRACK.' : 'Welcome back! Signed in successfully.');
+      setSuccessNotice('Welcome back! Signed in successfully.');
+
+      setTimeout(() => {
+        if (onSuccess) onSuccess(activeUser);
+        onClose();
+      }, 700);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Network error occurred. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Step 1b: Handle Sign Up Submission
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSuccessNotice(null);
+
+    const cleanEmail = email.trim();
+    if (!cleanEmail) {
+      setErrorMessage('Please enter your email address.');
+      return;
+    }
+    if (!cleanEmail.includes('@') || !cleanEmail.includes('.')) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+    if (!password || password.length < 8) {
+      setErrorMessage('Password must be at least 8 characters.');
+      return;
+    }
+    if (password !== signupConfirmPassword) {
+      setErrorMessage('Passwords do not match. Please re-enter.');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      let res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: cleanEmail, password, name: name.trim() || undefined }),
+      });
+
+      if (!res.ok) {
+        // Fallback to universal endpoint
+        res = await fetch('/api/auth/universal', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email: cleanEmail, password, name: name.trim() || undefined }),
+        });
+      }
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setErrorMessage(data.error || 'Registration failed. Please try again.');
+        return;
+      }
+
+      const activeUser = data.user || data.profile;
+      const token = data.token;
+
+      if (token && activeUser) {
+        storeLogin(activeUser, token);
+        setLoggedInUser(activeUser);
+        setSessionToken(token);
+      }
+
+      setSuccessNotice('Account created! Welcome to SKILL-TRACK.');
 
       setTimeout(() => {
         if (onSuccess) onSuccess(activeUser);
@@ -394,117 +474,303 @@ export function UnifiedAuthModal({
                 transition={{ type: 'spring', stiffness: 450, damping: 25 }}
               >
                 {/* Header */}
-                <div className="text-center mb-6">
-                  <div className="flex justify-center mb-4">
+                <div className="text-center mb-5">
+                  <div className="flex justify-center mb-3">
                     <BrandLogo size="lg" />
                   </div>
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-bold tracking-wider uppercase mb-2">
                     <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                    <span>FRICTIONLESS UNIVERSAL ACCESS</span>
+                    <span>SKILL-TRACK PLATFORM AUTH</span>
                   </div>
                   <h2 className="text-2xl font-black text-slate-900 tracking-tight">
-                    Sign In or Register
+                    {activeTab === 'signin' ? 'Sign In to Your Account' : 'Create Your Account'}
                   </h2>
                   <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                    Enter your email and password. Existing accounts log in automatically; new learners are created in one step.
+                    {activeTab === 'signin'
+                      ? 'Access your personalized learning roadmaps, verified packs, and certifications.'
+                      : 'Join SKILL-TRACK to start deliberate practice and verified skill progression.'}
                   </p>
                 </div>
 
-                {/* Form */}
-                <form onSubmit={handleSubmit} className="space-y-4">
-                  {/* Error Message */}
-                  {errorMessage && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5"
-                    >
-                      <AlertCircle className="w-4 h-4 shrink-0 text-[#F43F5E] mt-0.5" />
-                      <div className="leading-snug">{errorMessage}</div>
-                    </motion.div>
-                  )}
+                {/* Two-Tab Navigation */}
+                <div className="flex p-1 bg-slate-100 rounded-2xl mb-5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('signin');
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 text-xs font-heading font-extrabold rounded-xl transition-all cursor-pointer ${
+                      activeTab === 'signin'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Sign In
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('signup');
+                      setErrorMessage(null);
+                    }}
+                    className={`flex-1 py-2 text-xs font-heading font-extrabold rounded-xl transition-all cursor-pointer ${
+                      activeTab === 'signup'
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                  >
+                    Sign Up
+                  </button>
+                </div>
 
-                  {/* Success Message */}
-                  {successNotice && (
-                    <motion.div
-                      initial={{ opacity: 0, y: -6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs flex items-center gap-2"
-                    >
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-                      <span>{successNotice}</span>
-                    </motion.div>
-                  )}
+                {/* Error Message */}
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 text-[#F43F5E] mt-0.5" />
+                    <div className="leading-snug">{errorMessage}</div>
+                  </motion.div>
+                )}
 
-                  {/* Email Field */}
-                  <div>
-                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
-                      Email Address
-                    </label>
-                    <div className="relative">
-                      <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type="email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        placeholder="athlete@domain.com"
-                        required
-                        autoFocus
-                        className="w-full pl-10 pr-4 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
-                      />
-                    </div>
-                  </div>
+                {/* Success Message */}
+                {successNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mb-4 p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{successNotice}</span>
+                  </motion.div>
+                )}
 
-                  {/* Password Field with Show/Hide Toggle */}
-                  <div>
-                    <div className="flex items-center justify-between mb-1.5">
-                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
-                        Password
+                {activeTab === 'signin' ? (
+                  /* SIGN IN FORM */
+                  <form onSubmit={handleSignIn} className="space-y-4">
+                    {/* Email Field */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                        Email Address
                       </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="learner@domain.com"
+                          required
+                          autoFocus
+                          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field with Show/Hide Toggle */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Password
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{showPassword ? 'Hide' : 'Show'}</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Enter your password"
+                          required
+                          className="w-full pl-10 pr-10 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Primary Action Button */}
+                    <motion.button
+                      type="submit"
+                      disabled={loading}
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+                      className="w-full mt-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <span>Signing In...</span>
+                      ) : (
+                        <>
+                          <span>Sign In</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </motion.button>
+
+                    {/* Switcher */}
+                    <div className="text-center pt-1">
                       <button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer transition-colors"
+                        onClick={() => {
+                          setActiveTab('signup');
+                          setErrorMessage(null);
+                        }}
+                        className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
                       >
-                        {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                        <span>{showPassword ? 'Hide' : 'Show'}</span>
+                        Don&apos;t have an account? <span className="font-bold text-indigo-600 underline">Sign Up</span>
                       </button>
                     </div>
-                    <div className="relative">
-                      <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter password (min. 6 characters)"
-                        required
-                        className="w-full pl-10 pr-10 py-3.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
-                      />
+                  </form>
+                ) : (
+                  /* SIGN UP FORM */
+                  <form onSubmit={handleSignUp} className="space-y-3.5">
+                    {/* Full Name Field */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Full Name
+                      </label>
+                      <div className="relative">
+                        <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="text"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          placeholder="Your Name"
+                          className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
                     </div>
-                  </div>
 
-                  {/* Primary Action Button */}
-                  <motion.button
-                    type="submit"
-                    disabled={loading}
-                    whileHover={{ scale: 1.02, y: -1 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ type: 'spring', stiffness: 450, damping: 18 }}
-                    className="w-full mt-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm shadow-lg shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
-                  >
-                    {loading ? (
-                      <span>Authenticating...</span>
-                    ) : (
-                      <>
-                        <span>Continue / Sign In</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </motion.button>
-                </form>
+                    {/* Email Field */}
+                    <div>
+                      <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
+                        Email Address
+                      </label>
+                      <div className="relative">
+                        <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="learner@domain.com"
+                          required
+                          className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Password Field */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Password (min. 8 chars)
+                        </label>
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="text-[11px] font-semibold text-indigo-600 hover:text-indigo-700 flex items-center gap-1 cursor-pointer transition-colors"
+                        >
+                          {showPassword ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                          <span>{showPassword ? 'Hide' : 'Show'}</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="Create strong password"
+                          required
+                          className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Confirm Password Field */}
+                    <div>
+                      <div className="flex items-center justify-between mb-1">
+                        <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider">
+                          Confirm Password
+                        </label>
+                        {signupConfirmPassword && (
+                          <span className={`text-[11px] font-bold flex items-center gap-1 ${
+                            password === signupConfirmPassword ? 'text-emerald-600' : 'text-rose-500'
+                          }`}>
+                            {password === signupConfirmPassword ? (
+                              <>
+                                <Check className="w-3 h-3" />
+                                <span>Passwords match</span>
+                              </>
+                            ) : (
+                              <>
+                                <AlertCircle className="w-3 h-3" />
+                                <span>Passwords do not match</span>
+                              </>
+                            )}
+                          </span>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
+                        <input
+                          type={showSignupConfirmPassword ? 'text' : 'password'}
+                          value={signupConfirmPassword}
+                          onChange={(e) => setSignupConfirmPassword(e.target.value)}
+                          placeholder="Re-enter password"
+                          required
+                          className="w-full pl-10 pr-10 py-2.5 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Create Account Action Button */}
+                    <motion.button
+                      type="submit"
+                      disabled={loading || (Boolean(signupConfirmPassword) && password !== signupConfirmPassword)}
+                      whileHover={{ scale: 1.02, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
+                      transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+                      className="w-full mt-2 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-bold text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <span>Creating Account...</span>
+                      ) : (
+                        <>
+                          <span>Create Account</span>
+                          <ArrowRight className="w-4 h-4" />
+                        </>
+                      )}
+                    </motion.button>
+
+                    {/* Switcher */}
+                    <div className="text-center pt-1">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('signin');
+                          setErrorMessage(null);
+                        }}
+                        className="text-xs text-slate-500 hover:text-indigo-600 font-medium transition-colors cursor-pointer"
+                      >
+                        Already have an account? <span className="font-bold text-indigo-600 underline">Sign In</span>
+                      </button>
+                    </div>
+                  </form>
+                )}
 
                 {/* Divider */}
-                <div className="relative my-5">
+                <div className="relative my-4">
                   <div className="absolute inset-0 flex items-center">
                     <div className="w-full border-t border-slate-200" />
                   </div>
@@ -522,7 +788,7 @@ export function UnifiedAuthModal({
                       disabled={loading}
                       whileHover={{ scale: 1.01 }}
                       whileTap={{ scale: 0.98 }}
-                      className="w-full py-3 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                      className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
                     >
                       <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
                         <path
@@ -556,7 +822,7 @@ export function UnifiedAuthModal({
                 )}
 
                 {/* Footer note */}
-                <p className="text-[10px] text-slate-400 text-center mt-5">
+                <p className="text-[10px] text-slate-400 text-center mt-4">
                   By proceeding, you agree to our Terms of Service & Privacy Policy.
                 </p>
               </motion.div>
