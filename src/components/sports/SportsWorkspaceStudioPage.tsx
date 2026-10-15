@@ -136,13 +136,6 @@ export function SportsWorkspaceStudioPage({
     }
   }, [viewingStepId, viewingStepObj, fetchSportsPack]);
 
-  // Auto-start sports pack build on mount if NOT_BUILT and not locked
-  useEffect(() => {
-    const isStepLocked = viewingStepObj?.status === 'LOCKED' && viewingStepIndex > activeStepIndex;
-    if (viewingStepId && !isStepLocked && packStatus === 'NOT_BUILT' && !isBuildingPack) {
-      handleStartBuildPack();
-    }
-  }, [viewingStepId, viewingStepObj, viewingStepIndex, activeStepIndex, packStatus, isBuildingPack]);
 
   // Pre-generate active step's quiz as soon as pack is READY so Socratic Gate opens in 0ms
   useEffect(() => {

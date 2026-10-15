@@ -172,7 +172,7 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
       } finally {
         setIsLoadingSubgenres(false);
       }
-    }, 600);
+    }, 250);
 
     return () => {
       clearTimeout(timer);
