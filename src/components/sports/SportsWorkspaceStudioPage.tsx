@@ -78,6 +78,14 @@ export function SportsWorkspaceStudioPage({
     return dbSteps.find((s: any) => s.stepIndex === viewingStepIndex) || dbSteps[0];
   }, [dbSteps, viewingStepIndex]);
 
+  const activeStepObj = useMemo(() => {
+    return dbSteps.find((s: any) => s.stepIndex === activeStepIndex) || null;
+  }, [dbSteps, activeStepIndex]);
+
+  const nextStepObj = useMemo(() => {
+    return dbSteps.find((s: any) => s.stepIndex === activeStepIndex + 1) || null;
+  }, [dbSteps, activeStepIndex]);
+
   const viewingStepId = viewingStepObj?.id || '';
   const viewingStepTitle = viewingStepObj?.title || `Milestone ${viewingStepIndex}`;
   const totalPlannedSteps = rawWorkspace?.totalPlannedSteps || dbSteps.length || 5;
@@ -124,6 +132,36 @@ export function SportsWorkspaceStudioPage({
       fetchSportsPack(viewingStepId);
     }
   }, [viewingStepId, viewingStepObj, fetchSportsPack]);
+
+  // Auto-start sports pack build on mount if NOT_BUILT and not locked
+  useEffect(() => {
+    const isStepLocked = viewingStepObj?.status === 'LOCKED' && viewingStepIndex > activeStepIndex;
+    if (viewingStepId && !isStepLocked && packStatus === 'NOT_BUILT' && !isBuildingPack) {
+      handleStartBuildPack();
+    }
+  }, [viewingStepId, viewingStepObj, viewingStepIndex, activeStepIndex, packStatus, isBuildingPack]);
+
+  // Pre-generate active step's quiz as soon as pack is READY so Socratic Gate opens in 0ms
+  useEffect(() => {
+    if (packStatus === 'READY' && activeStepObj?.id) {
+      fetch(`/api/sports-workspace/steps/${activeStepObj.id}/quiz?mode=initial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'initial' }),
+      }).catch((err) => console.warn('[Sports Prefetch] Quiz pre-generation notice:', err));
+    }
+  }, [packStatus, activeStepObj?.id]);
+
+  // Smart background prefetch of Next Step (N+1) resources, drills & quiz
+  useEffect(() => {
+    if (packStatus === 'READY' && nextStepObj?.id) {
+      fetch(`/api/sports-workspace/steps/${nextStepObj.id}/prefetch-pack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefetch: true }),
+      }).catch((err) => console.warn('[Sports Prefetch] Next step pack notice:', err));
+    }
+  }, [packStatus, nextStepObj?.id]);
 
   // Polling when pack is BUILDING
   useEffect(() => {
@@ -465,21 +503,8 @@ export function SportsWorkspaceStudioPage({
                 )}
 
                 {/* Chapter Accordion */}
-                {Array.isArray(packData?.chapters) && packData.chapters.length > 0 ? (
+                {Array.isArray(packData?.chapters) && packData.chapters.length > 0 && (
                   <ChapterAccordion chapters={packData.chapters} stepId={viewingStepId} />
-                ) : (
-                  <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3">
-                    <p className="text-xs text-slate-500">
-                      Study chapters and coaching lectures are being calibrated. Click below to load them.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => handleStartBuildPack()}
-                      className="px-5 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition-all cursor-pointer"
-                    >
-                      Load Study Chapters & Videos
-                    </button>
-                  </div>
                 )}
               </motion.div>
             )}

@@ -197,6 +197,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ mode }),
+          signal: AbortSignal.timeout(15000),
         });
 
         if (!res.ok) {
@@ -205,7 +206,15 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         }
 
         const data = await res.json();
-        const rawQuestions = Array.isArray(data.questions) ? data.questions : [];
+        const rawQuestions = Array.isArray(data.questions)
+          ? data.questions
+          : Array.isArray(data.evaluation?.questions)
+          ? data.evaluation.questions
+          : Array.isArray(data.quiz?.questions)
+          ? data.quiz.questions
+          : Array.isArray(data.data?.questions)
+          ? data.data.questions
+          : [];
 
         if (rawQuestions.length === 0) {
           throw new Error('No evaluation questions available for this milestone yet.');
@@ -245,6 +254,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
       } catch (err: any) {
         console.error('[Quiz Engine] Load error:', err);
         setFetchError(err.message || 'Could not load quiz questions.');
+        setEngineState('ACTIVE');
       }
     },
     [stepId, onRemediationStateChange]
@@ -272,7 +282,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(12000),
+        signal: AbortSignal.timeout(15000),
       });
 
       if (!res.ok) {
@@ -395,21 +405,6 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
   const allRemediationCompleted =
     totalRemediationsCount === 0 || completedRemediationsCount >= totalRemediationsCount;
 
-  // Render Loading Spinner
-  if (engineState === 'LOADING') {
-    return (
-      <div className="p-12 bg-white rounded-3xl border border-slate-200/90 shadow-sm text-center space-y-4 max-w-2xl mx-auto">
-        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
-        <h4 className="text-base font-heading font-bold text-slate-900">
-          Preparing Socratic Evaluation Gate...
-        </h4>
-        <p className="text-xs text-slate-500 max-w-sm mx-auto">
-          Grounded across core chapter competency units with deterministic 70% passing criteria.
-        </p>
-      </div>
-    );
-  }
-
   // Render Fetch Error
   if (fetchError) {
     return (
@@ -429,6 +424,21 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
           <RotateCcw className="w-4 h-4" />
           <span>Retry Socratic Gate</span>
         </button>
+      </div>
+    );
+  }
+
+  // Render Loading Spinner
+  if (engineState === 'LOADING') {
+    return (
+      <div className="p-12 bg-white rounded-3xl border border-slate-200/90 shadow-sm text-center space-y-4 max-w-2xl mx-auto">
+        <div className="w-12 h-12 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin mx-auto" />
+        <h4 className="text-base font-heading font-bold text-slate-900">
+          Preparing Socratic Evaluation Gate...
+        </h4>
+        <p className="text-xs text-slate-500 max-w-sm mx-auto">
+          Grounded across core chapter competency units with deterministic 70% passing criteria.
+        </p>
       </div>
     );
   }

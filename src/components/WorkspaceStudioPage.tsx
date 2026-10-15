@@ -220,6 +220,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     return dbSteps.find((s: any) => s.stepIndex === viewingStepIndex) || dbSteps[0];
   }, [dbSteps, viewingStepIndex]);
 
+  const activeStepObj = useMemo(() => {
+    if (dbSteps.length === 0) return null;
+    return dbSteps.find((s: any) => s.stepIndex === activeStepIndex) || null;
+  }, [dbSteps, activeStepIndex]);
+
+  const nextStepObj = useMemo(() => {
+    if (dbSteps.length === 0) return null;
+    return dbSteps.find((s: any) => s.stepIndex === activeStepIndex + 1) || null;
+  }, [dbSteps, activeStepIndex]);
+
   const viewingStepId = viewingStepObj?.id || (currentTrack?.milestones?.find((m: any) => (m.stepNumber || m.stepIndex) === viewingStepIndex)?.id) || currentTrack.id;
   const viewingStepNum = viewingStepObj?.stepIndex || viewingStepIndex;
   const viewingStepTitle = viewingStepObj?.title || `Milestone ${viewingStepIndex}`;
@@ -352,6 +362,35 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       fetchPack(viewingStepId);
     }
   }, [packStatus, viewingStepId, fetchPack]);
+
+  // Auto-start pack build on mount if active step pack is NOT_BUILT and not locked
+  useEffect(() => {
+    if (viewingStepId && !packLocked && packStatus === 'NOT_BUILT' && !packLoading) {
+      startBuild().catch((err) => console.warn('[AutoStart] Notice:', err));
+    }
+  }, [viewingStepId, packLocked, packStatus, packLoading, startBuild]);
+
+  // Pre-generate active step's quiz as soon as pack is READY so Socratic Gate opens in 0ms
+  useEffect(() => {
+    if (packStatus === 'READY' && activeStepObj?.id) {
+      fetch(`/api/steps/${activeStepObj.id}/quiz?mode=initial`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'initial' }),
+      }).catch((err) => console.warn('[Prefetch] Quiz pre-generation notice:', err));
+    }
+  }, [packStatus, activeStepObj?.id]);
+
+  // Smart background prefetch of Next Step (N+1) resources while user is on current step
+  useEffect(() => {
+    if (packStatus === 'READY' && nextStepObj?.id) {
+      fetch(`/api/steps/${nextStepObj.id}/prefetch-pack`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefetch: true }),
+      }).catch((err) => console.warn('[Prefetch] Next step pack notice:', err));
+    }
+  }, [packStatus, nextStepObj?.id]);
 
   // Silent prefetch trigger after 20s of active reading or resource access
   useEngagement(viewingStepId, !packLocked, packStatus === 'READY');
