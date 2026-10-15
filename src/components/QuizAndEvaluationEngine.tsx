@@ -184,9 +184,12 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
   // Remediation tracking: map of remediation resource ID -> boolean (completed)
   const [completedRemediations, setCompletedRemediations] = useState<Record<string, boolean>>({});
 
+  const [quizMode, setQuizMode] = useState<'initial' | 'retest' | 'perfection'>('initial');
+
   // Fetch or generate quiz
   const handleFetchQuiz = useCallback(
     async (mode: 'initial' | 'retest' | 'perfection' = 'initial') => {
+      setQuizMode(mode);
       setEngineState('LOADING');
       setFetchError(null);
       try {
@@ -261,6 +264,8 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
     try {
       const payload = {
         answers: selectedAnswers,
+        questionIds: questions.map((q) => q.id),
+        mode: quizMode,
       };
 
       const res = await fetch(`/api/steps/${stepId}/submit-quiz`, {

@@ -92,6 +92,7 @@ export const InAppLectureTheater: React.FC<InAppLectureTheaterProps> = ({
       {/* 16:9 Iframe Player with Direct YouTube API Integration */}
       <div className="relative w-full aspect-video bg-black">
         <iframe
+          key={videoId}
           ref={iframeRef}
           src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=0&enablejsapi=1&rel=0&modestbranding=1`}
           title={videoTitle}

@@ -39,6 +39,7 @@ const SPEED_OPTIONS = [0.5, 0.75, 1, 1.25, 1.5, 2];
 
 export function PersistentPlayerHost() {
   const mountRef = useRef<HTMLDivElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   const videoBoxRef = useRef<HTMLDivElement>(null);
   const [isClientMounted, setIsClientMounted] = useState(false);
 
@@ -67,111 +68,74 @@ export function PersistentPlayerHost() {
     setIsClientMounted(true);
   }, []);
 
-  // Lazy-load YouTube API script
+  // Reset state when new video loads
   useEffect(() => {
-    if (typeof window !== 'undefined') {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(() => loadYouTubeApi());
-      } else {
-        setTimeout(() => loadYouTubeApi(), 1000);
-      }
-    }
-  }, []);
+    if (state === 'HIDDEN' || !activeVideo?.videoId) return;
+    setCurrentSeconds(0);
+    setDuration(0);
+    setIsWatched(false);
+    setPlaying(true);
+  }, [activeVideo?.videoId, state, setPlaying]);
 
-  // When player is hidden, immediately pause video so audio never plays in background
+  // When player is hidden, immediately pause video
   useEffect(() => {
     if (state === 'HIDDEN') {
+      try {
+        iframeRef.current?.contentWindow?.postMessage(
+          JSON.stringify({ event: 'command', func: 'pauseVideo', args: [] }),
+          '*'
+        );
+      } catch (_) {}
       pauseVideo();
       setPlaying(false);
     }
   }, [state, setPlaying]);
 
-  // Mount/play video when activeVideo changes or state becomes MODAL / DOCKED
+  // Window message listener for YouTube postMessage API infoDelivery
   useEffect(() => {
-    if (state === 'HIDDEN' || !activeVideo?.videoId || !mountRef.current) return;
+    if (typeof window === 'undefined') return;
 
-    const startSec = activeVideo.startSeconds || 0;
-    play(mountRef.current, activeVideo.videoId, startSec).catch((err) => {
-      console.warn('[PersistentPlayerHost] play error:', err);
-    });
-  }, [activeVideo?.videoId, state]);
-
-  // Handle player state changes
-  useEffect(() => {
-    const unsubState = onPlayerState((playerState) => {
-      // 1 = PLAYING, 2 = PAUSED, 3 = BUFFERING, 0 = ENDED
-      if (playerState === 1) {
-        setPlaying(true);
-        const p = getCurrentPlayerInstance();
-        if (p?.getDuration) {
-          const d = Math.floor(p.getDuration() || 0);
-          if (d > 0) setDuration(d);
+    const handleWindowMessage = (e: MessageEvent) => {
+      try {
+        const payload = typeof e.data === 'string' ? JSON.parse(e.data) : e.data;
+        if (payload?.event === 'onStateChange') {
+          if (payload.info === 1) setPlaying(true);
+          else if (payload.info === 2 || payload.info === 0) setPlaying(false);
+          if (payload.info === 0) setIsWatched(true);
         }
-      } else if (playerState === 2) {
-        setPlaying(false);
-      } else if (playerState === 0) {
-        setPlaying(false);
-        setIsWatched(true);
-        if (activeVideo?.resourceId) {
-          saveProgressToBackend(activeVideo.resourceId, duration, duration, true);
+        if (payload?.event === 'infoDelivery' && payload?.info) {
+          if (typeof payload.info.currentTime === 'number') {
+            const sec = Math.floor(payload.info.currentTime);
+            setCurrentSeconds(sec);
+            if (duration > 0) {
+              const watched90 = sec >= duration * 0.9;
+              if (watched90) setIsWatched(true);
+              setProgress(sec, duration, watched90);
+            }
+          }
+          if (typeof payload.info.duration === 'number' && payload.info.duration > 0) {
+            setDuration(Math.floor(payload.info.duration));
+          }
+          if (typeof payload.info.playerState === 'number') {
+            setPlaying(payload.info.playerState === 1);
+          }
         }
-      }
-    });
-
-    const unsubErr = onPlayerError((code) => {
-      // Only set error for official fatal YouTube error codes
-      if (code === 100) {
-        setError({
-          code,
-          message: 'This video is unavailable or has been removed.',
-        });
-      } else if (code === 101 || code === 150) {
-        setError({
-          code,
-          message: 'The video owner does not allow embedded playback.',
-        });
-      }
-    });
-
-    return () => {
-      unsubState();
-      unsubErr();
+      } catch (_) {}
     };
-  }, [activeVideo?.resourceId, duration, setError, setPlaying]);
 
-  // Poll player state every 400ms for tight play/pause & time sync
-  useEffect(() => {
-    if (state === 'HIDDEN') return;
-
-    const interval = setInterval(() => {
-      const p = getCurrentPlayerInstance();
-      if (!p) return;
-
-      const playerState = p.getPlayerState?.();
-      if (typeof playerState === 'number') {
-        const activePlaying = playerState === 1;
-        setPlaying(activePlaying);
-      }
-
-      const curr = p.getCurrentTime?.();
-      const dur = p.getDuration?.();
-      if (typeof curr === 'number') {
-        const sec = Math.floor(curr);
-        setCurrentSeconds(sec);
-        if (typeof dur === 'number' && dur > 0) {
-          const d = Math.floor(dur);
-          setDuration(d);
-          const watched90 = d > 0 && sec >= d * 0.9;
-          if (watched90) setIsWatched(true);
-          setProgress(sec, d, watched90);
-        }
-      }
-    }, 400);
-
-    return () => clearInterval(interval);
-  }, [state, setPlaying, setProgress]);
+    window.addEventListener('message', handleWindowMessage);
+    return () => window.removeEventListener('message', handleWindowMessage);
+  }, [duration, setPlaying, setProgress]);
 
   const sendPostMessageCommand = useCallback((func: string, args: any[] = []) => {
+    try {
+      if (iframeRef.current?.contentWindow) {
+        iframeRef.current.contentWindow.postMessage(
+          JSON.stringify({ event: 'command', func, args }),
+          '*'
+        );
+      }
+    } catch (_) {}
     sendIframeCommand(func, args);
   }, []);
 
@@ -195,51 +159,38 @@ export function PersistentPlayerHost() {
   };
 
   const handleClose = () => {
+    sendPostMessageCommand('pauseVideo');
     pauseVideo();
     closeVideo();
   };
 
   const handleTogglePlay = () => {
-    const p = getCurrentPlayerInstance();
-    const liveState = p?.getPlayerState?.();
-    const currentlyPlaying = liveState === 1 || isPlaying;
-
+    const currentlyPlaying = isPlaying;
     if (currentlyPlaying) {
-      p?.pauseVideo?.();
       sendPostMessageCommand('pauseVideo');
       setPlaying(false);
     } else {
-      p?.playVideo?.();
       sendPostMessageCommand('playVideo');
       setPlaying(true);
     }
   };
 
   const handleSeek = (delta: number) => {
-    const p = getCurrentPlayerInstance();
-    const cur = p?.getCurrentTime?.() ?? currentSeconds;
-    const target = Math.max(0, Math.min(duration || Infinity, cur + delta));
-    p?.seekTo?.(target, true);
+    const target = Math.max(0, currentSeconds + delta);
     sendPostMessageCommand('seekTo', [target, true]);
     setCurrentSeconds(Math.floor(target));
   };
 
   const handleChangeSpeed = (speed: number) => {
-    const p = getCurrentPlayerInstance();
-    p?.setPlaybackRate?.(speed);
     sendPostMessageCommand('setPlaybackRate', [speed]);
     setPlaybackSpeed(speed);
   };
 
   const toggleMute = () => {
-    const p = getCurrentPlayerInstance();
-    if (!p) return;
-    if (p.isMuted?.()) {
-      p.unMute?.();
+    if (isMuted) {
       sendPostMessageCommand('unMute');
       setIsMuted(false);
     } else {
-      p.mute?.();
       sendPostMessageCommand('mute');
       setIsMuted(true);
     }
@@ -380,7 +331,19 @@ export function PersistentPlayerHost() {
           ref={videoBoxRef}
           className="relative w-full aspect-video bg-black overflow-hidden flex items-center justify-center"
         >
-          <div ref={mountRef} className="w-full h-full pointer-events-auto" />
+          {activeVideo?.videoId ? (
+            <iframe
+              key={activeVideo.videoId}
+              ref={iframeRef}
+              src={`https://www.youtube-nocookie.com/embed/${activeVideo.videoId}?autoplay=1&controls=1&rel=0&modestbranding=1&playsinline=1&enablejsapi=1&origin=${encodeURIComponent(typeof window !== 'undefined' ? window.location.origin : '')}`}
+              title={activeVideo.title || 'Video Lecture'}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+              allowFullScreen
+              className="w-full h-full border-0 pointer-events-auto"
+            />
+          ) : (
+            <div ref={mountRef} className="w-full h-full pointer-events-auto" />
+          )}
 
           {/* Fatal Error Fallback ONLY (100, 101, 150) */}
           {error && (

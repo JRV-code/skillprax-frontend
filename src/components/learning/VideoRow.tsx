@@ -17,6 +17,14 @@ interface VideoRowProps {
   };
 }
 
+function extractYouTubeId(raw?: string): string {
+  if (!raw) return '';
+  const match = raw.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  if (match && match[1]) return match[1];
+  if (/^[A-Za-z0-9_-]{11}$/.test(raw.trim())) return raw.trim();
+  return '';
+}
+
 export function VideoRow({ video }: VideoRowProps) {
   const { openVideo } = usePlayerStore();
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
@@ -36,11 +44,13 @@ export function VideoRow({ video }: VideoRowProps) {
   };
 
   const handleClick = () => {
+    const rawId = video.videoId || (video as any).url || (video as any).id || '';
+    const cleanId = extractYouTubeId(rawId) || video.videoId;
     openVideo({
-      videoId: video.videoId,
-      resourceId: video.id,
+      videoId: cleanId,
+      resourceId: video.id || cleanId,
       title: video.title,
-      channel: video.channelName,
+      channel: video.channelName || (video as any).channel,
     });
   };
 

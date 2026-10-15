@@ -58,9 +58,11 @@ import {
   Award,
   ChevronLeft,
   Compass,
+  FlagOff,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import confetti from 'canvas-confetti';
+import { GiveUpSkillFrictionModal } from '@/components/learning/GiveUpSkillFrictionModal';
 
 interface WorkspaceStudioPageProps {
   currentTrack: SkillTrack;
@@ -88,6 +90,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   const [activeTab, setActiveTab] = useState<'roadmap' | 'resources' | 'evaluation'>('roadmap');
   const [showEngineModal, setShowEngineModal] = useState<boolean>(false);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
+  const [showGiveUpModal, setShowGiveUpModal] = useState<boolean>(false);
 
   // Raw database steps sorted by index
   const dbSteps = useMemo(() => {
@@ -1057,6 +1060,15 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           </button>
 
           <button
+            onClick={() => setShowGiveUpModal(true)}
+            className="px-3 py-1.5 rounded-xl text-xs font-heading font-medium text-slate-500 hover:text-rose-700 bg-white hover:bg-rose-50 border border-slate-200 hover:border-rose-200 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.96] group"
+            title="Give Up Skill"
+          >
+            <FlagOff className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-600 transition-colors" />
+            <span className="hidden sm:inline">Give Up</span>
+          </button>
+
+          <button
             onClick={() => onNavigate('profile')}
             className="px-3.5 py-1.5 rounded-xl text-xs font-heading font-semibold text-slate-700 hover:text-emerald-700 bg-white hover:bg-emerald-50 border border-slate-300 hover:border-emerald-300 transition-all duration-200 flex items-center gap-1.5 cursor-pointer shadow-2xs hover:scale-[1.02] active:scale-[0.96] group"
           >
@@ -1726,6 +1738,32 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           } catch { }
           onNavigate('studio');
           window.location.href = `/workspace/${newTrack.id}`;
+        }}
+      />
+
+      <GiveUpSkillFrictionModal
+        isOpen={showGiveUpModal}
+        onClose={() => setShowGiveUpModal(false)}
+        workspaceId={currentTrack.id || rawWorkspace?.id || ''}
+        skillName={currentTrack.title || rawWorkspace?.title || 'This Skill'}
+        subGenre={rawWorkspace?.subGenre || currentTrack.category || 'Competency'}
+        domain={rawWorkspace?.domainCategory || rawWorkspace?.domain || currentTrack.category || 'General'}
+        desiredLevel={rawWorkspace?.desiredLevel || 'Professional'}
+        currentStepIndex={activeStepIndex}
+        totalSteps={currentTrack.totalSteps || dbSteps.length || 5}
+        completedStepsCount={dbSteps.filter((s: any) => s.status === 'PASSED').length}
+        currentStepTitle={viewingStepTitle || dbSteps.find((s: any) => (s.stepIndex || 0) === activeStepIndex)?.title || 'Core Fundamentals'}
+        onDeleted={() => {
+          setShowGiveUpModal(false);
+          try {
+            const saved = localStorage.getItem('skillprax_tracks');
+            if (saved) {
+              const current = JSON.parse(saved);
+              const filtered = current.filter((t: any) => t.id !== currentTrack.id);
+              localStorage.setItem('skillprax_tracks', JSON.stringify(filtered));
+            }
+          } catch (_) {}
+          onNavigate('profile');
         }}
       />
     </motion.div>
