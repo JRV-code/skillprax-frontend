@@ -465,8 +465,21 @@ export function SportsWorkspaceStudioPage({
                 )}
 
                 {/* Chapter Accordion */}
-                {Array.isArray(packData?.chapters) && packData.chapters.length > 0 && (
+                {Array.isArray(packData?.chapters) && packData.chapters.length > 0 ? (
                   <ChapterAccordion chapters={packData.chapters} stepId={viewingStepId} />
+                ) : (
+                  <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3">
+                    <p className="text-xs text-slate-500">
+                      Study chapters and coaching lectures are being calibrated. Click below to load them.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => handleStartBuildPack()}
+                      className="px-5 py-2 rounded-xl bg-sky-600 text-white text-xs font-bold hover:bg-sky-700 transition-all cursor-pointer"
+                    >
+                      Load Study Chapters & Videos
+                    </button>
+                  </div>
                 )}
               </motion.div>
             )}
