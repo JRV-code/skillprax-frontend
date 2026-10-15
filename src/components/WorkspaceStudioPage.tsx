@@ -12,7 +12,9 @@ import { StepApproachBrief } from '@/components/learning/StepApproachBrief';
 import { ChapterList } from '@/components/learning/ChapterList';
 import { ChapterItem, ChapterResource } from '@/components/learning/ChapterCard';
 import { warmUpYouTube } from '@/lib/learning/youtube';
-import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
+import { SportsStepConditioningSection } from '@/components/sports/SportsStepConditioningSection';
+import { useAuthStore } from '@/store/useAuthStore';
+import { usePlayerStore } from '@/components/learning/video/playerStore';
 import { DrillCardWithTimer } from '@/components/sports/DrillCardWithTimer';
 import { TopicItem, ResourceItem } from '@/components/workspace/StudyBook';
 import { InAppLecturePlayer } from '@/components/workspace/InAppLecturePlayer';
@@ -88,6 +90,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
   onSelectEngine,
   onPassEvaluation,
 }) => {
+  const { user } = useAuthStore();
+  const { openVideo } = usePlayerStore();
   const [activeTab, setActiveTab] = useState<'roadmap' | 'resources' | 'evaluation'>('roadmap');
   const [showEngineModal, setShowEngineModal] = useState<boolean>(false);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
@@ -1470,30 +1474,6 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
               className="space-y-6"
             >
-              {/* DUAL-GATE PRACTICE CALENDAR FOR PHYSICAL / ATHLETIC SKILLS */}
-              {isPhysical && (
-                <SportsStepTracker
-                  skillId={currentTrack.id}
-                  stepNumber={viewingStepNum}
-                  stepTitle={viewingStepTitle}
-                  skillCategory="physical"
-                  requiredPracticeDays={viewingStepObj?.requiredPracticeDays || viewingStepObj?.required_practice_days || 3}
-                  practiceDaysCompleted={viewingStepObj?.practiceDaysCompleted || viewingStepObj?.practice_days_completed || 0}
-                  quizPassed={viewingStepObj?.quizPassed || viewingStepObj?.quiz_passed || (viewingStepObj?.status === 'PASSED')}
-                  quizScore={viewingStepObj?.quizScore || viewingStepObj?.quiz_score || (viewingStepObj?.status === 'PASSED' ? 85 : null)}
-                  dailyDietPlan={viewingStepObj?.dailyDietPlan || viewingStepObj?.daily_diet_plan || null}
-                  onPracticeDayComplete={(days) => {
-                    if (viewingStepObj) {
-                      viewingStepObj.practiceDaysCompleted = days;
-                      viewingStepObj.practice_days_completed = days;
-                    }
-                  }}
-                  onAdvanceStep={() => {
-                    handleStepPassed(100);
-                  }}
-                  onOpenQuiz={() => setActiveTab('evaluation')}
-                />
-              )}
               {/* FLOWCHART STEP LABELS: Stepper displaying step number and full descriptive title */}
               <StepFlowchartStepper
                 steps={stepperSteps}
@@ -1566,6 +1546,26 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                       fetchPack(viewingStepId);
                     }}
                   />
+
+                  {/* Step-Specific Sports Conditioning Section (Drills, Exercises, Yogasanas & Stopwatch Timers) */}
+                  {(isPhysical || (Array.isArray(packData?.conditioningItems) && packData.conditioningItems.length > 0)) && (
+                    <SportsStepConditioningSection
+                      items={packData?.conditioningItems || (packData?.intro as any)?.conditioningItems || []}
+                      stepNutrition={packData?.stepNutrition || (packData?.intro as any)?.stepNutrition || null}
+                      stepId={viewingStepId}
+                      stepNumber={viewingStepNum}
+                      stepTitle={packData?.title || viewingStepTitle}
+                      healthConditions={user?.healthConditions || (user as any)?.medicalConditions || 'None'}
+                      dietaryPreference={user?.dietaryPreference || 'Balanced'}
+                      onPlayVideo={(v) => {
+                        openVideo({
+                          videoId: v.videoId,
+                          title: v.title,
+                          channel: v.channel || currentTrack.title,
+                        });
+                      }}
+                    />
+                  )}
 
                   {/* Proceed to Socratic Gate Action Bar */}
                   <div className="p-6 bg-white/95 rounded-3xl border border-emerald-200/90 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">

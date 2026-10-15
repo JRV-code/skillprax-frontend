@@ -1,40 +1,58 @@
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Activity, Timer, Play, Pause, RotateCcw, CheckCircle2, 
-  Sparkles, ShieldCheck, AlertTriangle, Eye, Video, 
+  Sparkles, ShieldCheck, AlertTriangle, Video, 
   Plus, Minus, Check, HeartPulse, ChevronDown, ChevronUp,
-  Dumbbell, Wind
+  Dumbbell, Wind, Utensils, Droplet, Apple
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { usePlayerStore } from '@/components/learning/video/playerStore';
 
 export interface ConditioningItem {
   id: string;
-  category: 'DRILL' | 'EXERCISE' | 'YOGASAN' | string;
+  type?: 'DRILL' | 'EXERCISE' | 'YOGASAN' | string;
+  category?: 'DRILL' | 'EXERCISE' | 'YOGASAN' | string;
   name: string;
   recommendedDays: number;
-  recommendedSets: string;
-  durationSeconds: number;
-  intensity: 'Low' | 'Medium' | 'High' | string;
-  properExecution: string[];
-  breathingCues: string;
-  commonMistakesToAvoid: string[];
+  setsAndReps?: string;
+  recommendedSets?: string;
+  defaultTimerSeconds?: number;
+  durationSeconds?: number;
+  executionSteps?: string[];
+  properExecution?: string[];
+  breathingCue?: string;
+  breathingCues?: string;
+  mistakesToAvoid?: string[];
+  commonMistakesToAvoid?: string[];
+  safetyAdaptation?: string;
   safetyModification?: string;
   videoId?: string | null;
   videoTitle?: string;
   videoUrl?: string;
 }
 
+export interface StepNutrition {
+  preSessionFuel?: string;
+  postSessionRecovery?: string;
+  hydrationTip?: string;
+}
+
 export interface SportsStepConditioningSectionProps {
-  sportName: string;
-  stepNumber: number;
-  stepTitle: string;
+  items?: ConditioningItem[];
+  stepNutrition?: StepNutrition | null;
+  stepId?: string;
+  stepNumber?: number;
+  stepTitle?: string;
+  sportName?: string;
   difficultyTier?: string;
+  healthConditions?: string;
   userHealthConditions?: string;
+  dietaryPreference?: string;
   preferredLanguage?: string;
+  onPlayVideo?: (video: { videoId: string; title: string; channel?: string }) => void;
   onItemCompleted?: (itemId: string, dayNumber: number) => void;
 }
 
@@ -82,160 +100,73 @@ function playCompletionSound() {
 }
 
 export const SportsStepConditioningSection: React.FC<SportsStepConditioningSectionProps> = ({
+  items: initialItems,
+  stepNutrition: initialNutrition,
+  stepId = 'active-step',
+  stepNumber = 1,
+  stepTitle = 'Physical Conditioning & Technique',
   sportName,
-  stepNumber,
-  stepTitle,
-  difficultyTier = 'Foundational',
-  userHealthConditions = 'None',
-  preferredLanguage = 'en',
+  difficultyTier,
+  healthConditions,
+  userHealthConditions,
+  dietaryPreference = 'Balanced',
+  preferredLanguage,
+  onPlayVideo,
   onItemCompleted,
 }) => {
+  const effectiveHealth = healthConditions || userHealthConditions || 'None';
   const { openVideo } = usePlayerStore();
-  const [items, setItems] = useState<ConditioningItem[]>([]);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [items, setItems] = useState<ConditioningItem[]>(initialItems || []);
+  const [nutrition, setNutrition] = useState<StepNutrition | null>(initialNutrition || null);
   const [activeCategoryFilter, setActiveCategoryFilter] = useState<'ALL' | 'DRILL' | 'EXERCISE' | 'YOGASAN'>('ALL');
-  
+
   // Per-item timers state: { [itemId]: { secondsLeft, targetSeconds, isRunning } }
   const [timerStates, setTimerStates] = useState<{
     [itemId: string]: { secondsLeft: number; targetSeconds: number; isRunning: boolean };
   }>({});
 
-  // Per-item completed days state: { [itemId]: Set of completed day numbers }
+  // Per-item completed days state: { [itemId]: number[] }
   const [completedDaysMap, setCompletedDaysMap] = useState<{ [itemId: string]: number[] }>({});
-  
+
   // Expanded instructions map
   const [expandedDetailsMap, setExpandedDetailsMap] = useState<{ [itemId: string]: boolean }>({});
 
   const timerIntervalRef = useRef<{ [itemId: string]: NodeJS.Timeout }>({});
 
-  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
-
+  // Sync props when pack updates
   useEffect(() => {
-    fetchConditioningItems();
+    if (Array.isArray(initialItems) && initialItems.length > 0) {
+      setItems(initialItems);
+      initTimers(initialItems);
+    }
+    if (initialNutrition) {
+      setNutrition(initialNutrition);
+    }
+  }, [initialItems, initialNutrition]);
+
+  // Clean intervals on unmount
+  useEffect(() => {
     return () => {
-      // Clear all active intervals on unmount
       Object.values(timerIntervalRef.current).forEach(clearInterval);
     };
-  }, [sportName, stepNumber, userHealthConditions, preferredLanguage]);
-
-  async function fetchConditioningItems() {
-    try {
-      setLoading(true);
-      const res = await fetch(`${API_BASE}/api/sports/step-conditioning`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          sportName,
-          stepNumber,
-          stepTitle,
-          difficultyTier,
-          healthConditions: userHealthConditions,
-          preferredLanguage,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (Array.isArray(data.items) && data.items.length > 0) {
-          setItems(data.items);
-          initTimers(data.items);
-          return;
-        }
-      }
-    } catch (err) {
-      console.warn('Failed to fetch step conditioning items:', err);
-    } finally {
-      setLoading(false);
-    }
-
-    // High quality deterministic fallbacks if offline
-    const fallbackList: ConditioningItem[] = [
-      {
-        id: `item-${sportName.toLowerCase()}-s${stepNumber}-1`,
-        category: 'DRILL',
-        name: `${sportName} Step ${stepNumber} — Kinematic Deceleration & Pivot Drill`,
-        recommendedDays: 5,
-        recommendedSets: '3 Sets × 45s',
-        durationSeconds: 120,
-        intensity: 'Medium',
-        properExecution: [
-          'Maintain an athletic low center of gravity with knee joints loaded symmetrically.',
-          'Execute explosive deceleration into plant foot, pivoting 90 degrees with fluid weight transfer.',
-          'Re-accelerate into a stable balanced stance with eyes forward.'
-        ],
-        breathingCues: 'Inhale steadily on approach; exhale sharply as your plant foot makes ground contact.',
-        commonMistakesToAvoid: [
-          'Locking knee joint on impact rather than absorbing force through hips and ankles.',
-          'Looking down at feet instead of scanning surrounding space.'
-        ],
-        safetyModification: `Protected form: low-impact pivot adapted to protect ${userHealthConditions || 'joints'}.`,
-        videoId: '7Q3Z8w7_M3s',
-        videoTitle: `${sportName} Step ${stepNumber} Technical Drill Breakdown`,
-      },
-      {
-        id: `item-${sportName.toLowerCase()}-s${stepNumber}-2`,
-        category: 'EXERCISE',
-        name: `Posterior Kinetic Chain Isometric Stability`,
-        recommendedDays: 4,
-        recommendedSets: '4 Sets × 30s',
-        durationSeconds: 90,
-        intensity: 'Medium',
-        properExecution: [
-          'Hinge cleanly at hips with a neutral spine and abdominal brace.',
-          'Hold static tension through glutes, hamstrings, and upper thoracic stabilizers.',
-          'Drive through heels to rise without hyperextending lumbar vertebrae.'
-        ],
-        breathingCues: 'Deep continuous diaphragm breathing; avoid holding breath during isometric load.',
-        commonMistakesToAvoid: [
-          'Rounding the thoracic or lower back under load.',
-          'Letting knees cave inward during hip hinge.'
-        ],
-        safetyModification: `Spine-neutral load eliminating shear force, calibrated for ${userHealthConditions || 'safety'}.`,
-        videoId: 'V1a0T9W2i5w',
-        videoTitle: 'Athletic Conditioning & Core Stability Exercise',
-      },
-      {
-        id: `item-${sportName.toLowerCase()}-s${stepNumber}-3`,
-        category: 'YOGASAN',
-        name: `Adho Mukha Svanasana & Ankle Mobility Flow`,
-        recommendedDays: 6,
-        recommendedSets: '3 Holds × 60s',
-        durationSeconds: 90,
-        intensity: 'Low',
-        properExecution: [
-          'Ground palms shoulder-width apart, spreading fingers evenly to protect wrists.',
-          'Elevate hips skyward while pedaling heels rhythmically toward the floor.',
-          'Lengthen through spine and relax neck tension completely.'
-        ],
-        breathingCues: '4-second inhale through nose expanding ribs; 6-second soft exhale through nose.',
-        commonMistakesToAvoid: [
-          'Collapsing weight into wrist joints instead of distributing across knuckle pads.',
-          'Over-arching lumbar curve.'
-        ],
-        safetyModification: `Gentle decompression flow with bent knee variation recommended for ${userHealthConditions || 'mobility'}.`,
-        videoId: 'g_tea8ZNk5A',
-        videoTitle: 'Yoga for Athletes — Restorative Hip & Ankle Mobility',
-      },
-    ];
-    setItems(fallbackList);
-    initTimers(fallbackList);
-  }
+  }, []);
 
   function initTimers(itemList: ConditioningItem[]) {
     const newTimerState: { [itemId: string]: { secondsLeft: number; targetSeconds: number; isRunning: boolean } } = {};
     const newCompletedDays: { [itemId: string]: number[] } = {};
 
     itemList.forEach((item) => {
-      const dur = item.durationSeconds || (item.category === 'YOGASAN' ? 90 : 120);
+      const dur = item.defaultTimerSeconds || item.durationSeconds || (item.category === 'YOGASAN' || item.type === 'YOGASAN' ? 90 : 120);
       newTimerState[item.id] = {
         secondsLeft: dur,
         targetSeconds: dur,
         isRunning: false,
       };
 
-      // Load saved completed days from localStorage
+      // Load saved completed days from localStorage keyed by stepId + itemId
       if (typeof window !== 'undefined') {
-        const saved = localStorage.getItem(`skillprax_days_${item.id}`);
+        const storageKey = `skillprax_days_${stepId}_${item.id}`;
+        const saved = localStorage.getItem(storageKey);
         if (saved) {
           try {
             newCompletedDays[item.id] = JSON.parse(saved);
@@ -258,14 +189,12 @@ export const SportsStepConditioningSection: React.FC<SportsStepConditioningSecti
     if (!current) return;
 
     if (current.isRunning) {
-      // Pause
       clearInterval(timerIntervalRef.current[itemId]);
       setTimerStates((prev) => ({
         ...prev,
         [itemId]: { ...prev[itemId], isRunning: false },
       }));
     } else {
-      // Start
       setTimerStates((prev) => ({
         ...prev,
         [itemId]: { ...prev[itemId], isRunning: true },
@@ -350,19 +279,7 @@ export const SportsStepConditioningSection: React.FC<SportsStepConditioningSecti
     }));
 
     if (typeof window !== 'undefined') {
-      localStorage.setItem(`skillprax_days_${itemId}`, JSON.stringify(updated));
-    }
-  };
-
-  const handleMarkTodayComplete = (item: ConditioningItem) => {
-    const currentDays = completedDaysMap[item.id] || [];
-    const maxDays = item.recommendedDays || 5;
-    const nextUnchecked = Array.from({ length: maxDays }, (_, i) => i + 1).find((d) => !currentDays.includes(d));
-    if (nextUnchecked) {
-      handleToggleDay(item.id, nextUnchecked);
-    } else {
-      // All days are done, restart or congratulate
-      alert(`Awesome! You have completed all ${maxDays} days for this ${item.category.toLowerCase()}!`);
+      localStorage.setItem(`skillprax_days_${stepId}_${itemId}`, JSON.stringify(updated));
     }
   };
 
@@ -372,405 +289,451 @@ export const SportsStepConditioningSection: React.FC<SportsStepConditioningSecti
     return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
   };
 
+  const handlePlayVideo = (item: ConditioningItem) => {
+    if (!item.videoId) return;
+    const videoData = {
+      videoId: item.videoId,
+      title: item.videoTitle || item.name,
+      channel: 'Verified Athletic Demonstration',
+    };
+    if (onPlayVideo) {
+      onPlayVideo(videoData);
+    } else {
+      openVideo(videoData);
+    }
+  };
+
+  const filterCategories = [
+    { id: 'ALL', label: `All (${items.length})` },
+    { id: 'DRILL', label: '⚡ Drills' },
+    { id: 'EXERCISE', label: '💪 Exercises' },
+    { id: 'YOGASAN', label: '🧘‍♂️ Yogasanas' },
+  ] as const;
+
   const filteredItems = items.filter((item) => {
     if (activeCategoryFilter === 'ALL') return true;
-    return item.category === activeCategoryFilter;
+    const cat = (item.type || item.category || '').toUpperCase();
+    return cat === activeCategoryFilter;
   });
+
+  if (items.length === 0) {
+    return null;
+  }
 
   return (
     <div className="space-y-6">
-      {/* Header Deck with Safety Badge */}
-      <div className="p-6 md:p-8 bg-white/95 rounded-3xl border border-slate-200/90 shadow-sm space-y-4">
+      {/* Header Deck — Vibrant Light-SaaS with Active Safety & Diet Banner */}
+      <div className="p-6 md:p-8 bg-white border border-slate-200/90 rounded-3xl shadow-sm space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-100">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="text-[10px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/60 px-2.5 py-0.5 rounded-md">
-                STEP {stepNumber} CONDITIONING ENGINE
+              <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200/80 px-3 py-1 rounded-full">
+                MILESTONE {stepNumber} PHYSICAL CONDITIONING
               </span>
               <span className="text-xs font-semibold text-slate-500">
-                Drills • Conditioning Exercises • Yogasanas
+                Dynamic Groq + Tavily Generation
               </span>
             </div>
-            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1">
-              Physical Drills, Exercises & Yogasanas
+            <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-1.5">
+              Physical Practice Drills, Exercises & Yogasanas
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5 max-w-2xl leading-relaxed">
-              Every step escalates in athletic biomechanics. Execute technical drills with built-in countdown stopwatches, conditioning sets, and yogasan mobility flows.
+            <p className="text-xs text-slate-500 mt-1 max-w-2xl leading-relaxed">
+              Every milestone delivers a tailored biomechanical conditioning pack. Execute technical motor drills with built-in stopwatches, kinetic exercises, and restorative yogasanas.
             </p>
           </div>
 
-          {/* Profile Health Condition Safety Badge */}
-          <div className="inline-flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs font-bold text-emerald-900 shadow-xs self-start md:self-auto shrink-0">
-            <HeartPulse className="w-4 h-4 text-emerald-600 shrink-0" />
-            <div>
-              <span className="text-[10px] uppercase tracking-wider block text-emerald-600 font-extrabold">Health Safety Filter:</span>
-              <span>{userHealthConditions && userHealthConditions !== 'None' ? userHealthConditions : 'No physical restrictions'}</span>
+          {/* Active Context Banner */}
+          <div className="flex flex-col gap-1.5 shrink-0">
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-emerald-50/90 border border-emerald-200 text-xs font-bold text-emerald-950 shadow-xs">
+              <HeartPulse className="w-4 h-4 text-emerald-600 shrink-0" />
+              <span>Medical Safety Filter: <strong className="text-emerald-700">{effectiveHealth}</strong></span>
+            </div>
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-amber-50/90 border border-amber-200 text-xs font-bold text-amber-950 shadow-xs">
+              <Utensils className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Diet Calibration: <strong className="text-amber-700">{dietaryPreference || 'Balanced'}</strong></span>
             </div>
           </div>
         </div>
 
-        {/* 4-Pill Filter Strip */}
+        {/* Category Filter Pills with Framer Motion Sliding Pill */}
         <div className="flex items-center gap-2 overflow-x-auto pt-1 pb-1">
-          <button
-            onClick={() => setActiveCategoryFilter('ALL')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeCategoryFilter === 'ALL'
-                ? 'bg-slate-900 text-white shadow-xs'
-                : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
-            }`}
-          >
-            All Items ({items.length})
-          </button>
-          <button
-            onClick={() => setActiveCategoryFilter('DRILL')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeCategoryFilter === 'DRILL'
-                ? 'bg-[#0284C7] text-white shadow-xs'
-                : 'bg-sky-50 text-sky-700 hover:bg-sky-100'
-            }`}
-          >
-            <span>⚡ Technical Drills</span>
-            <span className="text-[10px] px-1.5 py-0.2 bg-white/20 rounded-full">
-              {items.filter((i) => i.category === 'DRILL').length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveCategoryFilter('EXERCISE')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeCategoryFilter === 'EXERCISE'
-                ? 'bg-indigo-600 text-white shadow-xs'
-                : 'bg-indigo-50 text-indigo-700 hover:bg-indigo-100'
-            }`}
-          >
-            <span>💪 Conditioning Exercises</span>
-            <span className="text-[10px] px-1.5 py-0.2 bg-white/20 rounded-full">
-              {items.filter((i) => i.category === 'EXERCISE').length}
-            </span>
-          </button>
-          <button
-            onClick={() => setActiveCategoryFilter('YOGASAN')}
-            className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-              activeCategoryFilter === 'YOGASAN'
-                ? 'bg-emerald-600 text-white shadow-xs'
-                : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
-            }`}
-          >
-            <span>🧘‍♂️ Yogasanas & Mobility</span>
-            <span className="text-[10px] px-1.5 py-0.2 bg-white/20 rounded-full">
-              {items.filter((i) => i.category === 'YOGASAN').length}
-            </span>
-          </button>
+          {filterCategories.map((cat) => {
+            const isActive = activeCategoryFilter === cat.id;
+            return (
+              <button
+                key={cat.id}
+                onClick={() => setActiveCategoryFilter(cat.id as any)}
+                className={`relative px-4 py-2 rounded-xl text-xs font-bold transition-all duration-200 cursor-pointer shrink-0 ${
+                  isActive ? 'text-[#0284C7]' : 'text-slate-600 hover:text-slate-900 hover:bg-slate-50'
+                }`}
+              >
+                {isActive && (
+                  <motion.div
+                    layoutId="activeConditioningFilter"
+                    className="absolute inset-0 bg-sky-50 border border-sky-200/90 rounded-xl shadow-xs"
+                    transition={{ type: 'spring', stiffness: 500, damping: 35 }}
+                  />
+                )}
+                <span className="relative z-10">{cat.label}</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
-      {/* Loading state */}
-      {loading && (
-        <div className="p-12 text-center bg-white rounded-3xl border border-slate-200/90 shadow-sm flex flex-col items-center justify-center gap-3">
-          <div className="w-10 h-10 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-mono font-bold text-slate-500 uppercase tracking-wider">
-            Synthesizing Step {stepNumber} Drills, Exercises & Yogasanas...
-          </span>
-        </div>
-      )}
+      {/* Cards Grid — Vibrant Light-SaaS (Pure White & Vibrant, NO Black Buttons) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {filteredItems.map((item, idx) => {
+          const cat = (item.type || item.category || 'DRILL').toUpperCase();
+          const isDrill = cat === 'DRILL';
+          const isExercise = cat === 'EXERCISE';
+          const isYogasan = cat === 'YOGASAN';
 
-      {/* Conditioning Cards Grid */}
-      {!loading && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          {filteredItems.map((item, idx) => {
-            const isDrill = item.category === 'DRILL';
-            const isExercise = item.category === 'EXERCISE';
-            const isYogasan = item.category === 'YOGASAN';
+          const timer = timerStates[item.id] || {
+            secondsLeft: item.defaultTimerSeconds || item.durationSeconds || 120,
+            targetSeconds: item.defaultTimerSeconds || item.durationSeconds || 120,
+            isRunning: false,
+          };
 
-            const timer = timerStates[item.id] || {
-              secondsLeft: item.durationSeconds || 120,
-              targetSeconds: item.durationSeconds || 120,
-              isRunning: false,
-            };
+          const progressPct = timer.targetSeconds > 0
+            ? ((timer.targetSeconds - timer.secondsLeft) / timer.targetSeconds) * 100
+            : 0;
 
-            const progressPct = timer.targetSeconds > 0
-              ? ((timer.targetSeconds - timer.secondsLeft) / timer.targetSeconds) * 100
-              : 0;
+          const completedDays = completedDaysMap[item.id] || [];
+          const isAllDaysDone = completedDays.length >= item.recommendedDays;
+          const isExpanded = expandedDetailsMap[item.id] ?? true;
 
-            const completedDays = completedDaysMap[item.id] || [];
-            const isAllDaysDone = completedDays.length >= item.recommendedDays;
-            const isExpanded = expandedDetailsMap[item.id] ?? true;
+          const categoryTheme = isDrill
+            ? { badge: 'bg-sky-50 text-[#0284C7] border-sky-200', tag: '⚡ SPORT DRILL' }
+            : isExercise
+            ? { badge: 'bg-indigo-50 text-indigo-700 border-indigo-200', tag: '💪 CONDITIONING EXERCISE' }
+            : { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', tag: '🧘‍♂️ YOGASAN & MOBILITY' };
 
-            const categoryTheme = isDrill
-              ? { badge: 'bg-sky-50 text-sky-700 border-sky-200', tag: '⚡ SPORT DRILL', color: 'sky' }
-              : isExercise
-              ? { badge: 'bg-indigo-50 text-indigo-700 border-indigo-200', tag: '💪 CONDITIONING EXERCISE', color: 'indigo' }
-              : { badge: 'bg-emerald-50 text-emerald-700 border-emerald-200', tag: '🧘‍♂️ YOGASAN & MOBILITY', color: 'emerald' };
+          const executionList = item.executionSteps || item.properExecution || [
+            'Establish a stable athletic base with balanced center of gravity.',
+            'Execute the movement sequence with controlled biomechanical tempo.',
+            'Maintain steady diaphragmatic breathing through reset phase.',
+          ];
 
-            return (
-              <motion.div
-                key={item.id || idx}
-                layout
-                initial={{ opacity: 0, y: 18 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: idx * 0.05 }}
-                className="p-6 md:p-7 bg-white rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-5"
-              >
-                <div className="space-y-4">
-                  {/* Category Pill, Title & Schedule Badge */}
-                  <div className="flex items-start justify-between gap-3">
-                    <span className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border ${categoryTheme.badge}`}>
-                      {categoryTheme.tag}
-                    </span>
-                    <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-2.5 py-0.5 rounded-full font-mono">
-                      {item.intensity} Intensity
-                    </span>
-                  </div>
+          const breathingText = item.breathingCue || item.breathingCues || 'Inhale steadily on preparation; exhale forcefully on exertion.';
+          const mistakesList = item.mistakesToAvoid || item.commonMistakesToAvoid || [
+            'Collapsing joint angles or spinal alignment under fatigue.',
+            'Rushing repetitions without establishing balance.',
+          ];
+          const safetyText = item.safetyAdaptation || item.safetyModification || `Safety adapted: joint-cushioning and low mechanical shear protective of ${effectiveHealth}.`;
 
-                  <div>
-                    <h4 className="text-lg font-bold text-slate-900 leading-snug">
-                      {item.name}
-                    </h4>
-                    <p className="text-xs font-semibold text-slate-500 mt-1 flex items-center gap-2">
-                      <span>📅 Perform for {item.recommendedDays} Days</span>
-                      <span>•</span>
-                      <span>{item.recommendedSets || '3 Sets × 45s'}</span>
-                    </p>
-                  </div>
+          return (
+            <motion.div
+              key={item.id || idx}
+              layout
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.25, delay: idx * 0.04 }}
+              className="p-6 md:p-7 bg-white rounded-3xl border border-slate-200/90 shadow-md hover:shadow-xl transition-all flex flex-col justify-between space-y-5"
+            >
+              <div className="space-y-4">
+                {/* 1. Category Pill & Title & Recommended Schedule */}
+                <div className="flex items-start justify-between gap-3">
+                  <span className={`px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider border ${categoryTheme.badge}`}>
+                    {categoryTheme.tag}
+                  </span>
+                  <span className="text-[11px] font-bold text-slate-500 bg-slate-100 px-3 py-1 rounded-full font-mono">
+                    📅 {item.recommendedDays} Days • {item.setsAndReps || item.recommendedSets || '4 Sets × 45s'}
+                  </span>
+                </div>
 
-                  {/* Interactive Day Tracker Pills */}
-                  <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200/80 space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                <div>
+                  <h4 className="text-lg font-bold text-slate-900 leading-snug">
+                    {item.name}
+                  </h4>
+                  <p className="text-xs font-semibold text-slate-500 mt-1">
+                    Recommended schedule: Perform for {item.recommendedDays} days to solidify neuromuscular motor memory.
+                  </p>
+                </div>
+
+                {/* 2. Interactive Per-Day Completion Tracker (Day 1 to Day N) */}
+                <div className="p-4 bg-slate-50/80 rounded-2xl border border-slate-200/80 space-y-2.5">
+                  <div className="flex items-center justify-between text-xs font-bold text-slate-700">
+                    <span className="flex items-center gap-1.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
                       <span>Daily Practice Log:</span>
-                      <span className="font-mono text-emerald-700">
-                        {completedDays.length} / {item.recommendedDays} Days Completed
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      {Array.from({ length: item.recommendedDays }, (_, dIdx) => {
-                        const dayNum = dIdx + 1;
-                        const isDone = completedDays.includes(dayNum);
-                        return (
-                          <button
-                            key={dayNum}
-                            onClick={() => handleToggleDay(item.id, dayNum)}
-                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
-                              isDone
-                                ? 'bg-emerald-600 text-white shadow-xs'
-                                : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
-                            }`}
-                            title={`Toggle Day ${dayNum} practice log`}
-                          >
-                            {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : null}
-                            <span>Day {dayNum}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
+                    </span>
+                    <span className="font-mono text-emerald-700 font-extrabold">
+                      {completedDays.length} / {item.recommendedDays} Days Completed
+                    </span>
                   </div>
 
-                  {/* Execution Guide Collapsible Accordion */}
-                  <div className="border border-slate-200/80 rounded-2xl overflow-hidden">
-                    <button
-                      onClick={() =>
-                        setExpandedDetailsMap((prev) => ({
-                          ...prev,
-                          [item.id]: !isExpanded,
-                        }))
-                      }
-                      className="w-full p-3.5 bg-slate-50/60 hover:bg-slate-100 flex items-center justify-between text-xs font-bold text-slate-800 transition-colors cursor-pointer"
-                    >
-                      <span>Proper Technique & Breathing Guide</span>
-                      {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
-                    </button>
-
-                    {isExpanded && (
-                      <div className="p-4 bg-white space-y-3.5 text-xs text-slate-700 leading-relaxed border-t border-slate-100">
-                        {/* Numbered instructions */}
-                        <div>
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
-                            STEP-BY-STEP EXECUTION
-                          </span>
-                          <ol className="space-y-1.5 list-decimal list-inside text-slate-600">
-                            {item.properExecution.map((step, sIdx) => (
-                              <li key={sIdx} className="leading-relaxed">
-                                {step}
-                              </li>
-                            ))}
-                          </ol>
-                        </div>
-
-                        {/* Breathing cue */}
-                        {item.breathingCues && (
-                          <div className="p-2.5 rounded-xl bg-sky-50 border border-sky-100 text-sky-900 flex items-start gap-2">
-                            <Wind className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" />
-                            <div>
-                              <strong className="block text-[10px] font-black uppercase text-sky-700">Breathing Cue:</strong>
-                              <span>{item.breathingCues}</span>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Form mistakes */}
-                        {item.commonMistakesToAvoid && item.commonMistakesToAvoid.length > 0 && (
-                          <div className="p-2.5 rounded-xl bg-amber-50 border border-amber-100 text-amber-900 flex items-start gap-2">
-                            <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
-                            <div>
-                              <strong className="block text-[10px] font-black uppercase text-amber-700">Avoid Form Breaks:</strong>
-                              <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-800">
-                                {item.commonMistakesToAvoid.map((m, mIdx) => (
-                                  <li key={mIdx}>{m}</li>
-                                ))}
-                              </ul>
-                            </div>
-                          </div>
-                        )}
-
-                        {/* Safety modification */}
-                        {item.safetyModification && (
-                          <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-100 text-emerald-900 flex items-start gap-2">
-                            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
-                            <div>
-                              <strong className="block text-[10px] font-black uppercase text-emerald-700">Health Safety Adaptation:</strong>
-                              <span className="text-[11px] text-emerald-800">{item.safetyModification}</span>
-                            </div>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {Array.from({ length: item.recommendedDays }, (_, dIdx) => {
+                      const dayNum = dIdx + 1;
+                      const isDone = completedDays.includes(dayNum);
+                      return (
+                        <button
+                          key={dayNum}
+                          type="button"
+                          onClick={() => handleToggleDay(item.id, dayNum)}
+                          className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                            isDone
+                              ? 'bg-gradient-to-r from-emerald-500 to-teal-500 text-white shadow-sm ring-1 ring-emerald-400'
+                              : 'bg-white border border-slate-200 text-slate-600 hover:border-emerald-400 hover:text-emerald-700'
+                          }`}
+                          title={`Click to mark Day ${dayNum} practice complete`}
+                        >
+                          {isDone ? <Check className="w-3.5 h-3.5 stroke-[3]" /> : null}
+                          <span>Day {dayNum}</span>
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
-                {/* Built-In Countdown Stopwatch on Every Card */}
-                <div className="pt-4 border-t border-slate-100 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
-                      <Timer className="w-4 h-4 text-emerald-600" />
-                      <span>Interactive Drill Stopwatch</span>
-                    </span>
-
-                    {/* Quick adjust duration buttons */}
-                    <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-                      <button
-                        onClick={() => adjustTimer(item.id, -15)}
-                        className="p-1 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
-                        title="Reduce timer by 15s"
-                      >
-                        <Minus className="w-3 h-3" />
-                      </button>
-                      <span className="text-[10px] font-mono font-bold text-slate-700 px-1">
-                        ±15s
+                {/* 3. Tavily YouTube Video Demonstration Bar (Styled like VideoRow) */}
+                {item.videoId ? (
+                  <div className="bg-gradient-to-r from-sky-50 via-indigo-50/60 to-emerald-50/60 border border-sky-200/80 rounded-2xl p-3.5 flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <span className="w-8 h-8 rounded-xl bg-white text-[#0284C7] shadow-xs flex items-center justify-center shrink-0 border border-sky-100">
+                        <Video className="w-4 h-4" />
                       </span>
-                      <button
-                        onClick={() => adjustTimer(item.id, 15)}
-                        className="p-1 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
-                        title="Increase timer by 15s"
-                      >
-                        <Plus className="w-3 h-3" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Circular & Digital Readout Deck */}
-                  <div className="flex items-center justify-between p-3.5 bg-slate-50/80 rounded-2xl border border-slate-200/80">
-                    <div className="flex items-center gap-3">
-                      {/* SVG Circular Ring */}
-                      <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
-                        <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
-                          <path
-                            className="text-slate-200"
-                            strokeWidth="3.5"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                          <path
-                            className={timer.isRunning ? 'text-sky-500 transition-all duration-300' : 'text-emerald-500 transition-all duration-300'}
-                            strokeDasharray={`${progressPct}, 100`}
-                            strokeLinecap="round"
-                            strokeWidth="3.5"
-                            stroke="currentColor"
-                            fill="none"
-                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
-                          />
-                        </svg>
-                        <span className="absolute text-[10px] font-mono font-black text-slate-800">
-                          {Math.round(progressPct)}%
-                        </span>
-                      </div>
-
-                      <div>
-                        <div className="text-2xl font-black font-mono text-slate-900 tracking-tight">
-                          {formatTime(timer.secondsLeft)}
-                        </div>
-                        <span className="text-[10px] font-medium text-slate-400">
-                          Target: {formatTime(timer.targetSeconds)}
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-900 truncate">
+                          {item.videoTitle || `${item.name} Demonstration`}
+                        </p>
+                        <span className="text-[10px] text-slate-500 font-medium">
+                          In-App Theater Playback
                         </span>
                       </div>
                     </div>
-
-                    {/* Timer control buttons */}
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => toggleTimer(item.id)}
-                        className={`px-4 py-2 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs ${
-                          timer.isRunning
-                            ? 'bg-amber-500 hover:bg-amber-600 text-white'
-                            : 'bg-slate-900 hover:bg-slate-800 text-white'
-                        }`}
-                      >
-                        {timer.isRunning ? (
-                          <>
-                            <Pause className="w-3.5 h-3.5" />
-                            <span>Pause</span>
-                          </>
-                        ) : (
-                          <>
-                            <Play className="w-3.5 h-3.5 fill-white" />
-                            <span>Start</span>
-                          </>
-                        )}
-                      </button>
-
-                      <button
-                        onClick={() => resetTimer(item.id)}
-                        className="p-2 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer"
-                        title="Reset stopwatch"
-                      >
-                        <RotateCcw className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Action Bar: In-App Video Player & Mark Today Complete (NO QUIZ BUTTON!) */}
-                  <div className="flex items-center gap-2 pt-1">
-                    {item.videoId ? (
-                      <button
-                        onClick={() => {
-                          openVideo({
-                            videoId: item.videoId!,
-                            title: item.videoTitle || item.name,
-                            channel: sportName,
-                          });
-                        }}
-                        className="flex-1 py-2.5 px-3 rounded-xl bg-sky-50 hover:bg-sky-100 text-[#0284C7] border border-sky-200 text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 hover:scale-[1.01] active:scale-[0.99]"
-                      >
-                        <Video className="w-3.5 h-3.5" />
-                        <span>▶ Watch In-App Demo</span>
-                      </button>
-                    ) : null}
 
                     <button
-                      onClick={() => handleMarkTodayComplete(item)}
-                      className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-xs ${
-                        isAllDaysDone
-                          ? 'bg-emerald-100 text-emerald-800 border border-emerald-200'
-                          : 'bg-emerald-600 hover:bg-emerald-500 text-white'
+                      type="button"
+                      onClick={() => handlePlayVideo(item)}
+                      className="shrink-0 bg-gradient-to-r from-[#0284C7] to-emerald-500 hover:from-sky-600 hover:to-emerald-600 text-white text-xs font-bold px-4 py-2 rounded-xl shadow-md hover:scale-[1.02] active:scale-[0.98] transition-all cursor-pointer flex items-center gap-1.5"
+                    >
+                      <Play className="w-3.5 h-3.5 fill-white" />
+                      <span>▶ Watch How to Do It (In-App)</span>
+                    </button>
+                  </div>
+                ) : null}
+
+                {/* 4. Proper How-To Execution Guide & Medical Safety Adaptation */}
+                <div className="border border-slate-200/80 rounded-2xl overflow-hidden bg-white">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setExpandedDetailsMap((prev) => ({
+                        ...prev,
+                        [item.id]: !isExpanded,
+                      }))
+                    }
+                    className="w-full p-3.5 bg-slate-50/70 hover:bg-slate-100/80 flex items-center justify-between text-xs font-bold text-slate-800 transition-colors cursor-pointer"
+                  >
+                    <span>How to Perform It Properly & Safety Notes</span>
+                    {isExpanded ? <ChevronUp className="w-4 h-4 text-slate-500" /> : <ChevronDown className="w-4 h-4 text-slate-500" />}
+                  </button>
+
+                  {isExpanded && (
+                    <div className="p-4 space-y-3 text-xs leading-relaxed border-t border-slate-100">
+                      <div>
+                        <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-1.5">
+                          STEP-BY-STEP INSTRUCTIONS
+                        </span>
+                        <ol className="space-y-1.5 list-decimal list-inside text-slate-600">
+                          {executionList.map((stepLine, sIdx) => (
+                            <li key={sIdx} className="leading-relaxed">
+                              {stepLine}
+                            </li>
+                          ))}
+                        </ol>
+                      </div>
+
+                      {/* 3 Pastel Callout Boxes Matching TopicCard Design */}
+                      <div className="p-3 rounded-xl bg-sky-50/80 border border-sky-200/80 text-sky-950 flex items-start gap-2">
+                        <Wind className="w-4 h-4 text-[#0284C7] shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-[10px] font-black uppercase tracking-wider text-sky-700">💨 BREATHING CUE:</strong>
+                          <span>{breathingText}</span>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-amber-50/80 border border-amber-200/80 text-amber-950 flex items-start gap-2">
+                        <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-[10px] font-black uppercase tracking-wider text-amber-700">⚠️ AVOID FORM BREAKS:</strong>
+                          <ul className="list-disc list-inside space-y-0.5 text-[11px] text-amber-900 mt-0.5">
+                            {mistakesList.map((m, mIdx) => (
+                              <li key={mIdx}>{m}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-emerald-50/80 border border-emerald-200/80 text-emerald-950 flex items-start gap-2">
+                        <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                        <div>
+                          <strong className="block text-[10px] font-black uppercase tracking-wider text-emerald-700">🩺 MEDICAL / SAFETY ADAPTATION:</strong>
+                          <span className="text-[11px] text-emerald-900">{safetyText}</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* 5. Custom Interactive Timer / Stopwatch (Vibrant Light-SaaS — NO Black Buttons!) */}
+              <div className="pt-4 border-t border-slate-100 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-slate-700 flex items-center gap-1.5">
+                    <Timer className="w-4 h-4 text-emerald-600" />
+                    <span>Interactive Drill Stopwatch</span>
+                  </span>
+
+                  <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => adjustTimer(item.id, -15)}
+                      className="p-1 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
+                      title="Reduce timer by 15s"
+                    >
+                      <Minus className="w-3 h-3" />
+                    </button>
+                    <span className="text-[10px] font-mono font-bold text-slate-700 px-1">
+                      ±15s
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => adjustTimer(item.id, 15)}
+                      className="p-1 hover:bg-white rounded-lg text-slate-600 transition-colors cursor-pointer"
+                      title="Increase timer by 15s"
+                    >
+                      <Plus className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between p-3.5 bg-slate-50/90 border border-slate-200/80 rounded-2xl">
+                  <div className="flex items-center gap-3">
+                    <div className="relative w-12 h-12 flex items-center justify-center shrink-0">
+                      <svg className="w-12 h-12 -rotate-90" viewBox="0 0 36 36">
+                        <path
+                          className="text-slate-200"
+                          strokeWidth="3.5"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                        <path
+                          className={timer.isRunning ? 'text-sky-500 transition-all duration-300' : 'text-emerald-500 transition-all duration-300'}
+                          strokeDasharray={`${progressPct}, 100`}
+                          strokeLinecap="round"
+                          strokeWidth="3.5"
+                          stroke="currentColor"
+                          fill="none"
+                          d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                        />
+                      </svg>
+                      <span className="absolute text-[10px] font-mono font-black text-slate-800">
+                        {Math.round(progressPct)}%
+                      </span>
+                    </div>
+
+                    <div>
+                      <div className="text-2xl font-black font-mono text-slate-900 tracking-tight">
+                        {formatTime(timer.secondsLeft)}
+                      </div>
+                      <span className="text-[10px] font-medium text-slate-400">
+                        Target: {formatTime(timer.targetSeconds)}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    {/* Vibrant Start / Pause Button (NEVER black!) */}
+                    <button
+                      type="button"
+                      onClick={() => toggleTimer(item.id)}
+                      className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-md hover:scale-[1.02] active:scale-[0.98] ${
+                        timer.isRunning
+                          ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white'
+                          : 'bg-gradient-to-r from-[#0284C7] to-emerald-500 hover:from-sky-600 hover:to-emerald-600 text-white'
                       }`}
                     >
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                      <span>{isAllDaysDone ? '✓ All Days Cleared' : "✓ Log Today's Session"}</span>
+                      {timer.isRunning ? (
+                        <>
+                          <Pause className="w-3.5 h-3.5" />
+                          <span>Pause</span>
+                        </>
+                      ) : (
+                        <>
+                          <Play className="w-3.5 h-3.5 fill-white" />
+                          <span>Start</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => resetTimer(item.id)}
+                      className="p-2.5 rounded-xl bg-white border border-slate-200 text-slate-600 hover:text-slate-900 hover:bg-slate-100 transition-colors cursor-pointer shadow-xs"
+                      title="Reset stopwatch"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 </div>
-              </motion.div>
-            );
-          })}
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+
+      {/* 6. Step-Specific Nutrition Mini-Card at the Bottom */}
+      {nutrition && (
+        <div className="p-6 md:p-7 bg-white rounded-3xl border border-slate-200/90 shadow-md space-y-4">
+          <div className="flex items-center gap-2.5">
+            <span className="w-9 h-9 rounded-xl bg-amber-50 text-amber-700 border border-amber-200 flex items-center justify-center font-bold">
+              <Utensils className="w-4 h-4" />
+            </span>
+            <div>
+              <h4 className="text-sm font-heading font-bold text-slate-900">
+                Milestone {stepNumber} Athletic Fuel & Recovery Blueprint
+              </h4>
+              <p className="text-xs text-slate-500">
+                Calibrated to your {dietaryPreference} diet and active physical loading
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-3.5 pt-1">
+            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200/80 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-800 flex items-center gap-1.5">
+                <Apple className="w-3.5 h-3.5 text-amber-600" />
+                <span>Pre-Session Fuel</span>
+              </span>
+              <p className="text-xs text-amber-950 font-medium leading-relaxed">
+                {nutrition.preSessionFuel || `Targeted ${dietaryPreference} energy meal 45-60 mins prior to practice.`}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-800 flex items-center gap-1.5">
+                <Dumbbell className="w-3.5 h-3.5 text-emerald-600" />
+                <span>Post-Session Recovery</span>
+              </span>
+              <p className="text-xs text-emerald-950 font-medium leading-relaxed">
+                {nutrition.postSessionRecovery || `Rapid ${dietaryPreference} protein & glycogen restoration within 45 mins.`}
+              </p>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-sky-50/70 border border-sky-200/80 space-y-1">
+              <span className="text-[10px] font-black uppercase tracking-wider text-sky-800 flex items-center gap-1.5">
+                <Droplet className="w-3.5 h-3.5 text-sky-600" />
+                <span>Hydration & Electrolytes</span>
+              </span>
+              <p className="text-xs text-sky-950 font-medium leading-relaxed">
+                {nutrition.hydrationTip || 'Maintain continuous electrolyte intake to prevent cramping.'}
+              </p>
+            </div>
+          </div>
         </div>
       )}
     </div>
