@@ -541,12 +541,20 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
               {isSubmitting ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                  <span>Synthesizing Context-Aware Mastery Trajectory...</span>
+                  <span>
+                    {selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics'
+                      ? 'Generating Sport Regimen (<2s)...'
+                      : 'Synthesizing Context-Aware Mastery Trajectory...'}
+                  </span>
                 </>
               ) : (
                 <>
                   <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Generate Mastery Trajectory ➔</span>
+                  <span>
+                    {selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics'
+                      ? '⚡ Generate Sport Regimen ➔'
+                      : 'Generate Mastery Trajectory ➔'}
+                  </span>
                 </>
               )}
             </button>

@@ -10,6 +10,12 @@ export interface StepPackStatus {
   quizStatus: 'NOT_BUILT' | 'BUILDING' | 'READY' | 'FAILED';
   quizError?: string | null;
   timedOut?: boolean;
+  buildProgress?: {
+    percent: number;
+    stageKey: string;
+    stageLabel: string;
+    detail: string;
+  } | null;
 }
 
 export function usePackStatus(stepId: string | null | undefined) {
@@ -21,6 +27,7 @@ export function usePackStatus(stepId: string | null | undefined) {
     quizStatus: 'NOT_BUILT',
     quizError: null,
     timedOut: false,
+    buildProgress: null,
   });
   const [loading, setLoading] = useState(false);
 
@@ -68,6 +75,7 @@ export function usePackStatus(stepId: string | null | undefined) {
             quizStatus: data.quizStatus || 'NOT_BUILT',
             quizError: data.quizError || null,
             timedOut: false,
+            buildProgress: data.buildProgress || null,
           });
 
           // If still BUILDING, schedule next poll (2s normally, 5s after 90s)

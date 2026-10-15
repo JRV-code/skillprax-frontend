@@ -98,6 +98,7 @@ export function SportsWorkspaceStudioPage({
   const [packStatus, setPackStatus] = useState<string>('NOT_BUILT');
   const [packStage, setPackStage] = useState<string | null>(null);
   const [packError, setPackError] = useState<string | null>(null);
+  const [buildProgress, setBuildProgress] = useState<{ percent: number; stageKey: string; stageLabel: string; detail: string } | null>(null);
   const [isBuildingPack, setIsBuildingPack] = useState<boolean>(false);
 
   const fetchSportsPack = useCallback(async (stepId: string) => {
@@ -109,6 +110,7 @@ export function SportsWorkspaceStudioPage({
         setPackData(data);
         setPackStatus(data.packStatus || 'READY');
         setPackStage(data.packStage || 'READY');
+        if (data.buildProgress) setBuildProgress(data.buildProgress);
         setPackError(null);
       } else {
         // Poll status
@@ -117,6 +119,7 @@ export function SportsWorkspaceStudioPage({
           const sData = await sRes.json();
           setPackStatus(sData.packStatus || 'NOT_BUILT');
           setPackStage(sData.packStage || null);
+          if (sData.buildProgress) setBuildProgress(sData.buildProgress);
           setPackError(sData.packError || null);
         }
       }
@@ -174,6 +177,7 @@ export function SportsWorkspaceStudioPage({
           const data = await res.json();
           setPackStage(data.packStage || null);
           setPackError(data.packError || null);
+          if (data.buildProgress) setBuildProgress(data.buildProgress);
 
           if (data.packStatus === 'READY') {
             clearInterval(interval);
@@ -185,7 +189,7 @@ export function SportsWorkspaceStudioPage({
           }
         }
       } catch (_) {}
-    }, 2000);
+    }, 1500);
 
     return () => clearInterval(interval);
   }, [packStatus, viewingStepId, fetchSportsPack]);
@@ -420,6 +424,7 @@ export function SportsWorkspaceStudioPage({
           <PackBuildingScreen
             packStage={packStage}
             packError={packError}
+            buildProgress={buildProgress || packData?.buildProgress}
             isSports={true}
             onRetry={handleStartBuildPack}
           />

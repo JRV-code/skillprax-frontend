@@ -327,6 +327,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     packStatus,
     packStage,
     packError,
+    buildProgress,
     retry: retryPackBuild,
     startBuild,
     loading: packLoading,
@@ -1532,6 +1533,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                 <PackBuildingScreen
                   packStage={packStage}
                   packError={packError}
+                  buildProgress={buildProgress || packData?.buildProgress}
                   isSports={isPhysical}
                   onRetry={retryPackBuild}
                 />
