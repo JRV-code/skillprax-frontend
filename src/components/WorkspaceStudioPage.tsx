@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { SkillTrack, FlowchartNode, AIEngine, StudyResource, QuizQuestion } from '@/types';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { AIEngineSelectorModal } from '@/components/AIEngineSelectorModal';
@@ -267,6 +268,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     xpEarned: number;
     isFinalStep: boolean;
     nextStepIndex: number | null;
+    onRetryPerfection?: () => void;
   } | null>(null);
 
   // In-App Modal States
@@ -378,9 +380,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
     setLevelUpData({
       score,
-      xpEarned: passPayload?.xpEarned || viewingStepNum * 500,
+      xpEarned: passPayload?.xpEarned || 100,
       isFinalStep: isFinal,
       nextStepIndex: isFinal ? null : nextIdx,
+      onRetryPerfection: passPayload?.onRetryPerfection,
     });
 
     if (typeof window !== 'undefined') {
@@ -396,11 +399,7 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     setEnergyBeamFired(true);
     setTimeout(() => setEnergyBeamFired(false), 2500);
 
-    // If passed the active milestone, update progression and advance
-    if (viewingStepIndex === activeStepIndex) {
-      onPassEvaluation();
-      setViewingStepIndex(nextIdx);
-    }
+    onPassEvaluation();
   };
 
   const handleAdvanceToNextMilestone = () => {
@@ -415,7 +414,14 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
       );
       setViewingStepIndex(nextIdx);
       setLevelUpData(null);
-      setActiveTab('roadmap');
+      setActiveTab('resources');
+      onPassEvaluation();
+      if (typeof window !== 'undefined') {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+    } else {
+      setLevelUpData(null);
+      onNavigate('profile');
     }
   };
 
@@ -1617,29 +1623,34 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
         </AnimatePresence>
 
         {/* LEVEL-UP INTERSTITIAL MODAL UPON PASSING MILESTONE */}
-        {levelUpData && (
-          <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-md flex items-center justify-center p-4">
-            <div className="bg-white rounded-3xl max-w-md w-full p-8 text-center space-y-6 shadow-2xl border border-slate-100 animate-in fade-in zoom-in-95 duration-200">
-              <div className="w-16 h-16 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-white flex items-center justify-center mx-auto shadow-lg shadow-emerald-500/20">
+        {/* LEVEL-UP INTERSTITIAL MODAL UPON PASSING MILESTONE (PORTALED & VIBRANT LIGHT-SAAS) */}
+        {levelUpData && typeof document !== 'undefined' && createPortal(
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200">
+            <div className="bg-white border border-emerald-200/90 rounded-3xl shadow-2xl shadow-emerald-500/10 p-8 max-w-md w-full text-center relative overflow-hidden animate-in zoom-in-95 duration-200">
+              {/* Top decorative gradient bar */}
+              <div className="h-2 w-full bg-gradient-to-r from-[#0284C7] via-emerald-500 to-amber-400 absolute top-0 left-0" />
+
+              {/* Top icon badge */}
+              <div className="w-16 h-16 mx-auto rounded-2xl bg-gradient-to-br from-emerald-400 to-[#0284C7] text-white shadow-lg shadow-emerald-500/25 flex items-center justify-center mb-4 transition-transform duration-300 hover:scale-105">
                 <ShieldCheck className="w-9 h-9" />
               </div>
 
               <div>
-                <span className="text-xs font-heading font-extrabold uppercase tracking-widest text-emerald-800 bg-emerald-100 px-3.5 py-1 rounded-full border border-emerald-200 inline-block">
-                  {levelUpData.isFinalStep ? 'Track Mastery Achieved!' : `Milestone Cleared`}
+                <span className="px-3.5 py-1 rounded-full text-[11px] font-black uppercase tracking-widest bg-emerald-50 text-emerald-700 border border-emerald-200 inline-block">
+                  {levelUpData.isFinalStep ? 'Track Mastery Achieved!' : 'Milestone Cleared'}
                 </span>
-                <h3 className="text-2xl font-heading font-extrabold text-slate-900 mt-3">
+                <h3 className="text-2xl font-black text-slate-900 mt-3">
                   Score: {levelUpData.score}% Verified
                 </h3>
-                <p className="text-xs text-slate-600 mt-1.5 leading-relaxed">
+                <p className="text-xs font-medium text-slate-500 mt-1 leading-relaxed">
                   {levelUpData.isFinalStep
                     ? `Congratulations! You have completed all milestones for "${currentTrack.title}".`
-                    : `You have satisfied all competency units for this milestone. Step ${levelUpData.nextStepIndex} is now unlocked.`}
+                    : `You have satisfied the competency gate for this milestone. Step ${levelUpData.nextStepIndex} is now unlocked!`}
                 </p>
               </div>
 
-              {/* Dynamic Score Radial */}
-              <div className="relative inline-flex items-center justify-center mx-auto">
+              {/* Vibrant Animated Score Radial */}
+              <div className="relative inline-flex items-center justify-center mx-auto my-4">
                 <svg className="w-24 h-24 transform -rotate-90">
                   <circle
                     cx="48"
@@ -1660,60 +1671,94 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
                     strokeDasharray={2 * Math.PI * 38}
                     initial={{ strokeDashoffset: 2 * Math.PI * 38 }}
                     animate={{ strokeDashoffset: (2 * Math.PI * 38) * (1 - (levelUpData.score || 0) / 100) }}
-                    transition={{ duration: 1.2, ease: "easeOut" }}
+                    transition={{ duration: 1.2, ease: 'easeOut' }}
                     strokeLinecap="round"
                   />
                   <defs>
                     <linearGradient id="modalScoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
                       <stop offset="0%" stopColor="#10B981" />
-                      <stop offset="100%" stopColor="#F59E0B" />
+                      <stop offset="100%" stopColor="#0284C7" />
                     </linearGradient>
                   </defs>
                 </svg>
                 <div className="absolute flex flex-col items-center justify-center text-center">
-                  <span className="text-xl font-black font-mono text-slate-900 tracking-tight">
+                  <span className="text-2xl font-black font-mono text-slate-900 tracking-tight">
                     {levelUpData.score}%
                   </span>
-                  <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-600">
+                  <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">
                     Mastery
                   </span>
                 </div>
               </div>
 
-              {/* XP Gain Bar */}
-              <div className="p-4 bg-slate-900 text-white rounded-2xl border border-emerald-500/30 space-y-2 text-left">
-                <div className="flex items-center justify-between text-xs font-bold">
-                  <span className="text-slate-400 uppercase tracking-wider text-[10px]">Verified XP Reward</span>
-                  <span className="text-amber-400 font-mono font-extrabold text-sm">+{levelUpData.xpEarned} XP</span>
+              {/* Vibrant Light Gradient Reward Card (Replaces dark box) */}
+              <div className="my-6 p-4 rounded-2xl bg-gradient-to-r from-sky-50 via-emerald-50/80 to-amber-50/80 border border-emerald-200/80 shadow-xs text-left">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-600 flex items-center gap-1.5">
+                    ✨ Verified XP Reward
+                  </span>
+                  <span className="text-sm font-black text-amber-600 bg-amber-100/80 px-2.5 py-0.5 rounded-full border border-amber-200">
+                    +{levelUpData.xpEarned || 100} XP
+                  </span>
                 </div>
-                <div className="w-full h-2.5 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-slate-700">
+                <div className="w-full h-2.5 rounded-full bg-white/90 border border-emerald-100 overflow-hidden p-0.5">
                   <motion.div
-                    initial={{ width: '0%' }}
+                    initial={{ width: 0 }}
                     animate={{ width: '100%' }}
-                    transition={{ duration: 1.2, ease: 'easeOut', delay: 0.15 }}
-                    className="h-full bg-gradient-to-r from-emerald-500 via-teal-400 to-amber-400 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                    className="h-full rounded-full bg-gradient-to-r from-[#0284C7] via-emerald-500 to-amber-400"
                   />
                 </div>
               </div>
 
-              {levelUpData.isFinalStep ? (
-                <button
-                  onClick={() => onNavigate('profile')}
-                  className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer btn-shimmer"
-                >
-                  Return to Profile Hub ➔
-                </button>
-              ) : (
-                <button
-                  onClick={handleAdvanceToNextMilestone}
-                  className="w-full py-3.5 rounded-xl font-heading font-extrabold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer btn-shimmer"
-                >
-                  <span>Advance to Next Level →</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
-              )}
+              {/* Action Buttons */}
+              <div className="space-y-3">
+                {levelUpData.isFinalStep ? (
+                  <button
+                    onClick={() => {
+                      setLevelUpData(null);
+                      onNavigate('profile');
+                    }}
+                    className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-[#0284C7] hover:from-emerald-600 hover:to-sky-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Return to Profile Hub</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleAdvanceToNextMilestone}
+                    className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-[#0284C7] hover:from-emerald-600 hover:to-sky-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>Advance to Next Level</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                )}
+
+                {/* Optional 100% Perfection Button (When 70 <= score < 100) */}
+                {!levelUpData.isFinalStep && levelUpData.score >= 70 && levelUpData.score < 100 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const retryFn = levelUpData.onRetryPerfection;
+                      setLevelUpData(null);
+                      setActiveTab('evaluation');
+                      if (retryFn) {
+                        retryFn();
+                      }
+                      if (typeof window !== 'undefined') {
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }
+                    }}
+                    className="w-full py-3 px-6 rounded-2xl text-xs font-bold text-indigo-700 bg-indigo-50 hover:bg-indigo-100/80 border border-indigo-200 transition-all flex items-center justify-center gap-2 cursor-pointer shadow-xs hover:scale-[1.01] active:scale-[0.99]"
+                  >
+                    <Sparkles className="w-4 h-4 text-amber-500" />
+                    <span>🎯 Stay & Retry for 100% Perfection</span>
+                  </button>
+                )}
+              </div>
             </div>
-          </div>
+          </div>,
+          document.body
         )}
       </main>
 

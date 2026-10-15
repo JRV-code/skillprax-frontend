@@ -347,6 +347,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         }
         setEngineState('PASSED_MASTERY');
         if (onRemediationStateChange) onRemediationStateChange(false);
+        onStepPassed(percent, {
+          ...result,
+          onRetryPerfection: () => handleFetchQuiz('perfection'),
+        });
       } else {
         setEngineState('FAILED_REMEDIATION');
         if (onRemediationStateChange) onRemediationStateChange(true);
@@ -933,7 +937,12 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
               {/* Button B: Proceed to Step N+1 */}
               <button
                 type="button"
-                onClick={() => onStepPassed(evaluationResult.percent, evaluationResult)}
+                onClick={() =>
+                  onStepPassed(evaluationResult.percent, {
+                    ...evaluationResult,
+                    onRetryPerfection: () => handleFetchQuiz('perfection'),
+                  })
+                }
                 className="px-6 py-3.5 rounded-2xl font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <span>🚀 Proceed to Step {stepIndex + 1} (Level Up) →</span>
@@ -957,7 +966,12 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => onStepPassed(100, evaluationResult)}
+                onClick={() =>
+                  onStepPassed(100, {
+                    ...evaluationResult,
+                    onRetryPerfection: () => handleFetchQuiz('perfection'),
+                  })
+                }
                 className="px-8 py-3.5 rounded-2xl font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl shadow-emerald-600/25 transition-all inline-flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <span>🚀 Proceed to Step {stepIndex + 1} (Level Up) →</span>
