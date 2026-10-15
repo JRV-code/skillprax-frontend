@@ -4,6 +4,7 @@ import React from 'react';
 import { useActivityHeartbeat } from '@/hooks/useActivityHeartbeat';
 import { GoogleOAuthProvider } from '@react-oauth/google';
 import { LanguageProvider } from '@/context/LanguageContext';
+import { FloatingAiLauncher } from '@/components/assistant/FloatingAiLauncher';
 
 export function ClientProviders({ children }: { children: React.ReactNode }) {
   useActivityHeartbeat();
@@ -15,13 +16,19 @@ export function ClientProviders({ children }: { children: React.ReactNode }) {
         '[SKILL-TRACK Auth] NEXT_PUBLIC_GOOGLE_CLIENT_ID is not configured. Google Sign-In disabled.'
       );
     }
-    return <LanguageProvider>{children}</LanguageProvider>;
+    return (
+      <LanguageProvider>
+        {children}
+        <FloatingAiLauncher />
+      </LanguageProvider>
+    );
   }
 
   return (
     <GoogleOAuthProvider clientId={googleClientId}>
       <LanguageProvider>
         {children}
+        <FloatingAiLauncher />
       </LanguageProvider>
     </GoogleOAuthProvider>
   );

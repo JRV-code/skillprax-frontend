@@ -51,12 +51,22 @@ export function Navbar() {
       activeColor: 'text-[#6366F1]',
       badgeColor: 'bg-indigo-50 text-[#6366F1]',
     },
+    {
+      id: 'assistant',
+      href: '/assistant',
+      label: 'AI Guide',
+      subtext: 'Intelligent Mentor',
+      icon: Sparkles,
+      activeColor: 'text-[#D97706]',
+      badgeColor: 'bg-amber-50 text-[#D97706]',
+    },
   ];
 
   const getActiveTab = () => {
     if (pathname?.startsWith('/skills')) return 'skills';
     if (pathname?.startsWith('/sports')) return 'sports';
     if (pathname?.startsWith('/profile')) return 'profile';
+    if (pathname?.startsWith('/assistant')) return 'assistant';
     return null;
   };
 
@@ -97,7 +107,7 @@ export function Navbar() {
                   <span className="relative z-10 flex items-center gap-2">
                     <Icon className={`w-4 h-4 ${isActive ? tab.activeColor : 'text-slate-400'}`} />
                     <span className="hidden sm:inline">{tab.label}</span>
-                    <span className="sm:hidden">{tab.id === 'skills' ? 'Skills' : tab.id === 'sports' ? 'Sports' : 'Profile'}</span>
+                    <span className="sm:hidden">{tab.id === 'skills' ? 'Skills' : tab.id === 'sports' ? 'Sports' : tab.id === 'profile' ? 'Profile' : 'AI Guide'}</span>
                   </span>
                 </Link>
               );
