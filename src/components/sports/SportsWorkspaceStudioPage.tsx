@@ -137,27 +137,38 @@ export function SportsWorkspaceStudioPage({
   }, [viewingStepId, viewingStepObj, fetchSportsPack]);
 
 
-  // Pre-generate active step's quiz as soon as pack is READY so Socratic Gate opens in 0ms
+  // Silent Background Prefetch Engine (1.5s delay after Step N is READY)
+  // Prefetches Step N Quiz and triggers background prefetch of Step N+1 resources & quiz
   useEffect(() => {
-    if (packStatus === 'READY' && activeStepObj?.id) {
-      fetch(`/api/sports-workspace/steps/${activeStepObj.id}/quiz?mode=initial`, {
+    if (packStatus !== 'READY' || !viewingStepId) return;
+
+    const timer = setTimeout(() => {
+      // 1. Register engagement / trigger server-side prefetch queue
+      fetch(`/api/sports-workspace/steps/${viewingStepId}/engaged`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({}),
+      }).catch((err) => console.warn('[Sports Prefetch] Engaged trigger notice:', err));
+
+      // 2. Pre-generate active step's quiz so Socratic Gate opens in 0ms
+      fetch(`/api/sports-workspace/steps/${viewingStepId}/quiz?mode=initial`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ mode: 'initial' }),
       }).catch((err) => console.warn('[Sports Prefetch] Quiz pre-generation notice:', err));
-    }
-  }, [packStatus, activeStepObj?.id]);
 
-  // Smart background prefetch of Next Step (N+1) resources, drills & quiz
-  useEffect(() => {
-    if (packStatus === 'READY' && nextStepObj?.id) {
-      fetch(`/api/sports-workspace/steps/${nextStepObj.id}/prefetch-pack`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prefetch: true }),
-      }).catch((err) => console.warn('[Sports Prefetch] Next step pack notice:', err));
-    }
-  }, [packStatus, nextStepObj?.id]);
+      // 3. Pre-fetch Next Step (N+1) pack if exists and not built
+      if (nextStepObj?.id && nextStepObj.packStatus !== 'READY') {
+        fetch(`/api/sports-workspace/steps/${nextStepObj.id}/prefetch-pack`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ prefetch: true }),
+        }).catch((err) => console.warn('[Sports Prefetch] Next step pack notice:', err));
+      }
+    }, 1500);
+
+    return () => clearTimeout(timer);
+  }, [packStatus, viewingStepId, nextStepObj]);
 
   // Polling when pack is BUILDING
   useEffect(() => {
@@ -433,14 +444,45 @@ export function SportsWorkspaceStudioPage({
                 className="space-y-6"
               >
                 {packData?.trainingPlan ? (
-                  <SportsDailyTrainingSection
-                    stepId={viewingStepId}
-                    stepNumber={viewingStepIndex}
-                    sportName={sportName}
-                    trainingPlan={packData.trainingPlan}
-                    healthConditions={healthConditions}
-                    dietaryPreference={dietaryPreference}
-                  />
+                  <>
+                    <SportsDailyTrainingSection
+                      stepId={viewingStepId}
+                      stepNumber={viewingStepIndex}
+                      stepTitle={viewingStepTitle}
+                      sportName={sportName}
+                      trainingPlan={packData.trainingPlan}
+                      healthConditions={healthConditions}
+                      dietaryPreference={dietaryPreference}
+                      onProceedToQuiz={() => {
+                        setActiveTab('evaluation');
+                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                      }}
+                    />
+
+                    {/* Proceed to Socratic Gate Action Bar */}
+                    <div className="p-6 bg-white/95 rounded-3xl border border-emerald-200/90 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+                      <div>
+                        <h4 className="text-sm font-heading font-bold text-slate-900">
+                          Ready to verify your physical & tactical understanding?
+                        </h4>
+                        <p className="text-xs text-slate-500">
+                          Pass the Socratic Evaluation Gate (70% threshold) to complete Milestone {viewingStepIndex}.
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setActiveTab('evaluation');
+                          window.scrollTo({ top: 0, behavior: 'smooth' });
+                        }}
+                        className="px-6 py-3 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                      >
+                        <Zap className="w-4 h-4 text-amber-300" />
+                        <span>Take Socratic Gate (70%)</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </>
                 ) : (
                   <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3">
                     <p className="text-xs text-slate-500">
@@ -504,6 +546,30 @@ export function SportsWorkspaceStudioPage({
                 {Array.isArray(packData?.chapters) && packData.chapters.length > 0 && (
                   <ChapterAccordion chapters={packData.chapters} stepId={viewingStepId} />
                 )}
+
+                {/* Proceed to Socratic Gate Action Bar */}
+                <div className="p-6 bg-white/95 rounded-3xl border border-emerald-200/90 shadow-md flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div>
+                    <h4 className="text-sm font-heading font-bold text-slate-900">
+                      Ready to verify your understanding?
+                    </h4>
+                    <p className="text-xs text-slate-500">
+                      Pass the Socratic Evaluation Gate (70% threshold) to complete Milestone {viewingStepIndex}.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setActiveTab('evaluation');
+                      window.scrollTo({ top: 0, behavior: 'smooth' });
+                    }}
+                    className="px-6 py-3 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98] shrink-0"
+                  >
+                    <Zap className="w-4 h-4 text-amber-300" />
+                    <span>Take Socratic Gate (70%)</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
               </motion.div>
             )}
 

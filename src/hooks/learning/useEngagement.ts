@@ -24,21 +24,14 @@ export function useEngagement(stepId: string | null | undefined, isUnlocked = tr
   useEffect(() => {
     if (!stepId || !isUnlocked || !isReady || engagedStepsThisSession.has(stepId)) return;
 
-    activeSecondsRef.current = 0;
-
-    const interval = setInterval(() => {
-      // Check document visibility
+    const timer = setTimeout(() => {
       if (typeof document !== 'undefined' && document.visibilityState === 'visible') {
-        activeSecondsRef.current += 1;
-        if (activeSecondsRef.current >= 20) {
-          triggerEngaged();
-          clearInterval(interval);
-        }
+        triggerEngaged();
       }
-    }, 1000);
+    }, 1500);
 
     return () => {
-      clearInterval(interval);
+      clearTimeout(timer);
     };
   }, [stepId, isUnlocked, isReady]);
 

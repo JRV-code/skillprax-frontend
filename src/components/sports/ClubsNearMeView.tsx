@@ -49,12 +49,64 @@ const POPULAR_CITIES = ['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengalur
 
 export interface ClubsNearMeViewProps {
   ageCategory?: 'ALL' | 'U14' | 'U17' | 'U19' | 'OPEN';
+  enrolledSports?: string[];
 }
 
-export function ClubsNearMeView({ ageCategory = 'ALL' }: ClubsNearMeViewProps = {}) {
+export function ClubsNearMeView({ ageCategory = 'ALL', enrolledSports = [] }: ClubsNearMeViewProps = {}) {
   const { user } = useAuthStore();
   const [activeSubTab, setActiveSubTab] = useState<'clubs' | 'shops'>('clubs');
-  const [selectedSport, setSelectedSport] = useState<string>('Football');
+  const [searchedSports, setSearchedSports] = useState<string[]>([]);
+  const [customSearchQuery, setCustomSearchQuery] = useState<string>('');
+
+  const sportsList = React.useMemo(() => {
+    const list: Array<{ name: string; isEnrolled: boolean }> = [];
+    const seen = new Set<string>();
+
+    // 1. Enrolled sports first
+    if (enrolledSports && enrolledSports.length > 0) {
+      for (const sp of enrolledSports) {
+        const clean = sp.trim();
+        const lower = clean.toLowerCase();
+        if (clean && !seen.has(lower)) {
+          seen.add(lower);
+          list.push({ name: clean, isEnrolled: true });
+        }
+      }
+    }
+
+    // 2. Any dynamically searched sports
+    for (const sp of searchedSports) {
+      const clean = sp.trim();
+      const lower = clean.toLowerCase();
+      if (clean && !seen.has(lower)) {
+        seen.add(lower);
+        list.push({ name: clean, isEnrolled: false });
+      }
+    }
+
+    // 3. Fallback popular sports
+    for (const sp of SPORTS_LIST) {
+      const lower = sp.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        list.push({ name: sp, isEnrolled: false });
+      }
+    }
+
+    return list;
+  }, [enrolledSports, searchedSports]);
+
+  const initialSport = (enrolledSports && enrolledSports.length > 0)
+    ? enrolledSports[0]
+    : 'Football';
+  const [selectedSport, setSelectedSport] = useState<string>(initialSport);
+
+  useEffect(() => {
+    if (enrolledSports && enrolledSports.length > 0) {
+      setSelectedSport((prev) => (prev === 'Football' && !enrolledSports.includes('Football') ? enrolledSports[0] : prev));
+    }
+  }, [enrolledSports]);
+
   const [city, setCity] = useState<string>((user as any)?.city || 'Ahmedabad');
   const [state, setState] = useState<string>((user as any)?.state || 'Gujarat');
 
@@ -63,6 +115,19 @@ export function ClubsNearMeView({ ageCategory = 'ALL' }: ClubsNearMeViewProps = 
   const [loading, setLoading] = useState<boolean>(true);
   const [expandedMapVenue, setExpandedMapVenue] = useState<string | null>(null);
   const [geoLocating, setGeoLocating] = useState<boolean>(false);
+
+  const handleCustomSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = customSearchQuery.trim();
+    if (!query) return;
+
+    const cleanSport = query.charAt(0).toUpperCase() + query.slice(1);
+    if (!searchedSports.includes(cleanSport)) {
+      setSearchedSports((prev) => [cleanSport, ...prev]);
+    }
+    setSelectedSport(cleanSport);
+    setCustomSearchQuery('');
+  };
 
   // Sync city from user store if available
   useEffect(() => {
@@ -220,24 +285,55 @@ export function ClubsNearMeView({ ageCategory = 'ALL' }: ClubsNearMeViewProps = 
         </div>
       </div>
 
-      {/* Sport Selector Filter (Only for Clubs or Sport-specific Gear) */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
-          Sport:
-        </span>
-        {SPORTS_LIST.map((sp) => (
+      {/* Sport Selector Filter & "Search by Yourself" Custom Sport Search Bar */}
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-slate-200/80 shadow-xs">
+        {/* Left: Sport Selector Pills */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 lg:pb-0 scrollbar-none">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+            Sport:
+          </span>
+          {sportsList.map((sp) => (
+            <button
+              key={sp.name}
+              type="button"
+              onClick={() => setSelectedSport(sp.name)}
+              className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer flex items-center gap-1.5 ${
+                selectedSport.toLowerCase() === sp.name.toLowerCase()
+                  ? 'bg-[#0284C7] text-white shadow-sm shadow-sky-500/20'
+                  : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-700'
+              }`}
+            >
+              <span>{sp.name}</span>
+              {sp.isEnrolled && (
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black tracking-tight ${
+                  selectedSport.toLowerCase() === sp.name.toLowerCase()
+                    ? 'bg-white/20 text-amber-200'
+                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                }`}>
+                  ★ Enrolled
+                </span>
+              )}
+            </button>
+          ))}
+        </div>
+
+        {/* Right: "Search by Yourself" Custom Sport Search Bar */}
+        <form onSubmit={handleCustomSearch} className="flex items-center gap-2 shrink-0">
+          <input
+            type="text"
+            value={customSearchQuery}
+            onChange={(e) => setCustomSearchQuery(e.target.value)}
+            placeholder="🔍 Search any sport (e.g., Hockey, Archery)..."
+            className="w-64 sm:w-72 px-3.5 py-1.5 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-[#0284C7]/20 focus:border-[#0284C7] transition-all font-medium"
+          />
           <button
-            key={sp}
-            onClick={() => setSelectedSport(sp)}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 cursor-pointer ${
-              selectedSport === sp
-                ? 'bg-[#0284C7] text-white shadow-sm shadow-sky-500/20'
-                : 'bg-white hover:bg-slate-50 border border-slate-200 text-slate-600'
-            }`}
+            type="submit"
+            className="px-3.5 py-1.5 bg-[#0284C7] hover:bg-sky-600 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
           >
-            {sp}
+            <Search className="w-3.5 h-3.5" />
+            <span>Search</span>
           </button>
-        ))}
+        </form>
       </div>
 
       {/* Loading Indicator */}

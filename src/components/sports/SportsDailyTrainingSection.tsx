@@ -22,8 +22,10 @@ import {
   ArrowRight,
   Flame,
   Lock,
-  Unlock,
+  Trophy,
+  Zap,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { usePlayerStore } from '@/components/learning/video/playerStore';
 
 export interface TrainingItem {
@@ -64,21 +66,25 @@ export interface StepTrainingPlan {
 interface SportsDailyTrainingSectionProps {
   stepId: string;
   stepNumber: number;
+  stepTitle?: string;
   sportName: string;
   trainingPlan: StepTrainingPlan;
   healthConditions?: string;
   dietaryPreference?: string;
   onDayProgress?: (dayNumber: number, completedCount: number, totalCount: number) => void;
+  onProceedToQuiz?: () => void;
 }
 
 export function SportsDailyTrainingSection({
   stepId,
   stepNumber,
+  stepTitle,
   sportName,
   trainingPlan,
   healthConditions = 'None',
   dietaryPreference = 'Vegetarian',
   onDayProgress,
+  onProceedToQuiz,
 }: SportsDailyTrainingSectionProps) {
   const { openVideo } = usePlayerStore();
 
@@ -234,6 +240,33 @@ export function SportsDailyTrainingSection({
   // Calculate day completion status
   const completedInCurrentDay = dayItems.filter((i) => completedItems[i.id]).length;
   const isCurrentDayFullyCompleted = dayItems.length > 0 && completedInCurrentDay === dayItems.length;
+
+  // Check if ALL days of this step are completed
+  const isAllDaysCompleted = React.useMemo(() => {
+    if (totalDays <= 0) return false;
+    return Array.from({ length: totalDays }).every((_, idx) => {
+      const dNum = idx + 1;
+      if (completedDays[dNum]) return true;
+      const dObj = days.find((d) => d.dayNumber === dNum);
+      if (!dObj || !dObj.items || dObj.items.length === 0) return true;
+      return dObj.items.every((it) => completedItems[it.id]);
+    });
+  }, [totalDays, completedDays, days, completedItems]);
+
+  const confettiFiredRef = useRef(false);
+  useEffect(() => {
+    if (isAllDaysCompleted && !confettiFiredRef.current) {
+      confettiFiredRef.current = true;
+      try {
+        confetti({
+          particleCount: 80,
+          spread: 70,
+          origin: { y: 0.6 },
+          colors: ['#10B981', '#0284C7', '#F59E0B', '#6366F1'],
+        });
+      } catch (_) {}
+    }
+  }, [isAllDaysCompleted]);
 
   // Advance to Next Day
   const handleAdvanceToNextDay = async () => {
@@ -614,6 +647,70 @@ export function SportsDailyTrainingSection({
           );
         })}
       </div>
+
+      {/* HURRAY CELEBRATION CARD WHEN ALL DAYS ARE COMPLETED */}
+      {isAllDaysCompleted && activeTimerItemId === null && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.95, y: 16 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: 'spring', damping: 18, stiffness: 260 }}
+          className="p-7 md:p-8 rounded-3xl bg-gradient-to-br from-emerald-500/15 via-sky-500/10 to-amber-500/15 border-2 border-emerald-400 shadow-xl space-y-6"
+        >
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="px-3 py-1 rounded-full text-[11px] font-black uppercase tracking-wider bg-emerald-600 text-white flex items-center gap-1.5 shadow-sm">
+                  <Trophy className="w-3.5 h-3.5 text-amber-300" />
+                  <span>Physical Regimen Complete</span>
+                </span>
+                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-amber-100 text-amber-800 border border-amber-200 flex items-center gap-1">
+                  <Sparkles className="w-3 h-3 text-amber-600" />
+                  <span>100% Kinetic Readiness</span>
+                </span>
+              </div>
+              <h3 className="text-xl md:text-2xl font-heading font-black text-slate-900 tracking-tight">
+                🎉 Hurray! Step {stepNumber} Physical Training Regimen Complete!
+              </h3>
+              <p className="text-xs md:text-sm text-slate-600 max-w-2xl leading-relaxed">
+                You completed all {totalDays} Days of Drills, Conditioning Exercises & Yogasanas for{' '}
+                <strong className="text-slate-900">{stepTitle || sportName}</strong>! Your neuromuscular motor patterns and kinetic endurance are primed.
+              </p>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (onProceedToQuiz) {
+                  onProceedToQuiz();
+                }
+              }}
+              className="px-7 py-4 rounded-2xl font-heading font-black text-xs md:text-sm bg-gradient-to-r from-emerald-600 via-teal-600 to-[#0284C7] hover:from-emerald-700 hover:to-sky-700 text-white shadow-lg shadow-emerald-200 transition-all flex items-center justify-center gap-2.5 cursor-pointer hover:scale-[1.03] active:scale-[0.98] shrink-0"
+            >
+              <Zap className="w-4 h-4 text-amber-300" />
+              <span>⚡ Proceed Directly to Step {stepNumber} Socratic Gate Quiz →</span>
+            </button>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
+            <div className="p-3.5 rounded-2xl bg-white/90 border border-emerald-200 text-center shadow-sm">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Total Days</span>
+              <span className="text-sm font-black text-emerald-700">{totalDays} Days Cleared</span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white/90 border border-sky-200 text-center shadow-sm">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Form Drills</span>
+              <span className="text-sm font-black text-[#0284C7]">Verified Execution</span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white/90 border border-amber-200 text-center shadow-sm">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Asana Mobility</span>
+              <span className="text-sm font-black text-amber-700">Restored & Balanced</span>
+            </div>
+            <div className="p-3.5 rounded-2xl bg-white/90 border border-indigo-200 text-center shadow-sm">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Gate Status</span>
+              <span className="text-sm font-black text-indigo-700">70% Quiz Ready</span>
+            </div>
+          </div>
+        </motion.div>
+      )}
 
       {/* 5. "Ready for Next Day" Advance Button */}
       <div className="p-6 bg-white rounded-3xl border border-slate-200 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-4">

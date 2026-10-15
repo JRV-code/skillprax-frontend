@@ -265,10 +265,120 @@ const CATEGORIES = [
 
 const POPULAR_CITIES = ['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Pune'];
 
-export function SportsShopView() {
+export interface SportsShopViewProps {
+  enrolledSports?: string[];
+}
+
+function getDealsForSport(sport: string): GearDeal[] {
+  const direct = DEALS_BY_SPORT[sport];
+  if (direct && direct.length > 0) return direct;
+
+  const key = Object.keys(DEALS_BY_SPORT).find((k) => k.toLowerCase() === sport.toLowerCase());
+  if (key && DEALS_BY_SPORT[key]) return DEALS_BY_SPORT[key];
+
+  return [
+    {
+      id: `${sport.toLowerCase()}-1`,
+      category: 'Match Equipment',
+      itemTitle: `${sport} Official Match & Practice Equipment`,
+      recommendedSpecs: `Tournament-grade regulation ${sport} hardware constructed from high-durability composite materials; balanced weight and official dimension compliance.`,
+      priceRange: '₹1,299 - ₹4,999',
+      dealBadge: 'Tournament Standard',
+    },
+    {
+      id: `${sport.toLowerCase()}-2`,
+      category: 'Footwear & Cleats',
+      itemTitle: `Specialized Athletic Court / Turf Footwear for ${sport}`,
+      recommendedSpecs: `High-traction non-marking or studded soleplate for multi-surface agility; reinforced lateral support and cushioned shock-absorbing midsole.`,
+      priceRange: '₹1,899 - ₹4,499',
+      dealBadge: 'Top Grip & Stability',
+    },
+    {
+      id: `${sport.toLowerCase()}-3`,
+      category: 'Protective & Accessories',
+      itemTitle: `Protective Impact & Safety Guard Set for ${sport}`,
+      recommendedSpecs: `Anatomical high-density EVA foam and rigid polymer composite shell; breathable moisture-wicking strap lock system.`,
+      priceRange: '₹599 - ₹1,999',
+    },
+    {
+      id: `${sport.toLowerCase()}-4`,
+      category: 'Jerseys & Apparel',
+      itemTitle: `Performance Dry-Fit Athletic Training Kit for ${sport}`,
+      recommendedSpecs: `Breathable moisture-wicking microfiber knit with 4-way stretch; flatlock anti-chafing seams and athletic ergonomic cut.`,
+      priceRange: '₹699 - ₹1,499',
+    },
+    {
+      id: `${sport.toLowerCase()}-5`,
+      category: 'Match Equipment',
+      itemTitle: `Precision Skill Development & Training Aids for ${sport}`,
+      recommendedSpecs: `Target markers, agility cones, reaction balls, and specialized drills accessories for deliberate technical repetitions.`,
+      priceRange: '₹799 - ₹2,199',
+    },
+    {
+      id: `${sport.toLowerCase()}-6`,
+      category: 'Protective & Accessories',
+      itemTitle: `Heavy-Duty Water-Resistant Equipment Bag for ${sport}`,
+      recommendedSpecs: `Reinforced 600D ripstop polyester construction; separate ventilated footwear compartment and padded ergonomic shoulder harness.`,
+      priceRange: '₹999 - ₹2,799',
+    },
+  ];
+}
+
+export function SportsShopView({ enrolledSports = [] }: SportsShopViewProps = {}) {
   const { user } = useAuthStore();
   const [activeSubTab, setActiveSubTab] = useState<'online' | 'stores'>('online');
-  const [selectedSport, setSelectedSport] = useState<string>('Football');
+  const [searchedSports, setSearchedSports] = useState<string[]>([]);
+  const [customSearchQuery, setCustomSearchQuery] = useState<string>('');
+
+  const sportsList = React.useMemo(() => {
+    const list: Array<{ name: string; isEnrolled: boolean }> = [];
+    const seen = new Set<string>();
+
+    // 1. Enrolled sports first
+    if (enrolledSports && enrolledSports.length > 0) {
+      for (const sp of enrolledSports) {
+        const clean = sp.trim();
+        const lower = clean.toLowerCase();
+        if (clean && !seen.has(lower)) {
+          seen.add(lower);
+          list.push({ name: clean, isEnrolled: true });
+        }
+      }
+    }
+
+    // 2. Searched sports
+    for (const sp of searchedSports) {
+      const clean = sp.trim();
+      const lower = clean.toLowerCase();
+      if (clean && !seen.has(lower)) {
+        seen.add(lower);
+        list.push({ name: clean, isEnrolled: false });
+      }
+    }
+
+    // 3. Fallback popular sports
+    for (const sp of Object.keys(DEALS_BY_SPORT)) {
+      const lower = sp.toLowerCase();
+      if (!seen.has(lower)) {
+        seen.add(lower);
+        list.push({ name: sp, isEnrolled: false });
+      }
+    }
+
+    return list;
+  }, [enrolledSports, searchedSports]);
+
+  const initialSport = (enrolledSports && enrolledSports.length > 0)
+    ? enrolledSports[0]
+    : 'Football';
+  const [selectedSport, setSelectedSport] = useState<string>(initialSport);
+
+  useEffect(() => {
+    if (enrolledSports && enrolledSports.length > 0) {
+      setSelectedSport((prev) => (prev === 'Football' && !enrolledSports.includes('Football') ? enrolledSports[0] : prev));
+    }
+  }, [enrolledSports]);
+
   const [selectedCategory, setSelectedCategory] = useState<string>('All Categories');
   
   // Physical store location state
@@ -278,6 +388,19 @@ export function SportsShopView() {
   const [loadingShops, setLoadingShops] = useState<boolean>(false);
   const [expandedMapStore, setExpandedMapStore] = useState<string | null>(null);
   const [geoLocating, setGeoLocating] = useState<boolean>(false);
+
+  const handleCustomSearch = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const query = customSearchQuery.trim();
+    if (!query) return;
+
+    const cleanSport = query.charAt(0).toUpperCase() + query.slice(1);
+    if (!searchedSports.includes(cleanSport)) {
+      setSearchedSports((prev) => [cleanSport, ...prev]);
+    }
+    setSelectedSport(cleanSport);
+    setCustomSearchQuery('');
+  };
 
   // Sync city from user store
   useEffect(() => {
@@ -344,8 +467,7 @@ export function SportsShopView() {
     );
   };
 
-  const sportsList = Object.keys(DEALS_BY_SPORT);
-  const allDeals = DEALS_BY_SPORT[selectedSport] || [];
+  const allDeals = getDealsForSport(selectedSport);
   const filteredDeals = selectedCategory === 'All Categories'
     ? allDeals
     : allDeals.filter((d) => d.category === selectedCategory);
@@ -353,47 +475,82 @@ export function SportsShopView() {
   return (
     <div className="space-y-6">
       {/* Top Controls: Mode Switcher & Sport Selector */}
-      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
-        {/* Sub-tab Switcher: Online Verified Deals vs. Local Physical Stores */}
-        <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 w-fit">
-          <button
-            onClick={() => setActiveSubTab('online')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeSubTab === 'online'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <ShoppingBag className="w-3.5 h-3.5" />
-            <span>Online Gear Deals</span>
-          </button>
+      <div className="bg-white p-5 rounded-3xl border border-slate-200/80 shadow-xs flex flex-col gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          {/* Sub-tab Switcher: Online Verified Deals vs. Local Physical Stores */}
+          <div className="flex items-center gap-1.5 p-1 bg-slate-100 rounded-2xl border border-slate-200/60 w-fit">
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('online')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeSubTab === 'online'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>Online Gear Deals</span>
+            </button>
 
-          <button
-            onClick={() => setActiveSubTab('stores')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              activeSubTab === 'stores'
-                ? 'bg-white text-emerald-600 shadow-sm'
-                : 'text-slate-600 hover:text-slate-900'
-            }`}
-          >
-            <Store className="w-3.5 h-3.5" />
-            <span>Local Physical Stores</span>
-          </button>
+            <button
+              type="button"
+              onClick={() => setActiveSubTab('stores')}
+              className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeSubTab === 'stores'
+                  ? 'bg-white text-emerald-600 shadow-sm'
+                  : 'text-slate-600 hover:text-slate-900'
+              }`}
+            >
+              <Store className="w-3.5 h-3.5" />
+              <span>Local Physical Stores</span>
+            </button>
+          </div>
+
+          {/* "Search by Yourself" Custom Sport Search Bar */}
+          <form onSubmit={handleCustomSearch} className="flex items-center gap-2">
+            <input
+              type="text"
+              value={customSearchQuery}
+              onChange={(e) => setCustomSearchQuery(e.target.value)}
+              placeholder="🔍 Search any sport (e.g., Hockey, Archery)..."
+              className="w-64 sm:w-72 px-3.5 py-2 text-xs rounded-xl bg-slate-50 border border-slate-200 text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all font-medium"
+            />
+            <button
+              type="submit"
+              className="px-3.5 py-2 bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all shadow-xs cursor-pointer active:scale-95 flex items-center gap-1.5 shrink-0"
+            >
+              <Search className="w-3.5 h-3.5" />
+              <span>Search</span>
+            </button>
+          </form>
         </div>
 
         {/* Sport Selection Pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto p-1 bg-slate-100 rounded-2xl border border-slate-200/60 scrollbar-none">
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-1 scrollbar-none pt-2 border-t border-slate-100">
+          <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider shrink-0 mr-1">
+            Sport:
+          </span>
           {sportsList.map((sp) => (
             <button
-              key={sp}
-              onClick={() => setSelectedSport(sp)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
-                selectedSport === sp
-                  ? 'bg-white text-slate-900 shadow-sm'
-                  : 'text-slate-600 hover:text-slate-900 hover:bg-white/50'
+              key={sp.name}
+              type="button"
+              onClick={() => setSelectedSport(sp.name)}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                selectedSport.toLowerCase() === sp.name.toLowerCase()
+                  ? 'bg-indigo-600 text-white shadow-sm'
+                  : 'bg-slate-50 hover:bg-slate-100 border border-slate-200/80 text-slate-700'
               }`}
             >
-              {sp}
+              <span>{sp.name}</span>
+              {sp.isEnrolled && (
+                <span className={`text-[9px] px-1.5 py-0.2 rounded-full font-black tracking-tight ${
+                  selectedSport.toLowerCase() === sp.name.toLowerCase()
+                    ? 'bg-white/20 text-amber-200'
+                    : 'bg-amber-100 text-amber-800 border border-amber-200'
+                }`}>
+                  ★ Enrolled
+                </span>
+              )}
             </button>
           ))}
         </div>

@@ -22,6 +22,44 @@ export type AgeCategory = 'ALL' | 'U14' | 'U17' | 'U19' | 'OPEN';
 export default function SportsPage() {
   const [activeTab, setActiveTab] = useState<SportsTab>('training');
   const [selectedAge, setSelectedAge] = useState<AgeCategory>('U17');
+  const [enrolledSports, setEnrolledSports] = useState<string[]>([]);
+
+  React.useEffect(() => {
+    async function loadEnrolledSports() {
+      try {
+        const profileId = typeof window !== 'undefined'
+          ? (localStorage.getItem('skillprax_active_profile_id') || 'default-profile')
+          : 'default-profile';
+
+        const res = await fetch(`/api/profiles/${profileId}/telemetry`);
+        if (res.ok) {
+          const data = await res.json();
+          const allTracks = data.enrolledWorkspaces || [];
+          const sportsNames: string[] = [];
+          for (const w of allTracks) {
+            const dom = (w.domainCategory || w.domain || '').toLowerCase();
+            const title = (w.skillName || w.title || '').trim();
+            const lowerTitle = title.toLowerCase();
+            const isSport =
+              dom.includes('athletic') ||
+              dom.includes('sport') ||
+              ['cricket', 'football', 'soccer', 'swimming', 'tennis', 'badminton', 'basketball', 'hockey', 'sprint', 'athletics', 'boxing', 'yoga', 'calisthenics', 'gymnastics', 'archery', 'kabaddi'].some((s) => lowerTitle.includes(s));
+
+            if (isSport && title) {
+              const cleanName = title.charAt(0).toUpperCase() + title.slice(1);
+              if (!sportsNames.includes(cleanName)) {
+                sportsNames.push(cleanName);
+              }
+            }
+          }
+          setEnrolledSports(sportsNames);
+        }
+      } catch (err) {
+        console.warn('Failed to load enrolled sports for clubs/gear:', err);
+      }
+    }
+    loadEnrolledSports();
+  }, []);
 
   const navItems = [
     { id: 'training', label: 'Conditioning, Drills & Yogasanas', icon: Timer, badge: 'Step Engine' },
@@ -158,7 +196,7 @@ export default function SportsPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              <ClubsNearMeView ageCategory={selectedAge} />
+              <ClubsNearMeView ageCategory={selectedAge} enrolledSports={enrolledSports} />
             </motion.div>
           )}
 
@@ -170,7 +208,7 @@ export default function SportsPage() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
-              <SportsShopView />
+              <SportsShopView enrolledSports={enrolledSports} />
             </motion.div>
           )}
         </AnimatePresence>
