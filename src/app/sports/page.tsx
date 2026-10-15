@@ -24,7 +24,7 @@ export default function SportsPage() {
   const [selectedAge, setSelectedAge] = useState<AgeCategory>('U17');
 
   const navItems = [
-    { id: 'training', label: 'Training & Drills', icon: Timer, badge: null },
+    { id: 'training', label: 'Conditioning, Drills & Yogasanas', icon: Timer, badge: 'Step Engine' },
     { id: 'clubs', label: 'Clubs Near Me', icon: MapPin, badge: 'Live Map' },
     { id: 'shop', label: 'Sports Gear & Local Stores', icon: ShoppingBag, badge: 'Deals' },
   ];

@@ -34,6 +34,15 @@ export interface UserProfile {
   studyCadence?: any[];
   dietaryPreference?: 'Vegetarian' | 'Non-Vegetarian' | 'Eggetarian' | 'Vegan' | 'Jain' | string;
   medicalConditions?: string;
+  healthConditions?: string;
+  ageCategory?: 'U-14' | 'U-17' | 'U-19' | 'Open' | string;
+  onboardingCompleted?: boolean;
+  totalXp?: number;
+  level?: number;
+  totalQuizzesTaken?: number;
+  totalQuestionsAttempted?: number;
+  totalQuestionsCorrect?: number;
+  avgQuizAccuracy?: number;
   preferredLanguage?: SupportedLanguage;
   totalSkillsCompleted?: number;
   currentStreak?: number;

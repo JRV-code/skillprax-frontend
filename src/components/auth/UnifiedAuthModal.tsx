@@ -16,7 +16,14 @@ import {
   KeyRound,
   Check,
   User,
+  MapPin,
+  Globe,
+  Utensils,
+  HeartPulse,
+  Activity,
+  ChevronRight,
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { login as storeLogin } from '@/store/useAuthStore';
 import { BrandLogo } from '@/components/common/BrandLogo';
 
@@ -39,8 +46,8 @@ export function UnifiedAuthModal({
   onSuccess,
   initialEmail = '',
 }: UnifiedAuthModalProps) {
-  // Modal View States: AUTH_FORM or SET_PASSWORD_STEP
-  const [modalStep, setModalStep] = useState<'AUTH_FORM' | 'SET_PASSWORD_STEP'>('AUTH_FORM');
+  // Modal View States: AUTH_FORM, SET_PASSWORD_STEP, or ONBOARDING_STEP
+  const [modalStep, setModalStep] = useState<'AUTH_FORM' | 'SET_PASSWORD_STEP' | 'ONBOARDING_STEP'>('AUTH_FORM');
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
 
   // Step 1: Auth Fields
@@ -57,6 +64,16 @@ export function UnifiedAuthModal({
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [passwordSuccess, setPasswordSuccess] = useState(false);
+
+  // Step 2 (Sign-Up / First-time OAuth): Profile Calibration & Health Safety Fields
+  const [onboardingCity, setOnboardingCity] = useState('Ahmedabad');
+  const [onboardingState, setOnboardingState] = useState('Gujarat');
+  const [onboardingAgeCategory, setOnboardingAgeCategory] = useState<'U-14' | 'U-17' | 'U-19' | 'Open'>('Open');
+  const [onboardingDietaryPreference, setOnboardingDietaryPreference] = useState('Vegetarian');
+  const [onboardingHealthChip, setOnboardingHealthChip] = useState('None');
+  const [onboardingCustomHealth, setOnboardingCustomHealth] = useState('');
+  const [onboardingLanguage, setOnboardingLanguage] = useState('en');
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
 
   // Shared Status States
   const [loading, setLoading] = useState(false);
@@ -196,6 +213,12 @@ export function UnifiedAuthModal({
         setModalStep('SET_PASSWORD_STEP');
         setSuccessNotice('Google account linked! Enhance your account security by setting a password.');
         setTimeout(() => setSuccessNotice(null), 4000);
+      } else if (!activeUser?.onboardingCompleted) {
+        setSuccessNotice('Google account verified! Step 2: Personalize your learner profile.');
+        setTimeout(() => {
+          setSuccessNotice(null);
+          setModalStep('ONBOARDING_STEP');
+        }, 500);
       } else {
         setSuccessNotice('Welcome back! Signed in with Google.');
         setTimeout(() => {
@@ -381,12 +404,12 @@ export function UnifiedAuthModal({
         setSessionToken(token);
       }
 
-      setSuccessNotice('Account created! Welcome to SKILL-TRACK.');
+      setSuccessNotice('Account created! Step 2: Personalize your learner profile.');
 
       setTimeout(() => {
-        if (onSuccess) onSuccess(activeUser);
-        onClose();
-      }, 700);
+        setSuccessNotice(null);
+        setModalStep('ONBOARDING_STEP');
+      }, 500);
     } catch (err: any) {
       setErrorMessage(err.message || 'Registration failed. Please try again.');
     } finally {
@@ -425,14 +448,21 @@ export function UnifiedAuthModal({
       });
 
       setPasswordSuccess(true);
-      setSuccessNotice('Password saved successfully! Entering SKILL-TRACK...');
-
-      setTimeout(() => {
-        if (onSuccess && loggedInUser) {
-          onSuccess(loggedInUser);
-        }
-        onClose();
-      }, 900);
+      if (!loggedInUser?.onboardingCompleted) {
+        setSuccessNotice('Password saved! Next: Personalize your learner profile.');
+        setTimeout(() => {
+          setSuccessNotice(null);
+          setModalStep('ONBOARDING_STEP');
+        }, 600);
+      } else {
+        setSuccessNotice('Password saved successfully! Entering SKILL-TRACK...');
+        setTimeout(() => {
+          if (onSuccess && loggedInUser) {
+            onSuccess(loggedInUser);
+          }
+          onClose();
+        }, 900);
+      }
     } catch (err: any) {
       setErrorMessage(err.message || 'Network error occurred while saving password.');
     } finally {
@@ -442,10 +472,80 @@ export function UnifiedAuthModal({
 
   // Skip Password Setup
   const handleSkipPassword = () => {
+    if (!loggedInUser?.onboardingCompleted) {
+      setModalStep('ONBOARDING_STEP');
+      return;
+    }
     if (onSuccess && loggedInUser) {
       onSuccess(loggedInUser);
     }
     onClose();
+  };
+
+  // Step 2/3: Handle Onboarding Profile Calibration Submission
+  const handleOnboardingSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setErrorMessage(null);
+    setSavingOnboarding(true);
+
+    const effectiveHealth = onboardingHealthChip === 'None' && onboardingCustomHealth.trim()
+      ? onboardingCustomHealth.trim()
+      : onboardingHealthChip !== 'None' && onboardingCustomHealth.trim()
+      ? `${onboardingHealthChip}; ${onboardingCustomHealth.trim()}`
+      : onboardingHealthChip;
+
+    const token = sessionToken || (typeof window !== 'undefined' ? localStorage.getItem('skillprax_auth_token') : null);
+
+    try {
+      const updated = await safeFetchJson(`${API_BASE}/api/profile`, {
+        method: 'PUT',
+        headers: {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          userId: loggedInUser?.id,
+          email: loggedInUser?.email,
+          name: loggedInUser?.name || name || undefined,
+          city: onboardingCity,
+          state: onboardingState,
+          ageCategory: onboardingAgeCategory,
+          dietaryPreference: onboardingDietaryPreference,
+          healthConditions: effectiveHealth,
+          preferredLanguage: onboardingLanguage,
+          onboardingCompleted: true,
+        }),
+      });
+
+      const activeUser = updated.user || updated.profile || {
+        ...loggedInUser,
+        city: onboardingCity,
+        state: onboardingState,
+        ageCategory: onboardingAgeCategory,
+        dietaryPreference: onboardingDietaryPreference,
+        healthConditions: effectiveHealth,
+        preferredLanguage: onboardingLanguage,
+        onboardingCompleted: true,
+      };
+
+      if (token) {
+        storeLogin(activeUser, token);
+      }
+      setLoggedInUser(activeUser);
+
+      if (typeof window !== 'undefined') {
+        confetti({ particleCount: 70, spread: 80, origin: { y: 0.6 } });
+      }
+
+      setSuccessNotice('Learner Profile Calibrated! Entering SKILL-TRACK 🚀');
+      setTimeout(() => {
+        if (onSuccess) onSuccess(activeUser);
+        onClose();
+      }, 900);
+    } catch (err: any) {
+      setErrorMessage(err.message || 'Failed to save profile. Please try again.');
+    } finally {
+      setSavingOnboarding(false);
+    }
   };
 
   if (!isOpen) return null;
@@ -470,7 +570,7 @@ export function UnifiedAuthModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', stiffness: 450, damping: 25 }}
-          className="relative w-full max-w-md bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 overflow-hidden z-10"
+          className="relative w-full max-w-lg bg-white rounded-3xl shadow-2xl border border-slate-100 p-6 sm:p-8 overflow-hidden z-10 max-h-[92vh] overflow-y-auto"
         >
           {/* Subtle Ambient Gradient Accents */}
           <div className="absolute -top-24 -right-24 w-48 h-48 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
@@ -479,11 +579,31 @@ export function UnifiedAuthModal({
           {/* Close Button */}
           <button
             onClick={onClose}
-            className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer"
+            className="absolute top-5 right-5 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-all cursor-pointer z-20"
             aria-label="Close modal"
           >
             <X className="w-5 h-5" />
           </button>
+
+          {/* 2-Step Progress Indicator Pill */}
+          <div className="flex items-center justify-center gap-2 mb-5">
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+              modalStep === 'ONBOARDING_STEP' 
+                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' 
+                : 'bg-indigo-50 text-indigo-700 border border-indigo-200 shadow-xs'
+            }`}>
+              <span>Step 1: Account</span>
+              {modalStep === 'ONBOARDING_STEP' ? <Check className="w-3 h-3 text-emerald-600 stroke-[3]" /> : null}
+            </div>
+            <ArrowRight className="w-3 h-3 text-slate-300" />
+            <div className={`flex items-center gap-1 px-3 py-1 rounded-full text-[11px] font-bold transition-all ${
+              modalStep === 'ONBOARDING_STEP'
+                ? 'bg-indigo-600 text-white shadow-xs'
+                : 'bg-slate-100 text-slate-400'
+            }`}>
+              <span>Step 2: Profile Calibration</span>
+            </div>
+          </div>
 
           {/* Multi-Step Animated Content with AnimatePresence mode="wait" */}
           <AnimatePresence mode="wait">
@@ -848,7 +968,7 @@ export function UnifiedAuthModal({
                   By proceeding, you agree to our Terms of Service & Privacy Policy.
                 </p>
               </motion.div>
-            ) : (
+            ) : modalStep === 'SET_PASSWORD_STEP' ? (
               <motion.div
                 key="SET_PASSWORD_STEP"
                 initial={{ opacity: 0, x: 20 }}
@@ -976,7 +1096,7 @@ export function UnifiedAuthModal({
                       <span>Saving Password...</span>
                     ) : (
                       <>
-                        <span>Save Password & Enter Studio</span>
+                        <span>Continue to Profile Setup</span>
                         <ArrowRight className="w-4 h-4" />
                       </>
                     )}
@@ -988,8 +1108,237 @@ export function UnifiedAuthModal({
                     onClick={handleSkipPassword}
                     className="w-full py-2 text-xs font-semibold text-slate-400 hover:text-slate-600 text-center transition-colors cursor-pointer"
                   >
-                    Skip for now
+                    Skip to profile calibration ➔
                   </button>
+                </form>
+              </motion.div>
+            ) : (
+              /* ONBOARDING_STEP: Animated Slide-In Onboarding Wizard */
+              <motion.div
+                key="ONBOARDING_STEP"
+                initial={{ opacity: 0, x: 40 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -40 }}
+                transition={{ type: 'spring', stiffness: 450, damping: 25 }}
+                className="space-y-5"
+              >
+                {/* Header */}
+                <div className="text-center">
+                  <div className="flex justify-center mb-3">
+                    <BrandLogo size="md" />
+                  </div>
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[11px] font-bold tracking-wider uppercase mb-2">
+                    <Sparkles className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>STEP 2: PERSONALIZE YOUR LEARNER PROFILE</span>
+                  </div>
+                  <h2 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Complete Your Learner Profile
+                  </h2>
+                  <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+                    Welcome, <strong className="text-slate-800">{userName}</strong>! Configure your location, age division, dietary preference, and physical safety settings.
+                  </p>
+                </div>
+
+                {/* Error Message */}
+                {errorMessage && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5"
+                  >
+                    <AlertCircle className="w-4 h-4 shrink-0 text-[#F43F5E] mt-0.5" />
+                    <div className="leading-snug">{errorMessage}</div>
+                  </motion.div>
+                )}
+
+                {/* Success Message */}
+                {successNotice && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-3 rounded-2xl bg-emerald-50 border border-emerald-200/80 text-emerald-800 text-xs flex items-center gap-2"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                    <span>{successNotice}</span>
+                  </motion.div>
+                )}
+
+                <form onSubmit={handleOnboardingSubmit} className="space-y-4">
+                  {/* Location: City & State */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-[#0284C7]" />
+                      <span>Your Location (City & State)</span>
+                    </label>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div>
+                        <input
+                          type="text"
+                          value={onboardingCity}
+                          onChange={(e) => setOnboardingCity(e.target.value)}
+                          placeholder="e.g. Ahmedabad"
+                          required
+                          list="onboard-city-list"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white text-xs font-semibold text-slate-800 outline-none transition-all"
+                        />
+                        <datalist id="onboard-city-list">
+                          {['Ahmedabad', 'Gandhinagar', 'Surat', 'Vadodara', 'Mumbai', 'Pune', 'Bengaluru', 'Delhi NCR', 'Chennai', 'Hyderabad'].map((c) => (
+                            <option key={c} value={c} />
+                          ))}
+                        </datalist>
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          value={onboardingState}
+                          onChange={(e) => setOnboardingState(e.target.value)}
+                          placeholder="e.g. Gujarat"
+                          required
+                          list="onboard-state-list"
+                          className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white text-xs font-semibold text-slate-800 outline-none transition-all"
+                        />
+                        <datalist id="onboard-state-list">
+                          {['Gujarat', 'Maharashtra', 'Karnataka', 'Delhi NCR', 'Tamil Nadu', 'Telangana', 'Rajasthan', 'Uttar Pradesh'].map((s) => (
+                            <option key={s} value={s} />
+                          ))}
+                        </datalist>
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Calibrates nearby athletic academies, sports shops, and regional leaderboards.
+                    </p>
+                  </div>
+
+                  {/* Athletic Age Category */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <Activity className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Athletic Age Division</span>
+                    </label>
+                    <div className="grid grid-cols-4 gap-1.5">
+                      {(['U-14', 'U-17', 'U-19', 'Open'] as const).map((cat) => (
+                        <button
+                          type="button"
+                          key={cat}
+                          onClick={() => setOnboardingAgeCategory(cat)}
+                          className={`py-2 px-2 text-center rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                            onboardingAgeCategory === cat
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-emerald-300'
+                          }`}
+                        >
+                          {cat}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Dietary Preference */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <Utensils className="w-3.5 h-3.5 text-amber-600" />
+                      <span>Dietary & Fueling Preference</span>
+                    </label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {['Vegetarian', 'Eggetarian', 'Non-Vegetarian', 'Vegan', 'Jain'].map((diet) => (
+                        <button
+                          type="button"
+                          key={diet}
+                          onClick={() => setOnboardingDietaryPreference(diet)}
+                          className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                            onboardingDietaryPreference === diet
+                              ? 'bg-amber-500 text-white border-amber-500 shadow-xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-amber-300'
+                          }`}
+                        >
+                          {diet}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Health Conditions / Physical Safety Filter */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <HeartPulse className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Health & Injury Conditions (Safety Filter)</span>
+                    </label>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {[
+                        { label: 'None', val: 'None' },
+                        { label: 'Knee Pain', val: 'Knee Injury / Pain' },
+                        { label: 'Lower Back', val: 'Lower Back Pain' },
+                        { label: 'Shoulder/Wrist', val: 'Shoulder / Wrist Issue' },
+                        { label: 'Ankle Issue', val: 'Ankle Instability' },
+                        { label: 'Asthma', val: 'Asthma / Respiratory' },
+                      ].map((item) => (
+                        <button
+                          type="button"
+                          key={item.val}
+                          onClick={() => setOnboardingHealthChip(item.val)}
+                          className={`py-1.5 px-3 rounded-xl text-xs font-semibold transition-all cursor-pointer border ${
+                            onboardingHealthChip === item.val
+                              ? 'bg-rose-500 text-white border-rose-500 shadow-xs'
+                              : 'bg-slate-50 text-slate-600 border-slate-200 hover:border-rose-300'
+                          }`}
+                        >
+                          {item.label}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="text"
+                      value={onboardingCustomHealth}
+                      onChange={(e) => setOnboardingCustomHealth(e.target.value)}
+                      placeholder="Optional: specific condition to avoid in drills (e.g. shin splints, tennis elbow)"
+                      className="w-full px-3.5 py-2 rounded-xl bg-slate-50 border border-slate-200 focus:border-rose-400 focus:bg-white text-xs font-medium text-slate-800 outline-none transition-all placeholder-slate-400"
+                    />
+                    <p className="text-[10px] text-slate-400 mt-1">
+                      Our AI will strictly exclude dangerous joint stresses and suggest protective drill modifications.
+                    </p>
+                  </div>
+
+                  {/* Preferred Language */}
+                  <div>
+                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
+                      <Globe className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>Preferred Language for Explanations</span>
+                    </label>
+                    <select
+                      value={onboardingLanguage}
+                      onChange={(e) => setOnboardingLanguage(e.target.value)}
+                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white text-xs font-semibold text-slate-800 outline-none transition-all cursor-pointer"
+                    >
+                      <option value="en">English (Primary)</option>
+                      <option value="hi">Hindi (हिंदी)</option>
+                      <option value="gu">Gujarati (ગુજરાતી)</option>
+                      <option value="mr">Marathi (मराठी)</option>
+                      <option value="ta">Tamil (தமிழ்)</option>
+                      <option value="te">Telugu (తెలుగు)</option>
+                      <option value="fr">French (Français)</option>
+                      <option value="es">Spanish (Español)</option>
+                      <option value="de">German (Deutsch)</option>
+                    </select>
+                  </div>
+
+                  {/* Submit CTA */}
+                  <motion.button
+                    type="submit"
+                    disabled={savingOnboarding}
+                    whileHover={{ scale: 1.02, y: -1 }}
+                    whileTap={{ scale: 0.97 }}
+                    transition={{ type: 'spring', stiffness: 450, damping: 18 }}
+                    className="w-full mt-3 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-indigo-600 hover:from-emerald-700 hover:to-indigo-700 text-white font-black text-sm shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 cursor-pointer transition-all disabled:opacity-50"
+                  >
+                    {savingOnboarding ? (
+                      <span>Calibrating Profile...</span>
+                    ) : (
+                      <>
+                        <span>🚀 Save Profile & Enter SKILL-TRACK</span>
+                        <ChevronRight className="w-4 h-4" />
+                      </>
+                    )}
+                  </motion.button>
                 </form>
               </motion.div>
             )}

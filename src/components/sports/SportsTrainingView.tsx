@@ -6,13 +6,16 @@ import { useRouter } from 'next/navigation';
 import { 
   Activity, Plus, Clock, CheckCircle2, ChevronRight, 
   RotateCcw, Sparkles, RefreshCw, Zap, Shield, Target,
-  Dumbbell, Flame, Check, BookOpen
+  Dumbbell, Flame, Check, BookOpen, Utensils, Droplet,
+  Heart, ArrowRight, Compass
 } from 'lucide-react';
 import { SportsStepTracker } from '@/components/workspace/SportsStepTracker';
 import { DrillCardWithTimer } from './DrillCardWithTimer';
+import { SportsStepConditioningSection } from './SportsStepConditioningSection';
 import { SocraticQuizModal } from '@/components/SocraticQuizModal';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { useLanguage } from '@/context/LanguageContext';
+import { useAuthStore } from '@/store/useAuthStore';
 import { usePackStatus } from '@/hooks/learning/usePackStatus';
 import { useEngagement } from '@/hooks/learning/useEngagement';
 import { StartStepCard } from '@/components/learning/StartStepCard';
@@ -44,9 +47,13 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
   const [loadingWorkspace, setLoadingWorkspace] = useState<boolean>(false);
   const [loadingDrills, setLoadingDrills] = useState<boolean>(false);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
+  const { user } = useAuthStore();
   const [showQuizModal, setShowQuizModal] = useState<boolean>(false);
   const [stepDrills, setStepDrills] = useState<StepDrillItem[]>([]);
   const [dayCompleteNotice, setDayCompleteNotice] = useState<string | null>(null);
+  const [nutritionPlan, setNutritionPlan] = useState<any | null>(null);
+  const [loadingNutrition, setLoadingNutrition] = useState<boolean>(false);
+  const [enrollInitialTitle, setEnrollInitialTitle] = useState<string>('');
 
   useEffect(() => {
     const storedId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
@@ -61,6 +68,36 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
       setSelectedSportId(sportsTracks[0].id);
     }
   }, [selectedSportId, sportsTracks]);
+
+  // Load tailored athletic nutrition plan whenever active sport or user dietary preference updates
+  useEffect(() => {
+    if (activeWorkspace) {
+      fetchNutritionPlan(activeWorkspace.title || 'Football');
+    }
+  }, [activeWorkspace?.title, user?.dietaryPreference, user?.healthConditions, user?.medicalConditions]);
+
+  async function fetchNutritionPlan(sportName: string) {
+    try {
+      setLoadingNutrition(true);
+      const res = await fetch('/api/sports/nutrition-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sportName,
+          dietaryPreference: user?.dietaryPreference || 'Vegetarian',
+          healthConditions: user?.healthConditions || user?.medicalConditions || 'None',
+          preferredLanguage: currentLanguage,
+        }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.nutritionPlan) setNutritionPlan(data.nutritionPlan);
+      }
+    } catch (_) {
+    } finally {
+      setLoadingNutrition(false);
+    }
+  }
 
   // Load drills automatically matching the ACTIVE sport and CURRENT step level
   useEffect(() => {
@@ -580,50 +617,20 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
         </div>
       )}
 
-      {/* MODULE 2 & 3: EMBEDDED STEP EXECUTION DRILLS WITH IN-CARD COUNTDOWN TIMERS */}
-      <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
-        <div className="flex items-center justify-between pb-4 border-b border-slate-100">
-          <div className="flex items-center gap-3">
-            <span className="p-2 rounded-xl bg-emerald-100 text-emerald-700">
-              <Activity className="w-5 h-5"/>
-            </span>
-            <div>
-              <h3 className="text-lg font-bold text-slate-900 tracking-tight">
-                Step {activeStepIndex + 1}: Practical Execution Drills
-              </h3>
-              <p className="text-xs text-slate-500">
-                Execute these physical biomechanical drills to build muscle memory before attempting the milestone gate.
-              </p>
-            </div>
-          </div>
-          <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 text-slate-700 border border-slate-200">
-            {completedDrillsCount} of {stepDrills.length} Drills Completed
-          </span>
-        </div>
-
-        {loadingDrills && (
-          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
-            <RefreshCw className="w-4 h-4 animate-spin text-emerald-600" />
-            <span>Calibrating step biomechanics drills for {activeWorkspace?.title || 'your sport'}...</span>
-          </div>
-        )}
-
-        {!loadingDrills && (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {stepDrills.map((drill, idx) => (
-              <DrillCardWithTimer
-                key={drill.id || idx}
-                drillNumber={idx + 1}
-                title={drill.title}
-                durationMinutes={drill.durationMinutes}
-                technicalFocusPoints={drill.technicalFocusPoints}
-                isCompleted={drill.isCompleted}
-                onDrillComplete={handleDrillComplete}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {/* MODULE 2 & 3: PER-STEP PHYSICAL CONDITIONING, DRILLS & YOGASANAS ENGINE */}
+      {activeWorkspace && activeStep && (
+        <SportsStepConditioningSection
+          sportName={activeWorkspace.title || 'Athletics'}
+          stepNumber={activeStepIndex + 1}
+          stepTitle={activeStep.title || `Milestone ${activeStepIndex + 1}`}
+          difficultyTier={activeStep.difficultyTier || 'Foundational'}
+          userHealthConditions={user?.healthConditions || user?.medicalConditions || 'None'}
+          preferredLanguage={currentLanguage}
+          onItemCompleted={(itemId, dayNum) => {
+            handleDrillComplete(itemId);
+          }}
+        />
+      )}
 
       {/* ENROLLED ATHLETIC ROADMAPS (SWITCH TRACKS QUICKLY) */}
       <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
@@ -724,6 +731,229 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
         )}
       </div>
 
+      {/* MODULE 3.1 SECTION 3: TAILORED DIETARY & HYDRATION SUGGESTIONS SECTION */}
+      <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-700 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded-md">
+                ATHLETIC NUTRITION & FUELING
+              </span>
+              <span className="text-xs font-semibold text-slate-400">
+                Calibrated for {activeWorkspace?.title || 'Athletics'}
+              </span>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mt-1">
+              Tailored Dietary & Hydration Protocol
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Precision fueling designed for your {user?.dietaryPreference || 'Vegetarian'} diet and {user?.healthConditions || 'active'} safety profile.
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-amber-50 border border-amber-200 text-xs font-bold text-amber-900 rounded-xl">
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>{user?.dietaryPreference || 'Vegetarian'}</span>
+            </span>
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-sky-50 border border-sky-200 text-xs font-bold text-sky-900 rounded-xl">
+              <Droplet className="w-3.5 h-3.5 text-sky-600" />
+              <span>{nutritionPlan?.hydrationTargetLiters ? `${nutritionPlan.hydrationTargetLiters}L/Day` : '2.5L–3.2L/Day'}</span>
+            </span>
+          </div>
+        </div>
+
+        {loadingNutrition && (
+          <div className="p-8 text-center bg-slate-50 rounded-2xl border border-slate-200 flex items-center justify-center gap-2 text-xs font-bold text-slate-500">
+            <RefreshCw className="w-4 h-4 animate-spin text-amber-600" />
+            <span>Formulating sports nutrition plan for {activeWorkspace?.title || 'your sport'}...</span>
+          </div>
+        )}
+
+        {!loadingNutrition && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Morning Ignition */}
+            <div className="p-4 rounded-2xl bg-amber-50/60 border border-amber-200/80 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-amber-900">
+                <span>🍳 Morning Ignition</span>
+                <span className="text-amber-700 font-mono">Breakfast</span>
+              </div>
+              <h5 className="text-xs font-bold text-slate-900">
+                {nutritionPlan?.morningIgnition?.title || 'Complex Carb & Protein Foundation'}
+              </h5>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {nutritionPlan?.morningIgnition?.description || 'Oatmeal with chia seeds, crushed almonds, plant protein, and fresh berries.'}
+              </p>
+              {nutritionPlan?.morningIgnition?.targetMacros && (
+                <div className="pt-2 border-t border-amber-200/60 text-[10px] font-mono font-bold text-amber-800">
+                  Target: {nutritionPlan.morningIgnition.targetMacros}
+                </div>
+              )}
+            </div>
+
+            {/* Pre-Training Fuel */}
+            <div className="p-4 rounded-2xl bg-sky-50/60 border border-sky-200/80 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-sky-900">
+                <span>⚡ Pre-Training Fuel</span>
+                <span className="text-sky-700 font-mono">60m Prior</span>
+              </div>
+              <h5 className="text-xs font-bold text-slate-900">
+                {nutritionPlan?.preTrainingFuel?.title || 'Fast Glycogen & Hydration Surge'}
+              </h5>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {nutritionPlan?.preTrainingFuel?.description || 'Banana with light almond butter and 350ml electrolyte water for muscle contraction.'}
+              </p>
+              {nutritionPlan?.preTrainingFuel?.timing && (
+                <div className="pt-2 border-t border-sky-200/60 text-[10px] font-mono font-bold text-sky-800">
+                  Window: {nutritionPlan.preTrainingFuel.timing}
+                </div>
+              )}
+            </div>
+
+            {/* Post-Training Recovery */}
+            <div className="p-4 rounded-2xl bg-emerald-50/60 border border-emerald-200/80 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                <span>🥗 Post-Training Recovery</span>
+                <span className="text-emerald-700 font-mono">Within 30m</span>
+              </div>
+              <h5 className="text-xs font-bold text-slate-900">
+                {nutritionPlan?.postTrainingRecovery?.title || 'Rapid Amino Acid Replenishment'}
+              </h5>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {nutritionPlan?.postTrainingRecovery?.description || 'Protein shake or Greek yogurt with honey and electrolytes to arrest muscle catabolism.'}
+              </p>
+              {nutritionPlan?.postTrainingRecovery?.keyNutrients && (
+                <div className="pt-2 border-t border-emerald-200/60 text-[10px] font-mono font-bold text-emerald-800">
+                  Nutrients: {nutritionPlan.postTrainingRecovery.keyNutrients}
+                </div>
+              )}
+            </div>
+
+            {/* Restorative Dinner */}
+            <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200/80 space-y-2">
+              <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-wider text-indigo-900">
+                <span>🌙 Restorative Dinner</span>
+                <span className="text-indigo-700 font-mono">Evening Repair</span>
+              </div>
+              <h5 className="text-xs font-bold text-slate-900">
+                {nutritionPlan?.restorativeDinner?.title || 'Slow-Release Protein & Micronutrients'}
+              </h5>
+              <p className="text-xs text-slate-600 leading-relaxed">
+                {nutritionPlan?.restorativeDinner?.description || 'Paneer/Tofu with quinoa, steamed broccoli, turmeric, and dark leafy greens.'}
+              </p>
+              {nutritionPlan?.restorativeDinner?.repairBenefit && (
+                <div className="pt-2 border-t border-indigo-200/60 text-[10px] font-mono font-bold text-indigo-800">
+                  Benefit: {nutritionPlan.restorativeDinner.repairBenefit}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* MODULE 3.1 SECTION 2: SMART SUGGESTIONS: "WHAT SPORT YOU SHOULD LEARN NEXT" */}
+      <div className="p-6 md:p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-black uppercase tracking-wider text-emerald-700 bg-emerald-50 border border-emerald-200/60 px-2 py-0.5 rounded-md">
+                AI SPORT CALIBRATION
+              </span>
+              <span className="text-xs font-semibold text-slate-400">
+                Personalized for {user?.ageCategory || 'Open'} • {user?.healthConditions || 'Safe Kinetics'}
+              </span>
+            </div>
+            <h3 className="text-xl font-black text-slate-900 mt-1">
+              What Sport You Should Learn Next
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Curated athletic trajectories matching your kinetic baseline and joint protection requirements.
+            </p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          {[
+            {
+              domain: 'Racket & Combat Sports',
+              title: 'Badminton — Agility & Overhead Smash Mastery',
+              badgeColor: 'bg-sky-50 text-sky-700 border-sky-200',
+              rationale: 'Ultra-fast lateral reaction and wrist flick mechanics without heavy spinal compression.',
+              intensity: 'Medium',
+            },
+            {
+              domain: 'Track, Field & Swimming',
+              title: 'Swimming — Freestyle Biomechanics & Breath Control',
+              badgeColor: 'bg-teal-50 text-teal-700 border-teal-200',
+              rationale: 'Zero ground-impact conditioning. Expands lung VO2 max while bulletproofing shoulder rotators.',
+              intensity: 'Low Impact',
+            },
+            {
+              domain: 'Team Ball Sports',
+              title: 'Football — Ball Mastery & Agility Feints',
+              badgeColor: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+              rationale: 'Develops bilateral foot dexterity, peripheral vision, and explosive low-center acceleration.',
+              intensity: 'High',
+            },
+            {
+              domain: 'Strength, Calisthenics & Gymnastics',
+              title: 'Calisthenics & Gymnastic Ring Lever Strength',
+              badgeColor: 'bg-indigo-50 text-indigo-700 border-indigo-200',
+              rationale: 'Master your own bodyweight with progressive straight-arm isometric levers and joint health.',
+              intensity: 'Medium',
+            },
+            {
+              domain: 'Team Ball Sports',
+              title: 'Cricket — Fast Bowling Action & Seam Mechanics',
+              badgeColor: 'bg-amber-50 text-amber-700 border-amber-200',
+              rationale: 'Kinetic chain sequencing from run-up gather to explosive wrist snap and follow-through.',
+              intensity: 'High',
+            },
+            {
+              domain: 'Mind-Body, Yoga & Mobility',
+              title: 'Athletic Vinyasa Yoga & Joint Decompression',
+              badgeColor: 'bg-purple-50 text-purple-700 border-purple-200',
+              rationale: 'Restores fascia elasticity, corrects hip asymmetry, and accelerates recovery between sport sessions.',
+              intensity: 'Low Impact',
+            },
+          ].map((sport, sIdx) => (
+            <motion.div
+              key={sIdx}
+              whileHover={{ y: -4, scale: 1.01 }}
+              className="p-5 rounded-2xl border border-slate-200 hover:border-emerald-400 bg-white hover:shadow-md transition-all flex flex-col justify-between space-y-4 group"
+            >
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md border ${sport.badgeColor}`}>
+                    {sport.domain}
+                  </span>
+                  <span className="text-[10px] font-bold text-slate-400 bg-slate-100 px-2 py-0.5 rounded-full font-mono">
+                    {sport.intensity}
+                  </span>
+                </div>
+                <h4 className="text-sm font-bold text-slate-900 group-hover:text-emerald-700 transition-colors">
+                  {sport.title}
+                </h4>
+                <p className="text-xs text-slate-500 mt-1.5 leading-relaxed">
+                  {sport.rationale}
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setEnrollInitialTitle(sport.title);
+                  setShowEnrollModal(true);
+                }}
+                className="w-full py-2 px-3.5 rounded-xl bg-slate-900 hover:bg-emerald-600 text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all shadow-xs cursor-pointer group-hover:shadow-md"
+              >
+                <span>Enroll Now</span>
+                <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+              </button>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+
       {/* SOCRATIC QUIZ MODAL: STRICTLY RESERVED FOR MILESTONE GATES */}
       <SocraticQuizModal
         isOpen={showQuizModal}
@@ -738,10 +968,15 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
       {/* ENROLL MODAL */}
       <EnrollSkillModal
         isOpen={showEnrollModal}
-        onClose={() => setShowEnrollModal(false)}
+        onClose={() => {
+          setShowEnrollModal(false);
+          setEnrollInitialTitle('');
+        }}
+        initialTitle={enrollInitialTitle}
         restrictToDomain="Athletics"
         onEnroll={(newTrack) => {
           setShowEnrollModal(false);
+          setEnrollInitialTitle('');
           if (newTrack?.id) {
             setSelectedSportId(newTrack.id);
             loadSportsData(activeProfileId || 'default-profile');
