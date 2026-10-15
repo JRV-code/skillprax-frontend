@@ -892,7 +892,7 @@ export default function ProfileHubPage() {
                           </button>
 
                           <button
-                            onClick={() => router.push(`/skills?id=${skill.id}`)}
+                            onClick={() => router.push(`/workspace/${skill.id}`)}
                             className="px-4 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                           >
                             <span>Resume Studio ➔</span>
@@ -999,7 +999,7 @@ export default function ProfileHubPage() {
                           </button>
 
                           <button
-                            onClick={() => router.push(`/sports?id=${sport.id}`)}
+                            onClick={() => router.push(`/sports/workspace/${sport.id}`)}
                             className="px-4 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-xs transition-all cursor-pointer"
                           >
                             <span>Resume Training ➔</span>
@@ -1071,7 +1071,7 @@ export default function ProfileHubPage() {
                           100% Cleared
                         </span>
                         <button
-                          onClick={() => router.push(item.isPhysical ? `/sports?id=${item.id}` : `/skills?id=${item.id}`)}
+                          onClick={() => router.push(item.isPhysical ? `/sports/workspace/${item.id}` : `/workspace/${item.id}`)}
                           className="text-xs font-bold text-slate-800 hover:text-sky-600 flex items-center gap-1 cursor-pointer"
                         >
                           <span>Review ➔</span>

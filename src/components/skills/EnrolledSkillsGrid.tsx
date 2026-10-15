@@ -89,7 +89,7 @@ export function EnrolledSkillsGrid({
           </div>
 
           <Link
-            href={`/workspace?skillId=${skill.id}`}
+            href={`/workspace/${skill.id}`}
             className="mt-6 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-xs"
           >
             <span>Launch Step Studio</span>

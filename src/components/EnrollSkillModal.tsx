@@ -6,11 +6,9 @@ import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   X, Sparkles, Zap, Target, Layers, Check, 
-  Atom, Activity, Palette, Home, Brain, Tag, Compass, Clock, Award, AlertCircle,
-  HeartPulse, Utensils
+  Atom, Activity, Palette, Home, Brain, Tag, Compass, Clock, Award, AlertCircle 
 } from 'lucide-react';
 import { SkillTrack, DomainCategory } from '@/types';
-import { useAuthStore } from '@/store/useAuthStore';
 
 export interface EnrollSkillModalProps {
   isOpen: boolean;
@@ -116,26 +114,6 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
   const [dailyHours, setDailyHours] = useState<number>(1);
   const [dailyMinutes, setDailyMinutes] = useState<number>(30);
   const [experienceLevel, setExperienceLevel] = useState<string>('Some Foundational Knowledge');
-
-  const { user } = useAuthStore();
-  const [medicalConditionChip, setMedicalConditionChip] = useState<string>('None');
-  const [customMedicalCondition, setCustomMedicalCondition] = useState<string>('');
-  const [dietaryPreference, setDietaryPreference] = useState<string>('Vegetarian');
-
-  useEffect(() => {
-    if (user?.healthConditions) {
-      const knownChips = ['None', 'Knee Pain/Injury', 'Lower Back Pain', 'Shoulder/Wrist Injury', 'Ankle Instability', 'Asthma/Breathing'];
-      if (knownChips.includes(user.healthConditions)) {
-        setMedicalConditionChip(user.healthConditions);
-      } else {
-        setMedicalConditionChip('Custom');
-        setCustomMedicalCondition(user.healthConditions);
-      }
-    }
-    if (user?.dietaryPreference) {
-      setDietaryPreference(user.dietaryPreference);
-    }
-  }, [user, isOpen]);
 
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [validationError, setValidationError] = useState<string | null>(null);
@@ -244,11 +222,8 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
     try {
       const activeProfileId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
       const totalDailyMinutes = dailyHours * 60 + dailyMinutes;
-      const finalHealthConditions = medicalConditionChip === 'Custom' || customMedicalCondition.trim()
-        ? (customMedicalCondition.trim() || medicalConditionChip)
-        : medicalConditionChip;
 
-      // Submit sends all values including healthConditions and dietaryPreference
+      // Submit sends ALL six values
       const res = await fetch('/api/workspaces', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -267,9 +242,6 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
           currentExperience: experienceLevel,
           level: masteryLevel.toLowerCase(),
           section: selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics' ? 'SPORTS' : 'SKILLS',
-          healthConditions: finalHealthConditions,
-          medicalConditions: finalHealthConditions,
-          dietaryPreference,
         }),
       });
 
@@ -286,7 +258,11 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
       }
 
       onClose();
-      router.push(`/workspace/${workspaceId}`);
+      if (selectedDomainId === 'Athletics' || restrictToDomain === 'Athletics') {
+        router.push(`/sports/workspace/${workspaceId}`);
+      } else {
+        router.push(`/workspace/${workspaceId}`);
+      }
     } catch (err: any) {
       console.error(err);
       setValidationError(err.message || 'Roadmap generation failed. Please try again.');
@@ -549,103 +525,6 @@ export const EnrollSkillModal: React.FC<EnrollSkillModalProps> = ({
                     </option>
                   ))}
                 </select>
-              </div>
-            </div>
-
-            {/* Step 7: Medical & Health Conditions (Strict Safety Filter) */}
-            <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <HeartPulse className="w-4 h-4 text-emerald-600" />
-                  <span>Medical / Injury Conditions (Safety Filter)</span>
-                </label>
-                <span className="text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200/50">
-                  Adaptive Safety
-                </span>
-              </div>
-              <p className="text-[11px] text-slate-500">
-                Exercises, physical drills, and yogasan postures will automatically exclude movements that stress this area.
-              </p>
-
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  'None',
-                  'Knee Pain/Injury',
-                  'Lower Back Pain',
-                  'Shoulder/Wrist Injury',
-                  'Ankle Instability',
-                  'Asthma/Breathing',
-                ].map((chip) => {
-                  const isActive = medicalConditionChip === chip;
-                  return (
-                    <button
-                      type="button"
-                      key={chip}
-                      onClick={() => {
-                        setMedicalConditionChip(chip);
-                        if (chip === 'None') setCustomMedicalCondition('');
-                      }}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-emerald-600 text-white shadow-xs'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:border-emerald-300'
-                      }`}
-                    >
-                      {chip}
-                    </button>
-                  );
-                })}
-              </div>
-
-              <input
-                type="text"
-                value={customMedicalCondition}
-                onChange={(e) => {
-                  setCustomMedicalCondition(e.target.value);
-                  if (e.target.value.trim()) setMedicalConditionChip('Custom');
-                }}
-                placeholder="Or specify any other condition (e.g., Tennis Elbow, Sciatica, Neck Stiffness)..."
-                className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs font-medium text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-              />
-            </div>
-
-            {/* Step 8: Dietary Preference (Athletic Nutrition Calibration) */}
-            <div className="space-y-2.5 p-4 rounded-2xl bg-slate-50/80 border border-slate-200/80">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-heading font-extrabold uppercase tracking-wider text-slate-700 flex items-center gap-1.5">
-                  <Utensils className="w-4 h-4 text-amber-600" />
-                  <span>Dietary Preference (Nutritional Calibration)</span>
-                </label>
-                <span className="text-[10px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
-                  Pre & Post Fuel
-                </span>
-              </div>
-
-              <div className="flex flex-wrap gap-1.5">
-                {[
-                  'Vegetarian',
-                  'Eggetarian',
-                  'Non-Vegetarian',
-                  'Vegan',
-                  'Jain',
-                  'High-Protein',
-                ].map((diet) => {
-                  const isActive = dietaryPreference === diet;
-                  return (
-                    <button
-                      type="button"
-                      key={diet}
-                      onClick={() => setDietaryPreference(diet)}
-                      className={`px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer ${
-                        isActive
-                          ? 'bg-amber-600 text-white shadow-xs'
-                          : 'bg-white border border-slate-200 text-slate-700 hover:border-amber-300'
-                      }`}
-                    >
-                      {diet}
-                    </button>
-                  );
-                })}
               </div>
             </div>
 

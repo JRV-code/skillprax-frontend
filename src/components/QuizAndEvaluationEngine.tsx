@@ -272,6 +272,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(12000),
       });
 
       if (!res.ok) {
