@@ -17,12 +17,14 @@ interface EnrolledSkillsGridProps {
   skills: EnrolledSkill[];
   isLoading: boolean;
   onEnrollClick: () => void;
+  onViewCertificate?: (skill: EnrolledSkill) => void;
 }
 
 export function EnrolledSkillsGrid({
   skills,
   isLoading,
   onEnrollClick,
+  onViewCertificate,
 }: EnrolledSkillsGridProps) {
   if (isLoading) {
     return (
@@ -88,13 +90,31 @@ export function EnrolledSkillsGrid({
             </div>
           </div>
 
-          <Link
-            href={`/workspace/${skill.id}`}
-            className="mt-6 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-xs"
-          >
-            <span>Launch Step Studio</span>
-            <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-          </Link>
+          {skill.current_step > skill.total_steps ? (
+            <div className="mt-6 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => onViewCertificate?.(skill)}
+                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 transition-all shadow-xs cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+              >
+                <span>🎓 View Certificate</span>
+              </button>
+              <Link
+                href={`/workspace/${skill.id}`}
+                className="py-2.5 px-3.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1 shadow-xs"
+              >
+                <span>Review</span>
+              </Link>
+            </div>
+          ) : (
+            <Link
+              href={`/workspace/${skill.id}`}
+              className="mt-6 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#0284C7] hover:bg-sky-700 transition-all shadow-xs"
+            >
+              <span>Launch Step Studio</span>
+              <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+            </Link>
+          )}
         </div>
       ))}
     </div>

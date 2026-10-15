@@ -6,12 +6,17 @@ import { Navbar } from '@/components/common/Navbar';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { EnrolledSkillsGrid, EnrolledSkill } from '@/components/skills/EnrolledSkillsGrid';
 import { SkillSuggestionsSection, SkillSuggestion, DEFAULT_SUGGESTIONS } from '@/components/skills/SkillSuggestionsSection';
+import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
+import { useAuthStore } from '@/store/useAuthStore';
 
 export default function SkillsPage() {
+  const { user } = useAuthStore();
   const [enrolledSkills, setEnrolledSkills] = useState<EnrolledSkill[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isEnrollModalOpen, setIsEnrollModalOpen] = useState<boolean>(false);
   const [selectedSuggestionTitle, setSelectedSuggestionTitle] = useState<string>('');
+  const [selectedCert, setSelectedCert] = useState<{ skillName: string; userName: string } | null>(null);
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
 
   const fetchUserSkills = async () => {
     try {
@@ -154,6 +159,13 @@ export default function SkillsPage() {
             skills={enrolledSkills}
             isLoading={isLoading}
             onEnrollClick={() => handleOpenEnrollModal()}
+            onViewCertificate={(skill) => {
+              setSelectedCert({
+                skillName: skill.skill_name,
+                userName: user?.name || 'Skill-Track Scholar',
+              });
+              setShowCertModal(true);
+            }}
           />
         </section>
 
@@ -177,6 +189,20 @@ export default function SkillsPage() {
           fetchUserSkills();
         }}
       />
+
+      {/* Official Skill-Track Calligraphy Certificate Modal */}
+      {selectedCert && (
+        <SkillTrackCertificateModal
+          isOpen={showCertModal}
+          onClose={() => {
+            setShowCertModal(false);
+            setSelectedCert(null);
+          }}
+          userName={selectedCert.userName}
+          skillName={selectedCert.skillName}
+          isPhysical={false}
+        />
+      )}
     </div>
   );
 }

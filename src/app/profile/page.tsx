@@ -21,6 +21,7 @@ import { GiveUpSkillFrictionModal } from '@/components/learning/GiveUpSkillFrict
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
 import { useAuthStore } from '@/store/useAuthStore';
+import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
 
 const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 1000 }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -101,6 +102,12 @@ export default function ProfileHubPage() {
     initialSubGenre?: string;
   }>({});
   const [showEditProfileModal, setShowEditProfileModal] = useState(false);
+  const [selectedCert, setSelectedCert] = useState<{
+    skillName: string;
+    userName: string;
+    isPhysical?: boolean;
+  } | null>(null);
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
 
   // Editable Smart Calibration Form State
   const [calibrationForm, setCalibrationForm] = useState({
@@ -1070,12 +1077,28 @@ export default function ProfileHubPage() {
                         <span className="text-[10px] font-bold text-amber-800 bg-amber-100/70 px-2 py-0.5 rounded-md">
                           100% Cleared
                         </span>
-                        <button
-                          onClick={() => router.push(item.isPhysical ? `/sports/workspace/${item.id}` : `/workspace/${item.id}`)}
-                          className="text-xs font-bold text-slate-800 hover:text-sky-600 flex items-center gap-1 cursor-pointer"
-                        >
-                          <span>Review ➔</span>
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setSelectedCert({
+                                skillName: item.title || item.skillName,
+                                userName: profileData?.name || authUser?.name || 'Skill-Track Scholar',
+                                isPhysical: item.isPhysical,
+                              });
+                              setShowCertModal(true);
+                            }}
+                            className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-[11px] font-bold shadow-xs hover:shadow transition-all flex items-center gap-1 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                          >
+                            <span>🎓 View Certificate</span>
+                          </button>
+                          <button
+                            onClick={() => router.push(item.isPhysical ? `/sports/workspace/${item.id}` : `/workspace/${item.id}`)}
+                            className="text-xs font-bold text-slate-800 hover:text-sky-600 flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>Review ➔</span>
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -1716,6 +1739,20 @@ export default function ProfileHubPage() {
             setGiveUpTarget(null);
             loadProfileHubData(activeProfileId);
           }}
+        />
+      )}
+
+      {/* OFFICIAL SKILL-TRACK CALLIGRAPHY CERTIFICATE MODAL */}
+      {selectedCert && (
+        <SkillTrackCertificateModal
+          isOpen={showCertModal}
+          onClose={() => {
+            setShowCertModal(false);
+            setSelectedCert(null);
+          }}
+          userName={selectedCert.userName}
+          skillName={selectedCert.skillName}
+          isPhysical={selectedCert.isPhysical}
         />
       )}
     </div>

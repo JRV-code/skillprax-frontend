@@ -34,6 +34,8 @@ import { ChapterAccordion } from '@/components/learning/ChapterAccordion';
 import { VideoRow } from '@/components/learning/VideoRow';
 import { PersistentPlayerHost } from '@/components/learning/video/PersistentPlayerHost';
 import { SportsDailyTrainingSection, StepTrainingPlan } from './SportsDailyTrainingSection';
+import { useAuthStore } from '@/store/useAuthStore';
+import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
 
 interface SportsWorkspaceStudioPageProps {
   rawWorkspace: any;
@@ -51,6 +53,9 @@ export function SportsWorkspaceStudioPage({
   // Active Tab: 'roadmap' | 'training' | 'resources' | 'evaluation'
   const [activeTab, setActiveTab] = useState<'roadmap' | 'training' | 'evaluation'>('training');
   const [showGiveUpModal, setShowGiveUpModal] = useState<boolean>(false);
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
+
+  const { user: authUser } = useAuthStore();
 
   // Steps
   const dbSteps = useMemo(() => {
@@ -226,11 +231,22 @@ export function SportsWorkspaceStudioPage({
     }
   };
 
+  const isFullyCompleted = useMemo(() => {
+    return (passedStepsCount >= totalPlannedSteps && totalPlannedSteps > 0) || progressPercent >= 100;
+  }, [passedStepsCount, totalPlannedSteps, progressPercent]);
+
+  const recipientName = authUser?.name || rawWorkspace?.userProfile?.name || 'Skill-Track Athlete';
+
   const handleStepPassed = (score: number) => {
     if (onPassEvaluation) onPassEvaluation();
     confetti({ particleCount: 120, spread: 70, origin: { y: 0.5 } });
     if (viewingStepIndex < totalPlannedSteps) {
       setViewingStepIndex(viewingStepIndex + 1);
+    } else {
+      // Automatic trigger upon passing the final step of the sport roadmap
+      setTimeout(() => {
+        setShowCertModal(true);
+      }, 1200);
     }
   };
 
@@ -258,6 +274,17 @@ export function SportsWorkspaceStudioPage({
         </div>
 
         <div className="flex items-center gap-3">
+          {isFullyCompleted && (
+            <button
+              type="button"
+              onClick={() => setShowCertModal(true)}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white text-xs font-black shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-100" />
+              <span>🎓 Generate & Download Official Certificate</span>
+            </button>
+          )}
+
           <button
             type="button"
             onClick={() => setShowGiveUpModal(true)}
@@ -623,6 +650,15 @@ export function SportsWorkspaceStudioPage({
           setShowGiveUpModal(false);
           router.push('/sports');
         }}
+      />
+
+      {/* Official Skill-Track Calligraphy Certificate Modal */}
+      <SkillTrackCertificateModal
+        isOpen={showCertModal}
+        onClose={() => setShowCertModal(false)}
+        userName={recipientName}
+        skillName={sportName}
+        isPhysical={true}
       />
 
       {/* Persistent Video Player Host */}

@@ -21,6 +21,8 @@ import { StepFlowchartStepper, StepNode } from '@/components/workspace/StepFlowc
 import { PersistentPlayerHost } from '@/components/learning/video/PersistentPlayerHost';
 import { usePackStatus } from '@/hooks/learning/usePackStatus';
 import { useEngagement } from '@/hooks/learning/useEngagement';
+import { useAuthStore } from '@/store/useAuthStore';
+import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
 import { StartStepCard } from '@/components/learning/StartStepCard';
 import { PackBuildingScreen } from '@/components/learning/PackBuildingScreen';
 import { StepIntroCard } from '@/components/learning/StepIntroCard';
@@ -268,6 +270,8 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     ];
   }, [viewingStepObj]);
 
+  const { user: authUser } = useAuthStore();
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
   const [checkedACUs, setCheckedACUs] = useState<Record<string, boolean>>({});
   const [isSynthesizing, setIsSynthesizing] = useState<boolean>(false);
   const [energyBeamFired, setEnergyBeamFired] = useState<boolean>(false);
@@ -278,6 +282,12 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
     nextStepIndex: number | null;
     onRetryPerfection?: () => void;
   } | null>(null);
+
+  const isWorkspaceFullyCompleted = useMemo(() => {
+    const totalCount = nodes.length || dbSteps.length || 5;
+    const passedCount = dbSteps.filter((s: any) => s.status === 'PASSED').length;
+    return passedCount >= totalCount || activeStepIndex > totalCount;
+  }, [nodes, dbSteps, activeStepIndex]);
 
   // In-App Modal States
   const [activeYouTubeModal, setActiveYouTubeModal] = useState<{
@@ -436,6 +446,10 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
 
     setEnergyBeamFired(true);
     setTimeout(() => setEnergyBeamFired(false), 2500);
+
+    if (isFinal) {
+      setTimeout(() => setShowCertModal(true), 1200);
+    }
 
     onPassEvaluation();
   };
@@ -1078,6 +1092,17 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               />
             </div>
           </div>
+
+          {isWorkspaceFullyCompleted && (
+            <button
+              type="button"
+              onClick={() => setShowCertModal(true)}
+              className="px-3.5 py-1.5 rounded-xl text-xs font-black text-amber-900 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 hover:from-amber-500 hover:to-amber-300 border border-amber-300 shadow-md shadow-amber-500/20 transition-all flex items-center gap-1.5 cursor-pointer hover:scale-[1.03] active:scale-[0.98]"
+            >
+              <Award className="w-3.5 h-3.5 text-amber-900" />
+              <span>🎓 Generate & Download Official Certificate</span>
+            </button>
+          )}
 
           <button
             onClick={() => setShowEngineModal(true)}
@@ -1730,16 +1755,26 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
               {/* Action Buttons */}
               <div className="space-y-3">
                 {levelUpData.isFinalStep ? (
-                  <button
-                    onClick={() => {
-                      setLevelUpData(null);
-                      onNavigate('profile');
-                    }}
-                    className="w-full py-3.5 px-6 rounded-2xl text-sm font-bold text-white bg-gradient-to-r from-emerald-500 to-[#0284C7] hover:from-emerald-600 hover:to-sky-600 shadow-lg shadow-emerald-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
-                  >
-                    <span>Return to Profile Hub</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  <div className="space-y-2.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowCertModal(true)}
+                      className="w-full py-3.5 px-6 rounded-2xl text-xs sm:text-sm font-black text-amber-950 bg-gradient-to-r from-amber-400 via-amber-300 to-amber-400 hover:from-amber-500 hover:to-amber-300 border border-amber-300 shadow-lg shadow-amber-500/25 hover:shadow-xl hover:scale-[1.01] active:scale-[0.99] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <Award className="w-4 h-4 text-amber-900" />
+                      <span>🎓 Generate & Download Official Certificate</span>
+                    </button>
+                    <button
+                      onClick={() => {
+                        setLevelUpData(null);
+                        onNavigate('profile');
+                      }}
+                      className="w-full py-2.5 px-6 rounded-2xl text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <span>Return to Profile Hub</span>
+                      <ArrowRight className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 ) : (
                   <button
                     onClick={handleAdvanceToNextMilestone}
@@ -1826,6 +1861,16 @@ export const WorkspaceStudioPage: React.FC<WorkspaceStudioPageProps> = ({
           } catch (_) {}
           onNavigate('profile');
         }}
+      />
+
+      {/* Official Skill-Track Calligraphy Certificate Modal */}
+      <SkillTrackCertificateModal
+        isOpen={showCertModal}
+        onClose={() => setShowCertModal(false)}
+        userName={authUser?.name || rawWorkspace?.userProfile?.name || (currentTrack as any)?.userName || 'Skill-Track Scholar'}
+        skillName={currentTrack.title || rawWorkspace?.title || 'Cognitive Mastery'}
+        completionDate={new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+        isPhysical={false}
       />
     </motion.div>
   );

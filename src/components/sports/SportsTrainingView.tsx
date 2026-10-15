@@ -22,6 +22,7 @@ import {
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
 import { useAuthStore } from '@/store/useAuthStore';
 import { useLanguage } from '@/context/LanguageContext';
+import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
 
 export interface SportsTrainingViewProps {
   ageCategory?: string;
@@ -46,6 +47,8 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
   const [loadingTracks, setLoadingTracks] = useState<boolean>(true);
   const [showEnrollModal, setShowEnrollModal] = useState<boolean>(false);
   const [enrollInitialTitle, setEnrollInitialTitle] = useState<string>('');
+  const [selectedCert, setSelectedCert] = useState<{ skillName: string; userName: string } | null>(null);
+  const [showCertModal, setShowCertModal] = useState<boolean>(false);
 
   // Tailored Nutrition State
   const [nutritionPlan, setNutritionPlan] = useState<any | null>(null);
@@ -292,14 +295,39 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
                     </div>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => router.push(`/sports/workspace/${sport.id}`)}
-                    className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-xs group-hover:bg-emerald-600 cursor-pointer"
-                  >
-                    <span>Launch Training Studio →</span>
-                    <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
-                  </button>
+                  {progress >= 100 || passedCount >= totalSteps ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setSelectedCert({
+                            skillName: sport.title || sport.skillName,
+                            userName: user?.name || 'Skill-Track Athlete',
+                          });
+                          setShowCertModal(true);
+                        }}
+                        className="flex-1 py-3 px-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
+                      >
+                        <span>🎓 View Certificate</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => router.push(`/sports/workspace/${sport.id}`)}
+                        className="py-3 px-3.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-all flex items-center justify-center gap-1 cursor-pointer"
+                      >
+                        <span>Studio →</span>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => router.push(`/sports/workspace/${sport.id}`)}
+                      className="w-full py-3 px-4 rounded-xl text-xs font-bold text-white bg-slate-900 hover:bg-emerald-600 transition-all flex items-center justify-center gap-2 shadow-xs group-hover:bg-emerald-600 cursor-pointer"
+                    >
+                      <span>Launch Training Studio →</span>
+                      <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                    </button>
+                  )}
                 </div>
               );
             })}
@@ -448,6 +476,20 @@ export function SportsTrainingView({ ageCategory = 'U17' }: SportsTrainingViewPr
           fetchEnrolledSports();
         }}
       />
+
+      {/* Official Skill-Track Calligraphy Certificate Modal */}
+      {selectedCert && (
+        <SkillTrackCertificateModal
+          isOpen={showCertModal}
+          onClose={() => {
+            setShowCertModal(false);
+            setSelectedCert(null);
+          }}
+          userName={selectedCert.userName}
+          skillName={selectedCert.skillName}
+          isPhysical={true}
+        />
+      )}
     </div>
   );
 }
