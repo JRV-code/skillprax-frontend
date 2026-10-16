@@ -37,6 +37,8 @@ export interface Question {
   prompt: string;
   topicKey?: string;
   topicTitle?: string;
+  sourceTopic?: string;
+  sourceResourceTitle?: string;
   options: Option[];
   acuId?: string;
   chapterKey?: string;
@@ -51,6 +53,8 @@ export interface WrongQuestion {
   mistakeExplanation: string;
   topicKey?: string;
   topicTitle?: string;
+  sourceTopic?: string;
+  sourceResourceTitle?: string;
 }
 
 export interface RemediationResource {
@@ -522,11 +526,17 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                     {idx + 1}
                   </span>
                   <div className="flex-1 space-y-1">
-                    {q.topicTitle && (
-                      <span className="text-[10px] font-heading font-extrabold uppercase tracking-wider text-sky-700 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 inline-block">
-                        {q.topicTitle}
+                    <div className="flex flex-wrap items-center gap-1.5 mb-1">
+                      <span className="text-[10px] font-heading font-extrabold uppercase tracking-wider text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 inline-flex items-center gap-1">
+                        <span>📚</span>
+                        <span>From Step {stepIndex + 1} Topic: {q.sourceTopic || q.topicTitle || 'Core Focus'}</span>
                       </span>
-                    )}
+                      {q.sourceResourceTitle && (
+                        <span className="text-[10px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 max-w-[280px] truncate" title={q.sourceResourceTitle}>
+                          📖 {q.sourceResourceTitle}
+                        </span>
+                      )}
+                    </div>
                     <h4 className="text-sm sm:text-base font-heading font-bold text-slate-900 leading-snug">
                       {q.question}
                     </h4>
@@ -665,13 +675,16 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                   key={wq.questionId || idx}
                   className="p-5 bg-white rounded-2xl border border-slate-200/90 shadow-xs space-y-3"
                 >
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-heading font-bold text-slate-400">
                       Question {idx + 1}
                     </span>
-                    {wq.topicTitle && (
-                      <span className="text-[10px] font-heading font-bold text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200">
-                        {wq.topicTitle}
+                    <span className="text-[10px] font-heading font-bold text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200">
+                      📚 {wq.sourceTopic || wq.topicTitle || 'Step Knowledge'}
+                    </span>
+                    {wq.sourceResourceTitle && (
+                      <span className="text-[10px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 truncate max-w-[260px]" title={wq.sourceResourceTitle}>
+                        📖 {wq.sourceResourceTitle}
                       </span>
                     )}
                   </div>
