@@ -189,19 +189,35 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
   const [completedRemediations, setCompletedRemediations] = useState<Record<string, boolean>>({});
 
   const [quizMode, setQuizMode] = useState<'initial' | 'retest' | 'perfection'>('initial');
+  const [attemptCount, setAttemptCount] = useState<number>(1);
 
-  // Fetch or generate quiz
+  // Fetch or generate quiz (35s timeout + 1-time silent retry)
   const handleFetchQuiz = useCallback(
-    async (mode: 'initial' | 'retest' | 'perfection' = 'initial') => {
+    async (mode: 'initial' | 'retest' | 'perfection' = 'initial', isRetry = false) => {
       setQuizMode(mode);
       setEngineState('LOADING');
       setFetchError(null);
       try {
-        const res = await fetch(`/api/steps/${stepId}/level-up-quiz?mode=${mode}`, {
+        const isRetestMode = mode === 'retest' || mode === 'perfection';
+        const queryParams = new URLSearchParams({
+          mode,
+          retest: isRetestMode ? 'true' : 'false',
+          forceNew: isRetestMode ? 'true' : 'false',
+          attempt: String(attemptCount),
+          t: String(Date.now()),
+        });
+
+        const res = await fetch(`/api/steps/${stepId}/level-up-quiz?${queryParams.toString()}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ mode }),
-          signal: AbortSignal.timeout(15000),
+          body: JSON.stringify({
+            mode,
+            retest: isRetestMode,
+            perfection: mode === 'perfection',
+            forceNew: isRetestMode,
+            attempt: attemptCount,
+          }),
+          signal: AbortSignal.timeout(35000),
         });
 
         if (!res.ok) {
@@ -222,6 +238,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
 
         if (rawQuestions.length === 0) {
           throw new Error('No evaluation questions available for this milestone yet.');
+        }
+
+        if (typeof data.attemptNumber === 'number') {
+          setAttemptCount(data.attemptNumber);
         }
 
         const formattedQuestions: Question[] = rawQuestions.map((q: any, qIdx: number) => {
@@ -245,6 +265,8 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
             prompt: stemStr,
             topicKey: SafeString(q.topicKey, `t${qIdx + 1}`),
             topicTitle: SafeString(q.topicTitle, `Topic ${qIdx + 1}`),
+            sourceTopic: SafeString(q.sourceTopic || q.topicTitle, `Topic ${qIdx + 1}`),
+            sourceResourceTitle: q.sourceResourceTitle ? SafeString(q.sourceResourceTitle, '') : undefined,
             options: formattedOptions,
             acuId: q.acuId ? String(q.acuId) : undefined,
             chapterKey: q.chapterKey ? String(q.chapterKey) : undefined,
@@ -256,12 +278,19 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         setEngineState('ACTIVE');
         if (onRemediationStateChange) onRemediationStateChange(false);
       } catch (err: any) {
-        console.error('[Quiz Engine] Load error:', err);
+        console.warn('[Quiz Engine] Load attempt error:', err?.message || err);
+        // 1-Time Silent Retry for timeout or network glitch
+        if (!isRetry) {
+          console.log('[Quiz Engine] Initiating 1-time silent retry for quiz loading...');
+          await new Promise((r) => setTimeout(r, 600));
+          return handleFetchQuiz(mode, true);
+        }
+        console.error('[Quiz Engine] Final load error:', err);
         setFetchError(err.message || 'Could not load quiz questions.');
         setEngineState('ACTIVE');
       }
     },
-    [stepId, onRemediationStateChange]
+    [stepId, attemptCount, onRemediationStateChange]
   );
 
   // Automatically load initial quiz on step change or mount
@@ -272,7 +301,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
     handleFetchQuiz('initial');
   }, [stepId, handleFetchQuiz]);
 
-  // Submit Evaluation
+  // Submit Evaluation (35s timeout)
   const handleSubmitEvaluation = async () => {
     setEngineState('SUBMITTING');
     try {
@@ -286,7 +315,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(35000),
       });
 
       if (!res.ok) {
@@ -364,7 +393,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         if (onRemediationStateChange) onRemediationStateChange(false);
         onStepPassed(percent, {
           ...result,
-          onRetryPerfection: () => handleFetchQuiz('perfection'),
+          onRetryPerfection: () => {
+            setAttemptCount((prev) => prev + 1);
+            handleFetchQuiz('perfection');
+          },
         });
       } else {
         setEngineState('FAILED_REMEDIATION');
@@ -422,7 +454,12 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
         <p className="text-xs text-slate-600">{fetchError}</p>
         <button
           type="button"
-          onClick={() => handleFetchQuiz('initial')}
+          onClick={() => {
+            if (quizMode === 'retest' || quizMode === 'perfection') {
+              setAttemptCount((prev) => prev + 1);
+            }
+            handleFetchQuiz(quizMode || 'initial');
+          }}
           className="px-6 py-2.5 rounded-xl font-heading font-bold text-xs bg-emerald-600 hover:bg-emerald-700 text-white shadow-md transition-all cursor-pointer inline-flex items-center gap-2"
         >
           <RotateCcw className="w-4 h-4" />
@@ -852,7 +889,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
 
           <button
             type="button"
-            onClick={() => handleFetchQuiz('retest')}
+            onClick={() => {
+              setAttemptCount((prev) => prev + 1);
+              handleFetchQuiz('retest');
+            }}
             disabled={!allRemediationCompleted}
             className={`px-7 py-3 rounded-xl font-heading font-bold text-xs uppercase tracking-wider transition-all flex items-center gap-2 ${
               allRemediationCompleted
@@ -951,7 +991,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
               {/* Button A: Take Perfection Quiz */}
               <button
                 type="button"
-                onClick={() => handleFetchQuiz('perfection')}
+                onClick={() => {
+                  setAttemptCount((prev) => prev + 1);
+                  handleFetchQuiz('perfection');
+                }}
                 className="px-6 py-3.5 rounded-2xl font-heading font-bold text-xs bg-indigo-600 hover:bg-indigo-700 text-white shadow-md shadow-indigo-600/20 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
               >
                 <Sparkles className="w-4 h-4 text-amber-300" />
@@ -964,7 +1007,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                 onClick={() =>
                   onStepPassed(evaluationResult.percent, {
                     ...evaluationResult,
-                    onRetryPerfection: () => handleFetchQuiz('perfection'),
+                    onRetryPerfection: () => {
+                      setAttemptCount((prev) => prev + 1);
+                      handleFetchQuiz('perfection');
+                    },
                   })
                 }
                 className="px-6 py-3.5 rounded-2xl font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-lg shadow-emerald-600/25 transition-all flex items-center justify-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
@@ -993,7 +1039,10 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                 onClick={() =>
                   onStepPassed(100, {
                     ...evaluationResult,
-                    onRetryPerfection: () => handleFetchQuiz('perfection'),
+                    onRetryPerfection: () => {
+                      setAttemptCount((prev) => prev + 1);
+                      handleFetchQuiz('perfection');
+                    },
                   })
                 }
                 className="px-8 py-3.5 rounded-2xl font-heading font-bold text-xs bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white shadow-xl shadow-emerald-600/25 transition-all inline-flex items-center gap-2 cursor-pointer hover:scale-[1.02] active:scale-[0.98]"
