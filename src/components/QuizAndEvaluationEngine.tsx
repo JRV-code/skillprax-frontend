@@ -566,7 +566,7 @@ const QuizAndEvaluationEngineInner: React.FC<QuizAndEvaluationEngineProps> = ({
                     <div className="flex flex-wrap items-center gap-1.5 mb-1">
                       <span className="text-[10px] font-heading font-extrabold uppercase tracking-wider text-sky-800 bg-sky-50 px-2 py-0.5 rounded border border-sky-200 inline-flex items-center gap-1">
                         <span>📚</span>
-                        <span>From Step {stepIndex + 1} Topic: {q.sourceTopic || q.topicTitle || 'Core Focus'}</span>
+                        <span>Topic: {q.sourceTopic || q.topicTitle || 'Core Focus'}</span>
                       </span>
                       {q.sourceResourceTitle && (
                         <span className="text-[10px] font-medium text-slate-500 bg-slate-50 px-2 py-0.5 rounded border border-slate-200 max-w-[280px] truncate" title={q.sourceResourceTitle}>
