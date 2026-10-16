@@ -31,6 +31,8 @@ interface ClubVenue {
   verified: boolean;
   googleMapsQuery: string;
   ageEligibility?: string;
+  discoveryTier?: 'CITY' | 'STATE' | 'NATIONAL';
+  tierLabel?: string;
 }
 
 interface ShopVenue {
@@ -44,7 +46,7 @@ interface ShopVenue {
   googleMapsQuery: string;
 }
 
-const SPORTS_LIST = ['Football', 'Cricket', 'Badminton', 'Swimming', 'Tennis', 'Basketball'];
+const SPORTS_LIST = ['Football', 'Cricket', 'Badminton', 'Hockey', 'Swimming', 'Tennis', 'Basketball', 'Archery', 'Boxing', 'Athletics'];
 const POPULAR_CITIES = ['Ahmedabad', 'Gandhinagar', 'Surat', 'Mumbai', 'Bengaluru', 'Delhi NCR', 'Pune'];
 
 export interface ClubsNearMeViewProps {
@@ -368,9 +370,24 @@ export function ClubsNearMeView({ ageCategory = 'ALL', enrolledSports = [] }: Cl
                       {/* Badge & Distance */}
                       <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
                         <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-50 text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="w-3 h-3 text-emerald-600" />
-                            <span>Verified Academy</span>
+                          <span
+                            className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider border ${
+                              club.discoveryTier === 'NATIONAL'
+                                ? 'bg-indigo-50 text-indigo-700 border-indigo-200'
+                                : club.discoveryTier === 'STATE'
+                                ? 'bg-amber-50 text-amber-700 border-amber-200'
+                                : 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                            }`}
+                          >
+                            <CheckCircle2 className="w-3 h-3" />
+                            <span>
+                              {club.tierLabel ||
+                                (club.discoveryTier === 'NATIONAL'
+                                  ? 'Premier National Academy'
+                                  : club.discoveryTier === 'STATE'
+                                  ? 'State Academy'
+                                  : 'Verified Academy')}
+                            </span>
                           </span>
                           <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-sky-50 text-sky-700 border border-sky-200">
                             {club.ageEligibility || (ageCategory && ageCategory !== 'ALL' ? `Eligible for ${ageCategory}` : 'All Age Groups')}
@@ -458,6 +475,18 @@ export function ClubsNearMeView({ ageCategory = 'ALL', enrolledSports = [] }: Cl
                   </motion.div>
                 );
               })}
+            </div>
+          )}
+
+          {activeSubTab === 'clubs' && clubs.length === 0 && (
+            <div className="py-16 text-center space-y-3 bg-white rounded-3xl border border-slate-200/80 p-8">
+              <MapPin className="w-10 h-10 text-slate-300 mx-auto" />
+              <h3 className="text-base font-bold text-slate-800">
+                No Verified Clubs Found for {selectedSport}
+              </h3>
+              <p className="text-xs text-slate-500 max-w-md mx-auto">
+                We scanned local venues in {city}, regional academies in {state}, and national directories. Try searching for a nearby major hub (e.g., Ahmedabad, Delhi NCR, or Bengaluru) or choose another sport above.
+              </p>
             </div>
           )}
 
