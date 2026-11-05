@@ -10,9 +10,36 @@ interface AuthState {
   isLoading: boolean;
 }
 
-const TOKEN_KEY = 'skillprax_auth_token';
+const TOKEN_KEYS = ['skillprax_auth_token', 'token', 'skillprax_token', 'authToken'];
 const PROFILE_ID_KEY = 'skillprax_active_profile_id';
 const USER_CACHE_KEY = 'skillprax_user_profile';
+
+export function getStoredToken(): string | null {
+  if (typeof window === 'undefined') return null;
+  for (const key of TOKEN_KEYS) {
+    const val = localStorage.getItem(key);
+    if (val && val.trim() && val !== 'null' && val !== 'undefined') {
+      return val.trim();
+    }
+  }
+  return null;
+}
+
+export function saveStoredToken(token: string) {
+  if (typeof window === 'undefined') return;
+  for (const key of TOKEN_KEYS) {
+    localStorage.setItem(key, token);
+  }
+}
+
+export function clearStoredAuth() {
+  if (typeof window === 'undefined') return;
+  for (const key of TOKEN_KEYS) {
+    localStorage.removeItem(key);
+  }
+  localStorage.removeItem(PROFILE_ID_KEY);
+  localStorage.removeItem(USER_CACHE_KEY);
+}
 
 // Global shared state for reactive cross-component synchronization
 let globalState: AuthState = {
@@ -34,12 +61,12 @@ function setGlobalState(updates: Partial<AuthState>) {
 }
 
 /**
- * Hydrates user state from backend GET /api/user/me using saved Bearer token
+ * Hydrates user state from backend GET /api/auth/me using saved Bearer token
  */
 export async function hydrateUser(): Promise<UserProfile | null> {
   if (typeof window === 'undefined') return null;
 
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getStoredToken();
   const cachedUserStr = localStorage.getItem(USER_CACHE_KEY);
 
   if (!token) {
@@ -50,14 +77,14 @@ export async function hydrateUser(): Promise<UserProfile | null> {
         return cached;
       } catch (_) {}
     }
-    setGlobalState({ isLoading: false });
+    setGlobalState({ user: null, token: null, isAuthenticated: false, isLoading: false });
     return null;
   }
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
 
   try {
-    const res = await fetch(`${API_BASE}/api/user/me`, {
+    const res = await fetch(`${API_BASE}/api/auth/me`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
@@ -82,9 +109,10 @@ export async function hydrateUser(): Promise<UserProfile | null> {
         return user;
       }
     } else {
-      // If server returned 401, remove token
-      if (res.status === 401) {
-        localStorage.removeItem(TOKEN_KEY);
+      // If server returned 401 or 404, remove stale token
+      if (res.status === 401 || res.status === 404) {
+        clearStoredAuth();
+        setGlobalState({ user: null, token: null, isAuthenticated: false, isLoading: false });
       }
     }
   } catch (err) {
@@ -104,7 +132,7 @@ export async function hydrateUser(): Promise<UserProfile | null> {
 
 export function login(user: UserProfile, token?: string) {
   if (token) {
-    localStorage.setItem(TOKEN_KEY, token);
+    saveStoredToken(token);
   }
   if (user?.id) {
     localStorage.setItem(PROFILE_ID_KEY, user.id);
@@ -113,16 +141,19 @@ export function login(user: UserProfile, token?: string) {
 
   setGlobalState({
     user,
-    token: token || globalState.token,
+    token: token || getStoredToken() || globalState.token,
     isAuthenticated: true,
     isLoading: false,
   });
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth-change'));
+    window.dispatchEvent(new Event('storage'));
+  }
 }
 
 export function logout() {
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(PROFILE_ID_KEY);
-  localStorage.removeItem(USER_CACHE_KEY);
+  clearStoredAuth();
 
   setGlobalState({
     user: null,
@@ -130,6 +161,11 @@ export function logout() {
     isAuthenticated: false,
     isLoading: false,
   });
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth-change'));
+    window.dispatchEvent(new Event('storage'));
+  }
 }
 
 export async function updateUser(updated: Partial<UserProfile>): Promise<UserProfile | null> {
@@ -139,11 +175,13 @@ export async function updateUser(updated: Partial<UserProfile>): Promise<UserPro
   localStorage.setItem(USER_CACHE_KEY, JSON.stringify(merged));
   setGlobalState({ user: merged });
 
-  const token = localStorage.getItem(TOKEN_KEY);
+  const token = getStoredToken();
+  const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
+
   if (token) {
     try {
-      await fetch('/api/user/profile', {
-        method: 'PATCH',
+      await fetch(`${API_BASE}/api/profile`, {
+        method: 'PUT',
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${token}`,
@@ -153,6 +191,10 @@ export async function updateUser(updated: Partial<UserProfile>): Promise<UserPro
     } catch (err) {
       console.warn('[useAuthStore] Background sync of updated profile failed:', err);
     }
+  }
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event('auth-change'));
   }
 
   return merged;
@@ -167,6 +209,13 @@ export function useAuthStore() {
   useEffect(() => {
     listeners.add(setState);
 
+    const handleAuthEvent = () => {
+      hydrateUser();
+    };
+
+    window.addEventListener('auth-change', handleAuthEvent);
+    window.addEventListener('storage', handleAuthEvent);
+
     // Initial hydration if not loaded yet
     if (globalState.isLoading) {
       hydrateUser();
@@ -174,6 +223,8 @@ export function useAuthStore() {
 
     return () => {
       listeners.delete(setState);
+      window.removeEventListener('auth-change', handleAuthEvent);
+      window.removeEventListener('storage', handleAuthEvent);
     };
   }, []);
 
