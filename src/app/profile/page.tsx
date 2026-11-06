@@ -9,8 +9,7 @@ import {
   Bell, Clock, Activity, CheckCircle2, AlertCircle, 
   Lock, Mail, User, Sparkles, Calendar, Check, Send,
   Apple, HeartPulse, Globe, MapPin, Compass, Brain,
-  Target, Zap, Trophy, ChevronRight, X, ExternalLink,
-  LogOut
+  Target, Zap, Trophy, ChevronRight, X, ExternalLink
 } from 'lucide-react';
 import { SkillTrackLogo } from '@/components/SkillTrackLogo';
 import { EnrollSkillModal } from '@/components/EnrollSkillModal';
@@ -21,9 +20,8 @@ import { Navbar } from '@/components/common/Navbar';
 import { GiveUpSkillFrictionModal } from '@/components/learning/GiveUpSkillFrictionModal';
 import { motion, AnimatePresence } from 'framer-motion';
 import { DomainCategory, Review } from '@/types';
-import { useAuthStore, getStoredToken, clearStoredAuth, logout as storeLogout } from '@/store/useAuthStore';
+import { useAuthStore } from '@/store/useAuthStore';
 import { SkillTrackCertificateModal } from '@/components/certificate/SkillTrackCertificateModal';
-import { UnifiedAuthModal } from '@/components/auth/UnifiedAuthModal';
 
 const AnimatedCounter: React.FC<{ value: number; duration?: number }> = ({ value, duration = 1000 }) => {
   const [displayValue, setDisplayValue] = useState(0);
@@ -110,7 +108,6 @@ export default function ProfileHubPage() {
     isPhysical?: boolean;
   } | null>(null);
   const [showCertModal, setShowCertModal] = useState<boolean>(false);
-  const [showAuthModal, setShowAuthModal] = useState<boolean>(false);
 
   // Editable Smart Calibration Form State
   const [calibrationForm, setCalibrationForm] = useState({
@@ -150,38 +147,17 @@ export default function ProfileHubPage() {
 
   const API_BASE = (process.env.NEXT_PUBLIC_API_URL || 'https://skillprax-backend.onrender.com').replace(/\/+$/, '');
 
-  // Sign out cleanly, clear all token storage keys, and open UnifiedAuthModal
-  const handleLogout = () => {
-    storeLogout();
-    clearStoredAuth();
-    setShowAuthModal(true);
-  };
-
   useEffect(() => {
     const storedId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
     setActiveProfileId(storedId);
     loadProfileHubData(storedId);
     loadUserReviews(storedId);
-
-    // Reactive sync on auth changes
-    const handleAuthChange = () => {
-      const refreshedId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
-      setActiveProfileId(refreshedId);
-      loadProfileHubData(refreshedId);
-    };
-
-    window.addEventListener('auth-change', handleAuthChange);
-    window.addEventListener('storage', handleAuthChange);
-    return () => {
-      window.removeEventListener('auth-change', handleAuthChange);
-      window.removeEventListener('storage', handleAuthChange);
-    };
   }, []);
 
   async function loadProfileHubData(profId: string) {
     try {
       setLoading(true);
-      const token = getStoredToken();
+      const token = localStorage.getItem('skillprax_auth_token');
       const headers: Record<string, string> = {};
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -253,7 +229,7 @@ export default function ProfileHubPage() {
       setSavingCalibration(true);
       setCalibrationToast(null);
 
-      const token = getStoredToken();
+      const token = localStorage.getItem('skillprax_auth_token');
       const headers: Record<string, string> = { 'Content-Type': 'application/json' };
       if (token) headers['Authorization'] = `Bearer ${token}`;
 
@@ -535,14 +511,6 @@ export default function ProfileHubPage() {
             <Plus className="w-3.5 h-3.5" />
             <span>+ Enroll Skill</span>
           </button>
-          <button
-            onClick={handleLogout}
-            className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
-            title="Sign out of your account"
-          >
-            <LogOut className="w-3.5 h-3.5 text-rose-600" />
-            <span className="hidden sm:inline">Sign Out</span>
-          </button>
         </div>
       </header>
 
@@ -614,14 +582,6 @@ export default function ProfileHubPage() {
               >
                 <Edit2 className="w-3.5 h-3.5 text-slate-500" />
                 <span>Edit Profile</span>
-              </button>
-              <button
-                onClick={handleLogout}
-                className="px-3.5 py-2 rounded-xl border border-rose-200 hover:border-rose-300 bg-rose-50 hover:bg-rose-100 text-xs font-bold text-rose-700 flex items-center justify-center gap-1.5 shadow-xs transition-all cursor-pointer"
-                title="Sign out of your account"
-              >
-                <LogOut className="w-3.5 h-3.5 text-rose-600" />
-                <span>Sign Out</span>
               </button>
             </div>
           </div>
@@ -1757,37 +1717,8 @@ export default function ProfileHubPage() {
           age: profileData.age || 18,
         }}
         onUpdateProfile={async (updated) => {
-          try {
-            const token = getStoredToken();
-            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
-
-            const res = await fetch(`${API_BASE}/api/profile`, {
-              method: 'PUT',
-              headers,
-              body: JSON.stringify({
-                profileId: activeProfileId,
-                email: profileData?.email || authUser?.email,
-                healthConditions: updated.medicalConditions || (updated as any).healthConditions,
-                ...updated,
-              }),
-            });
-
-            if (res.ok) {
-              const data = await res.json();
-              const refreshed = data.profile || data.user || updated;
-              setProfileData((prev: any) => ({ ...prev, ...refreshed }));
-              updateUser(refreshed);
-              if (typeof window !== 'undefined') {
-                window.dispatchEvent(new Event('auth-change'));
-              }
-            }
-          } catch (e) {
-            console.error('[ProfileHub] Failed to save updated profile to backend:', e);
-          } finally {
-            if (activeProfileId) {
-              await loadProfileHubData(activeProfileId);
-            }
+          if (activeProfileId) {
+            await loadProfileHubData(activeProfileId);
           }
         }}
       />
@@ -1824,17 +1755,6 @@ export default function ProfileHubPage() {
           isPhysical={selectedCert.isPhysical}
         />
       )}
-      {/* UNIVERSAL AUTH MODAL (FOR SEAMLESS RE-LOGIN AFTER LOGOUT) */}
-      <UnifiedAuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={() => {
-          setShowAuthModal(false);
-          const storedId = localStorage.getItem('skillprax_active_profile_id') || 'default-profile';
-          setActiveProfileId(storedId);
-          loadProfileHubData(storedId);
-        }}
-      />
     </div>
   );
 }

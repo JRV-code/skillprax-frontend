@@ -22,7 +22,6 @@ import {
   HeartPulse,
   Activity,
   ChevronRight,
-  Calendar,
 } from 'lucide-react';
 import confetti from 'canvas-confetti';
 import { login as storeLogin } from '@/store/useAuthStore';
@@ -67,7 +66,6 @@ export function UnifiedAuthModal({
   const [passwordSuccess, setPasswordSuccess] = useState(false);
 
   // Step 2 (Sign-Up / First-time OAuth): Profile Calibration & Health Safety Fields
-  const [onboardingDob, setOnboardingDob] = useState('');
   const [onboardingCity, setOnboardingCity] = useState('Ahmedabad');
   const [onboardingState, setOnboardingState] = useState('Gujarat');
   const [onboardingAgeCategory, setOnboardingAgeCategory] = useState<'U-14' | 'U-17' | 'U-19' | 'Open'>('Open');
@@ -76,11 +74,6 @@ export function UnifiedAuthModal({
   const [onboardingCustomHealth, setOnboardingCustomHealth] = useState('');
   const [onboardingLanguage, setOnboardingLanguage] = useState('en');
   const [savingOnboarding, setSavingOnboarding] = useState(false);
-
-  // Google OAuth Fallback Bridge Prompt State
-  const [googleBridgeOpen, setGoogleBridgeOpen] = useState(false);
-  const [googleBridgeEmail, setGoogleBridgeEmail] = useState('');
-  const [googleBridgeName, setGoogleBridgeName] = useState('');
 
   // Shared Status States
   const [loading, setLoading] = useState(false);
@@ -195,37 +188,8 @@ export function UnifiedAuthModal({
     }
   }, [isOpen, isGoogleConfigured, GOOGLE_CLIENT_ID, modalStep]);
 
-  // Dynamic DOB to Age Category Calculation
-  const handleDobChange = (dobValue: string) => {
-    setOnboardingDob(dobValue);
-    if (!dobValue) return;
-    const birthDate = new Date(dobValue);
-    if (isNaN(birthDate.getTime())) return;
-    const today = new Date();
-    let age = today.getFullYear() - birthDate.getFullYear();
-    const m = today.getMonth() - birthDate.getMonth();
-    if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-      age--;
-    }
-    if (age > 0) {
-      if (age < 14) setOnboardingAgeCategory('U-14');
-      else if (age < 17) setOnboardingAgeCategory('U-17');
-      else if (age < 19) setOnboardingAgeCategory('U-19');
-      else setOnboardingAgeCategory('Open');
-    }
-  };
-
-  // Unified Google Token/Credential/Profile Sender to backend (Formats A, B, and C)
-  const handleGoogleAuthPayload = async (payload: {
-    access_token?: string;
-    accessToken?: string;
-    credential?: string;
-    idToken?: string;
-    email?: string;
-    name?: string;
-    avatarUrl?: string;
-    googleId?: string;
-  }) => {
+  // Unified Google Token/Credential Sender to backend
+  const handleGoogleAuthPayload = async (payload: { access_token?: string; credential?: string }) => {
     try {
       setLoading(true);
       setErrorMessage(null);
@@ -245,13 +209,11 @@ export function UnifiedAuthModal({
         setSessionToken(token);
       }
 
-      setGoogleBridgeOpen(false);
-
       if (data.needsPasswordSetup) {
         setModalStep('SET_PASSWORD_STEP');
         setSuccessNotice('Google account linked! Enhance your account security by setting a password.');
         setTimeout(() => setSuccessNotice(null), 4000);
-      } else if (data.needsOnboarding || !activeUser?.onboardingCompleted) {
+      } else if (!activeUser?.onboardingCompleted) {
         setSuccessNotice('Google account verified! Step 2: Personalize your learner profile.');
         setTimeout(() => {
           setSuccessNotice(null);
@@ -271,23 +233,22 @@ export function UnifiedAuthModal({
     }
   };
 
-  // Handle Google Credential Token from GSI One Tap / Native button (Format A)
+  // Handle Google Credential Token from GSI One Tap / Native button
   const handleGoogleCredentialResponse = async (response: any) => {
     const credential = response?.credential;
     if (!credential) {
-      setErrorMessage('Failed to receive credential from Google. Please try again or use Quick-Sign-In.');
+      setErrorMessage('Failed to receive credential from Google. Please try again.');
       return;
     }
     await handleGoogleAuthPayload({ credential });
   };
 
-  // Direct Button Click: Trigger OAuth2 Popup Client or Google Quick-Sign-In Bridge (Format C)
+  // Direct Button Click: Trigger OAuth2 Popup Client
   const handleCustomGoogleClick = () => {
-    // If Google Client ID is missing or blocked, open Google Quick-Sign-In Bridge directly
     if (!isGoogleConfigured) {
-      setGoogleBridgeEmail(email || '');
-      setGoogleBridgeName(name || '');
-      setGoogleBridgeOpen(true);
+      setErrorMessage(
+        'Google Client ID is not configured in environment variables (NEXT_PUBLIC_GOOGLE_CLIENT_ID). Please sign in with email/password.'
+      );
       return;
     }
 
@@ -301,30 +262,22 @@ export function UnifiedAuthModal({
           scope: 'openid email profile',
           callback: async (tokenResponse: any) => {
             if (tokenResponse?.error) {
-              console.warn('[UnifiedAuthModal] Google popup cancelled or error:', tokenResponse);
-              // Open Google Bridge as seamless fallback
-              setGoogleBridgeEmail(email || '');
-              setGoogleBridgeName(name || '');
-              setGoogleBridgeOpen(true);
+              setErrorMessage(
+                tokenResponse.error_description || 'Google authorization was cancelled or failed.'
+              );
               return;
             }
             if (tokenResponse?.access_token) {
               await handleGoogleAuthPayload({ access_token: tokenResponse.access_token });
             } else {
-              setGoogleBridgeEmail(email || '');
-              setGoogleBridgeName(name || '');
-              setGoogleBridgeOpen(true);
+              setErrorMessage('No access token received from Google.');
             }
           },
         });
         tokenClient.requestAccessToken({ prompt: 'select_account' });
         return;
       } catch (err) {
-        console.warn('[UnifiedAuthModal] initTokenClient failed, falling back to Google Bridge:', err);
-        setGoogleBridgeEmail(email || '');
-        setGoogleBridgeName(name || '');
-        setGoogleBridgeOpen(true);
-        return;
+        console.warn('[UnifiedAuthModal] initTokenClient failed, falling back to One Tap prompt:', err);
       }
     }
 
@@ -336,40 +289,20 @@ export function UnifiedAuthModal({
             const nativeBtn = document.querySelector('#google-hidden-btn div[role="button"]') as HTMLElement;
             if (nativeBtn) {
               nativeBtn.click();
-            } else {
-              setGoogleBridgeEmail(email || '');
-              setGoogleBridgeName(name || '');
-              setGoogleBridgeOpen(true);
             }
           }
         });
         return;
       } catch (_) {
-        setGoogleBridgeEmail(email || '');
-        setGoogleBridgeName(name || '');
-        setGoogleBridgeOpen(true);
-        return;
+        const nativeBtn = document.querySelector('#google-hidden-btn div[role="button"]') as HTMLElement;
+        if (nativeBtn) {
+          nativeBtn.click();
+          return;
+        }
       }
     }
 
-    // Final Fallback: Open Google Quick-Sign-In Bridge
-    setGoogleBridgeEmail(email || '');
-    setGoogleBridgeName(name || '');
-    setGoogleBridgeOpen(true);
-  };
-
-  // Google Quick-Sign-In Bridge Submission Handler
-  const handleGoogleBridgeSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const cleanEmail = googleBridgeEmail.trim().toLowerCase();
-    if (!cleanEmail || !cleanEmail.includes('@') || !cleanEmail.includes('.')) {
-      setErrorMessage('Please enter a valid Google email address.');
-      return;
-    }
-    await handleGoogleAuthPayload({
-      email: cleanEmail,
-      name: googleBridgeName.trim() || undefined,
-    });
+    setErrorMessage('Google Sign-In is initializing. Please wait a moment or sign in with email.');
   };
 
   // Step 1a: Handle Sign In Submission
@@ -573,8 +506,6 @@ export function UnifiedAuthModal({
           userId: loggedInUser?.id,
           email: loggedInUser?.email,
           name: loggedInUser?.name || name || undefined,
-          dateOfBirth: onboardingDob || undefined,
-          dob: onboardingDob || undefined,
           city: onboardingCity,
           state: onboardingState,
           ageCategory: onboardingAgeCategory,
@@ -587,8 +518,6 @@ export function UnifiedAuthModal({
 
       const activeUser = updated.user || updated.profile || {
         ...loggedInUser,
-        dateOfBirth: onboardingDob,
-        dob: onboardingDob,
         city: onboardingCity,
         state: onboardingState,
         ageCategory: onboardingAgeCategory,
@@ -655,117 +584,6 @@ export function UnifiedAuthModal({
           >
             <X className="w-5 h-5" />
           </button>
-
-          {/* Google Quick-Sign-In OAuth Bridge Overlay */}
-          {googleBridgeOpen && (
-            <div className="absolute inset-0 z-30 bg-white/98 backdrop-blur-md p-6 sm:p-8 flex flex-col justify-center rounded-3xl">
-              <div className="text-center mb-5">
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 border border-indigo-100 flex items-center justify-center mx-auto mb-3 shadow-xs">
-                  <svg className="w-6 h-6" viewBox="0 0 24 24">
-                    <path
-                      fill="#4285F4"
-                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    />
-                    <path
-                      fill="#34A853"
-                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    />
-                    <path
-                      fill="#FBBC05"
-                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                    />
-                    <path
-                      fill="#EA4335"
-                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                    />
-                  </svg>
-                </div>
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 border border-indigo-100 text-[11px] font-bold tracking-wider uppercase mb-2">
-                  <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
-                  <span>GOOGLE QUICK-SIGN-IN BRIDGE</span>
-                </div>
-                <h3 className="text-xl font-black text-slate-900 tracking-tight">
-                  Instant Google Sign-In
-                </h3>
-                <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                  Authenticate your verified Google account seamlessly into SKILL-TRACK.
-                </p>
-              </div>
-
-              {/* Error Message */}
-              {errorMessage && (
-                <div className="mb-4 p-3 rounded-2xl bg-rose-50 border border-rose-200/80 text-rose-700 text-xs flex items-start gap-2.5">
-                  <AlertCircle className="w-4 h-4 shrink-0 text-[#F43F5E] mt-0.5" />
-                  <div className="leading-snug">{errorMessage}</div>
-                </div>
-              )}
-
-              <form onSubmit={handleGoogleBridgeSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Google Email Address
-                  </label>
-                  <div className="relative">
-                    <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="email"
-                      value={googleBridgeEmail}
-                      onChange={(e) => setGoogleBridgeEmail(e.target.value)}
-                      placeholder="yourname@gmail.com"
-                      required
-                      autoFocus
-                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1">
-                    Full Name (Optional)
-                  </label>
-                  <div className="relative">
-                    <User className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      value={googleBridgeName}
-                      onChange={(e) => setGoogleBridgeName(e.target.value)}
-                      placeholder="e.g. Alex Kumar"
-                      className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border border-slate-200 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-100 text-sm text-slate-800 placeholder-slate-400 font-medium transition-all outline-none"
-                    />
-                  </div>
-                </div>
-
-                <div className="flex gap-2.5 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setGoogleBridgeOpen(false);
-                      setErrorMessage(null);
-                    }}
-                    className="flex-1 py-3 px-4 rounded-2xl border border-slate-200 text-slate-600 font-bold text-xs hover:bg-slate-50 transition-all cursor-pointer"
-                  >
-                    Cancel
-                  </button>
-                  <motion.button
-                    type="submit"
-                    disabled={loading}
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="flex-2 py-3 px-4 rounded-2xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-xs shadow-md shadow-blue-500/25 transition-all cursor-pointer disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {loading ? (
-                      <span>Authenticating...</span>
-                    ) : (
-                      <>
-                        <span>Continue with Google</span>
-                        <ArrowRight className="w-4 h-4" />
-                      </>
-                    )}
-                  </motion.button>
-                </div>
-              </form>
-            </div>
-          )}
 
           {/* 2-Step Progress Indicator Pill */}
           <div className="flex items-center justify-center gap-2 mb-5">
@@ -1103,40 +921,47 @@ export function UnifiedAuthModal({
                   </div>
                 </div>
 
-                {/* Google Sign-In Trigger (Active in All Environments via Native GIS or Quick-Sign-In Bridge) */}
-                <div>
-                  <motion.button
-                    type="button"
-                    onClick={handleCustomGoogleClick}
-                    disabled={loading}
-                    whileHover={{ scale: 1.01 }}
-                    whileTap={{ scale: 0.98 }}
-                    className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
-                  >
-                    <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
-                      <path
-                        fill="#4285F4"
-                        d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
-                      />
-                      <path
-                        fill="#EA4335"
-                        d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
-                      />
-                    </svg>
-                    <span>Continue with Google</span>
-                  </motion.button>
+                {/* Google Sign-In Trigger */}
+                {isGoogleConfigured ? (
+                  <div>
+                    <motion.button
+                      type="button"
+                      onClick={handleCustomGoogleClick}
+                      disabled={loading}
+                      whileHover={{ scale: 1.01 }}
+                      whileTap={{ scale: 0.98 }}
+                      className="w-full py-2.5 px-4 rounded-2xl border border-slate-200 hover:bg-slate-50 text-slate-700 font-semibold text-xs flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm disabled:opacity-50"
+                    >
+                      <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
+                        <path
+                          fill="#4285F4"
+                          d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                        />
+                        <path
+                          fill="#34A853"
+                          d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                        />
+                        <path
+                          fill="#FBBC05"
+                          d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                        />
+                        <path
+                          fill="#EA4335"
+                          d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                        />
+                      </svg>
+                      <span>Continue with Google</span>
+                    </motion.button>
 
-                  {/* Hidden Native Container for Google GSI iframe */}
-                  <div id="google-hidden-btn" className="hidden" />
-                </div>
+                    {/* Hidden Native Container for Google GSI iframe */}
+                    <div id="google-hidden-btn" className="hidden" />
+                  </div>
+                ) : (
+                  <div className="py-2.5 px-3 rounded-2xl bg-slate-50 border border-slate-200/70 text-slate-500 text-[11px] text-center flex items-center justify-center gap-1.5">
+                    <ShieldCheck className="w-3.5 h-3.5 text-indigo-500 shrink-0" />
+                    <span>Universal credentials verified securely by SKILL-TRACK</span>
+                  </div>
+                )}
 
                 {/* Footer note */}
                 <p className="text-[10px] text-slate-400 text-center mt-4">
@@ -1339,23 +1164,6 @@ export function UnifiedAuthModal({
                 )}
 
                 <form onSubmit={handleOnboardingSubmit} className="space-y-4">
-                  {/* Date of Birth (Auto-calculates Age Division) */}
-                  <div>
-                    <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
-                      <Calendar className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>Date of Birth</span>
-                    </label>
-                    <input
-                      type="date"
-                      value={onboardingDob}
-                      onChange={(e) => handleDobChange(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white text-xs font-semibold text-slate-800 outline-none transition-all cursor-pointer"
-                    />
-                    <p className="text-[10px] text-slate-400 mt-1">
-                      Calibrates age-appropriate training intensity and competition division automatically.
-                    </p>
-                  </div>
-
                   {/* Location: City & State */}
                   <div>
                     <label className="text-xs font-bold text-slate-700 uppercase tracking-wider flex items-center gap-1.5 mb-1.5">
